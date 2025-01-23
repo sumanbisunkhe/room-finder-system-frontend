@@ -3,8 +3,8 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+import { loginUser } from "../services/authService";
 import "./LoginPage.css";
 
 const loginSchema = yup.object().shape({
@@ -29,11 +29,26 @@ const LoginPage = () => {
     setLoading(true);
     setServerError(null);
     try {
-      const response = await axios.post("http://localhost:8080/api/auth/login", data);
-      localStorage.setItem("token", response.data.jwt);
-      navigate("/dashboard");
+      const { token, role } = await loginUser(data.identifier, data.password);
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("userRole", role);
+
+      switch (role) {
+        case "SEEKER":
+          navigate("/dashboard/seeker");
+          break;
+        case "LANDLORD":
+          navigate("/dashboard/landlord");
+          break;
+        case "ADMIN":
+          navigate("/dashboard/admin");
+          break;
+        default:
+          throw new Error("Invalid user role");
+      }
     } catch (error) {
-      setServerError("Invalid credentials. Please try again.");
+      setServerError(error.message || "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -42,7 +57,7 @@ const LoginPage = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-      <img src="\src\assets\RFS.svg" alt="Logo" className="logo" />
+        <img src="\src\assets\RFS.svg" alt="Logo" className="logo" />
         <h2>Login</h2>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="form-group">

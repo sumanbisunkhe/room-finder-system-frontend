@@ -1,55 +1,97 @@
-// src/components/Login.jsx
-import React, { useState } from 'react';
-import { loginUser } from '../services/authService';
+// src/pages/LoginPage.jsx
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import axios from "axios";
+import { useNavigate, Link } from "react-router-dom";
+import { getUserRole } from "../utils/jwtUtils";
+import "./LoginPage.css";
 
-const Login = () => {
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+const loginSchema = yup.object().shape({
+  identifier: yup.string().required("Please enter your username or email"),
+  password: yup.string().required("Password is required"),
+});
+
+const LoginPage = () => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(loginSchema),
+  });
+
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState(null);
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data) => {
     setLoading(true);
-    setError('');
+    setServerError(null);
     try {
-      const data = await loginUser(identifier, password);
-      console.log('Login successful:', data);
-      localStorage.setItem('token', data.token); // Save the JWT token
-      alert('Login successful');
-    } catch (err) {
-      setError(err.message || 'Invalid credentials');
+      const response = await axios.post("http://localhost:8080/api/auth/login", data);
+      const token = response.data.jwt;
+
+      const userRole = getUserRole(token);
+      console.log('User Role:', userRole);
+
+      if (!userRole) {
+        setServerError("Unable to determine user role");
+        return;
+      }
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("userRole", userRole);
+
+      switch(userRole) {
+        case "SEEKER":
+          navigate("/dashboard/seeker");
+          break;
+        case "LANDLORD":
+          navigate("/dashboard/landlord");
+          break;
+        case "ADMIN":
+          navigate("/dashboard/admin");
+          break;
+        default:
+          setServerError("Invalid user role");
+      }
+    } catch (error) {
+      console.error('Login Error:', error);
+      setServerError("Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="login-container">
-      <h1>Login</h1>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Email or Username"
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        {error && <p className="error-message">{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
-      </form>
+    <div className="auth-container">
+      <div className="auth-card">
+      <img src="\src\assets\RFS.svg" alt="Logo" className="logo" />
+        <h2>Login</h2>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="form-group">
+            <label>Username or Email</label>
+            <input {...register("identifier")} />
+            <p className="error">{errors.identifier?.message}</p>
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input type="password" {...register("password")} />
+            <p className="error">{errors.password?.message}</p>
+          </div>
+          {serverError && <p className="error server-error">{serverError}</p>}
+          <button type="submit" className="btn" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </form>
+        <p>
+          Don’t have an account? <Link to="/register">Register</Link>
+        </p>
+      </div>
     </div>
   );
 };
 
-export default Login;
-
+export default LoginPage;
