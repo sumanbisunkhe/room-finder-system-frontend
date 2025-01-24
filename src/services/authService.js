@@ -7,40 +7,23 @@ export const loginUser = async (identifier, password) => {
     const response = await axios.post('http://localhost:8080/api/auth/login', {
       identifier,
       password,
-    }, {
-      // Add headers for debugging
-      headers: {
-        'Content-Type': 'application/json'
-      }
     });
 
-    // Log full response for debugging
-    console.log('Full Backend Response:', response);
-    console.log('Response Data:', response.data);
-
-    // Check for JWT token in multiple possible locations
-    const token = 
-      response.data.jwt || 
-      response.data.token || 
-      response.data.accessToken;
+    const token = response.data?.jwt || response.data?.token || response.data?.accessToken;
 
     if (!token) {
-      console.error('No token found in response', response.data);
-      throw new Error('Authentication failed: No token received');
+      throw new Error('Authentication failed: No token received from server');
     }
 
     const tokenPayload = decodeToken(token);
-    if (!tokenPayload) throw new Error('Failed to decode token');
+    if (!tokenPayload) {
+      throw new Error('Failed to decode token');
+    }
 
-    // More comprehensive role extraction
-    const role = 
-      tokenPayload.roles?.[0] || 
-      tokenPayload.role || 
-      tokenPayload.authorities?.[0]?.authority;
+    const role = tokenPayload.roles?.[0] || tokenPayload.role || tokenPayload.authorities?.[0]?.authority;
 
     if (!role) {
-      console.error('No role found in token payload', tokenPayload);
-      throw new Error('Unable to determine user role');
+      throw new Error('Unable to determine user role from token payload');
     }
 
     return {
@@ -48,13 +31,15 @@ export const loginUser = async (identifier, password) => {
       role: role.replace('ROLE_', '').toUpperCase(),
     };
   } catch (error) {
-    // Enhanced error logging
-    console.error('Login Error Details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
+    // Check for Axios-specific errors
+    if (error.response) {
+      const { status, data } = error.response;
+      console.error(`Login failed (HTTP ${status}):`, data);
+      throw new Error(data?.message || 'Login failed due to server error');
+    }
 
-    throw error;
+    // Log generic errors
+    console.error('Login failed:', error.message);
+    throw new Error(error.message || 'An unexpected error occurred during login');
   }
 };
