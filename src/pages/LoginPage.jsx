@@ -1,11 +1,22 @@
-// src/pages/LoginPage.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  Box,
+  TextField,
+  Button,
+  Typography,
+  Paper,
+  CircularProgress,
+  Alert,
+  Container,
+  CssBaseline,
+  InputAdornment,
+} from "@mui/material";
+import { AccountCircle, Lock, PersonAdd } from "@mui/icons-material";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { useNavigate, Link } from "react-router-dom";
 import { loginUser } from "../services/authService";
-import "./LoginPage.css";
 
 const loginSchema = yup.object().shape({
   identifier: yup.string().required("Please enter your username or email"),
@@ -13,25 +24,42 @@ const loginSchema = yup.object().shape({
 });
 
 const LoginPage = () => {
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState(null);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check for registration success on component mount
+  useEffect(() => {
+    if (location.state && location.state.registeredSuccessfully) {
+      setRegistrationSuccess(true);
+      const timer = setTimeout(() => {
+        setRegistrationSuccess(false);
+        navigate(location.pathname, { replace: true, state: {} });
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [location, navigate]);
+
+  const handleRegisterNavigation = () => {
+    navigate("/register");
+  };
+
   const {
-    register,
-    handleSubmit,
-    formState: { errors },
+    register: loginRegister,
+    handleSubmit: handleLoginSubmit,
+    formState: { errors: loginErrors },
   } = useForm({
     resolver: yupResolver(loginSchema),
   });
 
-  const [loading, setLoading] = useState(false);
-  const [serverError, setServerError] = useState(null);
-  const navigate = useNavigate();
-
-  const onSubmit = async (data) => {
+  const onLoginSubmit = async (data) => {
     setLoading(true);
     setServerError(null);
     try {
       const { token, role } = await loginUser(data.identifier, data.password);
-
-      localStorage.setItem("token", token);
+      localStorage.setItem("token", `Bearer ${token}`);
       localStorage.setItem("userRole", role);
 
       switch (role) {
@@ -45,7 +73,7 @@ const LoginPage = () => {
           navigate("/dashboard/admin");
           break;
         default:
-          throw new Error("Invalid user role");
+          setServerError("Invalid user role");
       }
     } catch (error) {
       setServerError(error.message || "Invalid credentials. Please try again.");
@@ -55,31 +83,104 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <img src="\src\assets\RFS.svg" alt="Logo" className="logo" />
-        <h2>Login</h2>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="form-group">
-            <label>Username or Email</label>
-            <input {...register("identifier")} />
-            <p className="error">{errors.identifier?.message}</p>
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input type="password" {...register("password")} />
-            <p className="error">{errors.password?.message}</p>
-          </div>
-          {serverError && <p className="error server-error">{serverError}</p>}
-          <button type="submit" className="btn" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
-          </button>
-        </form>
-        <p>
-          Don’t have an account? <Link to="/register">Register</Link>
-        </p>
-      </div>
-    </div>
+    <Container component="main" maxWidth="sm">
+      <CssBaseline />
+      <Paper elevation={6} sx={{ p: 4, borderRadius: 2, mt: 0 }}>
+        <Box display="flex" justifyContent="center" mb={2}>
+          <img
+            src="/src/assets/RR.png"
+            alt="Logo"
+            style={{ height: "50px", objectFit: "contain" }}
+          />
+        </Box>
+        <Typography component="h1" variant="h5" sx={{ textAlign: "center",fontFamily: "Courier",mt:3 ,mb:3 }}>
+          Login
+        </Typography>
+
+        {registrationSuccess && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Registration successful! Please log in with your new account.
+          </Alert>
+        )}
+
+        {serverError && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {serverError}
+          </Alert>
+        )}
+
+        <Box component="form" onSubmit={handleLoginSubmit(onLoginSubmit)} sx={{ mt: 3 }}>
+          <TextField
+            fullWidth
+            label="Username or Email"
+            {...loginRegister("identifier")}
+            error={!!loginErrors.identifier}
+            helperText={loginErrors.identifier?.message}
+            margin="normal"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <AccountCircle />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <TextField
+            fullWidth
+            type="password"
+            label="Password"
+            {...loginRegister("password")}
+            error={!!loginErrors.password}
+            helperText={loginErrors.password?.message}
+            margin="normal"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Lock />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            color="primary"
+            sx={{ mt: 2 }}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : "Login"}
+          </Button>
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 2,
+              textAlign: "center",
+            }}
+          >
+            Don't have an account?{" "}
+            <Typography
+              component="span"
+              sx={{
+                mt: 2,
+                color: "primary.main",
+                fontSize: "0.9rem",
+                fontWeight: "bold",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                "&:hover": {
+                  textDecoration: "underline",
+                },
+              }}
+              onClick={handleRegisterNavigation}
+            >
+              Register
+            </Typography>
+          </Typography>
+        </Box>
+      </Paper>
+    </Container>
   );
 };
 

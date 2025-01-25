@@ -1,3 +1,5 @@
+//src\pages\dashboards\SeekerDashboard.jsx
+
 import React, { useState } from 'react';
 import { Search, FileText, User, MapPin, LogOut } from 'lucide-react';
 

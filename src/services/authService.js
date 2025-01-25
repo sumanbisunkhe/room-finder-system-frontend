@@ -1,45 +1,59 @@
 // src/services/authService.js
 import axios from 'axios';
-import { decodeToken } from '../utils/jwtUtils';
+import { jwtDecode } from 'jwt-decode';
 
 export const loginUser = async (identifier, password) => {
   try {
     const response = await axios.post('http://localhost:8080/api/auth/login', {
       identifier,
       password,
+    }, {
+      withCredentials: true // Ensure cookies are sent and received
     });
 
-    const token = response.data?.jwt || response.data?.token || response.data?.accessToken;
+    // Log full response for debugging
+    console.log('Full Login Response:', response);
+
+    // Check for token in multiple possible locations
+    const token = 
+      response.data?.jwt || 
+      response.data?.token || 
+      response.data?.accessToken ||
+      response.headers['authorization']?.replace('Bearer ', '');
+
+    // Log cookie information
+    console.log('Cookies:', document.cookie);
 
     if (!token) {
-      throw new Error('Authentication failed: No token received from server');
+      throw new Error('No token found in response');
     }
 
-    const tokenPayload = decodeToken(token);
-    if (!tokenPayload) {
-      throw new Error('Failed to decode token');
-    }
-
-    const role = tokenPayload.roles?.[0] || tokenPayload.role || tokenPayload.authorities?.[0]?.authority;
+    // Decode token to extract role
+    const decodedToken = jwtDecode(token);
+    const role = (
+      decodedToken.roles?.[0] || 
+      decodedToken.role || 
+      decodedToken.authorities?.[0]?.authority
+    )?.replace('ROLE_', '').toUpperCase();
 
     if (!role) {
-      throw new Error('Unable to determine user role from token payload');
+      throw new Error('Unable to determine user role');
     }
 
-    return {
-      token,
-      role: role.replace('ROLE_', '').toUpperCase(),
-    };
+    return { token, role };
+
   } catch (error) {
-    // Check for Axios-specific errors
-    if (error.response) {
-      const { status, data } = error.response;
-      console.error(`Login failed (HTTP ${status}):`, data);
-      throw new Error(data?.message || 'Login failed due to server error');
-    }
+    console.error('Login Error Details:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers,
+      message: error.message
+    });
 
-    // Log generic errors
-    console.error('Login failed:', error.message);
-    throw new Error(error.message || 'An unexpected error occurred during login');
+    throw new Error(
+      error.response?.data?.message || 
+      error.message || 
+      'Login failed. Please try again.'
+    );
   }
 };

@@ -1,3 +1,5 @@
+//src\pages\dashboards\LandlordDashboard.jsx
+
 import React, { useState } from 'react';
 import { Home, PlusCircle, Inbox, BarChart2, LogOut } from 'lucide-react';
 
