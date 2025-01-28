@@ -55,11 +55,14 @@ const LoginPage = () => {
   });
 
   const onLoginSubmit = async (data) => {
-    setLoading(true);
-    setServerError(null);
     try {
       const { token, role } = await loginUser(data.identifier, data.password);
-      localStorage.setItem("token", `Bearer ${token}`);
+
+      if (!token) {
+        throw new Error('Authentication failed');
+      }
+
+      localStorage.setItem("token", token);
       localStorage.setItem("userRole", role);
 
       switch (role) {
@@ -73,12 +76,10 @@ const LoginPage = () => {
           navigate("/dashboard/admin");
           break;
         default:
-          setServerError("Invalid user role");
+          throw new Error("Invalid user role");
       }
     } catch (error) {
-      setServerError(error.message || "Invalid credentials. Please try again.");
-    } finally {
-      setLoading(false);
+      setServerError(error.message || "Login failed");
     }
   };
 
@@ -93,7 +94,7 @@ const LoginPage = () => {
             style={{ height: "50px", objectFit: "contain" }}
           />
         </Box>
-        <Typography component="h1" variant="h5" sx={{ textAlign: "center",fontFamily: "Courier",mt:3 ,mb:3 }}>
+        <Typography component="h1" variant="h5" sx={{ textAlign: "center", fontFamily: "Courier", mt: 3, mb: 3 }}>
           Login
         </Typography>
 

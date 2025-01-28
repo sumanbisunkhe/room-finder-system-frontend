@@ -15,9 +15,15 @@ export const registerUser = async (registerData) => {
 // Fetch users
 export const fetchUsers = async () => {
   try {
-    const response = await api.get('/users'); // The token is now automatically included
+    const response = await api.get('/users');
     return response.data;
   } catch (error) {
+    console.error('Fetch Users Service Error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+
     throw error.response ? error.response.data : new Error('Failed to fetch users');
   }
 };
@@ -30,7 +36,7 @@ export const fetchUserByUsername = async (username) => {
     return response.data;
   } catch (error) {
     if (error.response && error.response.status === 404) {
-      throw new Error(`User with username ${username} not found`);
+      return { success: false, message: `User with username ${username} not found` };
     }
     throw error.response ? error.response.data : new Error('Failed to fetch user by username');
   }
@@ -43,7 +49,7 @@ export const fetchUserByEmail = async (email) => {
     return response.data;
   } catch (error) {
     if (error.response && error.response.status === 404) {
-      throw new Error(`User with email ${email} not found`);
+      return { success: false, message: `User with email ${email} not found` };
     }
     throw error.response ? error.response.data : new Error('Failed to fetch user by email');
   }
@@ -76,6 +82,16 @@ export const deleteUser = async (userId) => {
     return response.data;
   } catch (error) {
     throw error.response ? error.response.data : new Error('Failed to delete user');
+  }
+};
+
+// Logout user
+export const logout = async () => {
+  try {
+    const response = await api.post('/auth/logout');
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : new Error('Logout failed');
   }
 };
 

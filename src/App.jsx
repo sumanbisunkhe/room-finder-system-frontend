@@ -10,17 +10,17 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import "./App.css";
 
 const ProtectedRoute = ({ children, requiredRole }) => {
-  const token = localStorage.getItem('token');
+  // const token = localStorage.getItem('token');
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
+  // if (!token) {
+  //   return <Navigate to="/login" replace />;
+  // }
 
-  const userRole = getUserRole(token);
+  // const userRole = getUserRole(token);
 
-  if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to="/login" replace />;
-  }
+  // if (requiredRole && userRole !== requiredRole) {
+  //   return <Navigate to="/login" replace />;
+  // }
 
   return children;
 };

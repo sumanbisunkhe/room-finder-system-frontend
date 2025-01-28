@@ -8,7 +8,7 @@ export const loginUser = async (identifier, password) => {
       identifier,
       password,
     }, {
-      withCredentials: true // Ensure cookies are sent and received
+      withCredentials: true, // Ensure cookies are sent and received
     });
 
     // Log full response for debugging
@@ -21,12 +21,12 @@ export const loginUser = async (identifier, password) => {
       response.data?.accessToken ||
       response.headers['authorization']?.replace('Bearer ', '');
 
-    // Log cookie information
-    console.log('Cookies:', document.cookie);
-
     if (!token) {
       throw new Error('No token found in response');
     }
+
+    // Store the token in localStorage
+    localStorage.setItem('token', token);
 
     // Decode token to extract role
     const decodedToken = jwtDecode(token);
