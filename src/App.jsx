@@ -10,18 +10,6 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import "./App.css";
 
 const ProtectedRoute = ({ children, requiredRole }) => {
-  // const token = localStorage.getItem('token');
-
-  // if (!token) {
-  //   return <Navigate to="/login" replace />;
-  // }
-
-  // const userRole = getUserRole(token);
-
-  // if (requiredRole && userRole !== requiredRole) {
-  //   return <Navigate to="/login" replace />;
-  // }
-
   return children;
 };
 
@@ -51,14 +39,20 @@ const App = () => {
           }
         />
 
-        <Route
-          path="/dashboard/admin"
-          element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
+        {/* Admin Dashboard Routes */}
+        <Route path="/dashboard/admin" element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <AdminDashboard />
+          </ProtectedRoute>
+        }>
+          {/* Default redirect for /dashboard/admin */}
+          <Route index element={<Navigate to="user-management" replace />} />
+          
+          {/* Admin sub-routes */}
+          <Route path="user-management" element={<AdminDashboard />} />
+          <Route path="user-analytics" element={<AdminDashboard />} />
+          <Route path="system-settings" element={<AdminDashboard />} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

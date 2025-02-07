@@ -94,6 +94,25 @@ export const logout = async () => {
     throw error.response ? error.response.data : new Error('Logout failed');
   }
 };
+// Update user profile
+export const updateUserProfile = async (userId, updateData) => {
+  try {
+    const response = await api.put(`/users/${userId}/update`, updateData);
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      switch (error.response.status) {
+        case 404:
+          throw new Error('User not found');
+        case 400:
+          throw error.response.data;
+        default:
+          throw new Error('An error occurred while updating the profile');
+      }
+    }
+    throw new Error('Failed to update user profile');
+  }
+};
 
 export default {
   registerUser,
@@ -102,5 +121,6 @@ export default {
   fetchUserByEmail,
   deactivateUser,
   activateUser,
-  deleteUser
+  deleteUser,
+  updateUserProfile
 };

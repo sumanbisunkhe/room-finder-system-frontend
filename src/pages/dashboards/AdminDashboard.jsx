@@ -58,19 +58,24 @@ import {
   People as PeopleIcon,
   CheckCircle as CheckCircleIcon
 
+
 } from '@mui/icons-material';
+import MenuIcon from '@mui/icons-material/Menu';
+
 import * as userService from '../../services/userService';
 import Grid2 from '@mui/material/Unstable_Grid2';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, Area, AreaChart
 } from 'recharts';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState('light');
   const [activeSection, setActiveSection] = useState('users');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,6 +100,7 @@ const AdminDashboard = () => {
   const [userForm, setUserForm] = useState({
     username: '',
     email: '',
+    password: '',
     fullName: '',
     phoneNumber: '',
     role: 'SEEKER',
@@ -158,6 +164,9 @@ const AdminDashboard = () => {
       }),
     [mode, prefersDarkMode]
   );
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const fetchAndProcessUsers = useCallback(async () => {
     try {
@@ -228,31 +237,147 @@ const AdminDashboard = () => {
     setFilteredUsers(result);
   }, [searchTerm, userFilter, users]);
 
+  useEffect(() => {
+    // Set active section based on current URL
+    const path = location.pathname;
+    if (path.includes('user-management')) {
+      setActiveSection('users');
+    } else if (path.includes('user-analytics')) {
+      setActiveSection('analytics');
+    } else if (path.includes('system-settings')) {
+      setActiveSection('settings');
+    }
+  }, [location.pathname]);
+
   const handleUserAction = async (userId, action) => {
-    try {
-      switch (action) {
-        case 'deactivate':
-          await userService.deactivateUser(userId);
-          break;
-        case 'activate':
-          await userService.activateUser(userId);
-          break;
-        case 'delete':
-          await userService.deleteUser(userId);
-          break;
-      }
-      fetchAndProcessUsers();
+    if (!userId) {
       setSnackbar({
         open: true,
-        message: `User ${action} successfully`,
-        severity: 'success',
-      });
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: `Failed to ${action} user`,
+        message: 'Invalid user ID',
         severity: 'error',
       });
+      return;
+    }
+
+    // Show confirmation dialog for delete action
+    if (action === 'delete') {
+      const confirmed = window.confirm('Are you sure you want to delete this user? This action cannot be undone.');
+      if (!confirmed) return;
+    }
+
+    try {
+      setLoading(true);
+
+      let response;
+      let successMessage;
+
+      switch (action) {
+        case 'deactivate':
+          response = await userService.deactivateUser(userId);
+          successMessage = 'User deactivated successfully';
+          break;
+        case 'activate':
+          response = await userService.activateUser(userId);
+          successMessage = 'User activated successfully';
+          break;
+        case 'delete':
+          response = await userService.deleteUser(userId);
+          successMessage = 'User deleted successfully';
+          break;
+        default:
+          throw new Error('Invalid action');
+      }
+
+      // Refresh user list after successful action
+      await fetchAndProcessUsers();
+
+      setSnackbar({
+        open: true,
+        message: successMessage,
+        severity: 'success',
+      });
+
+    } catch (error) {
+      const errorMessage = error.message || `Failed to ${action} user`;
+
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        setSnackbar({
+          open: true,
+          message: 'User not found',
+          severity: 'error',
+        });
+      } else if (error.response?.status === 403) {
+        setSnackbar({
+          open: true,
+          message: 'You do not have permission to perform this action',
+          severity: 'error',
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: errorMessage,
+          severity: 'error',
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleUpdateUser = async () => {
+    if (!selectedUser) {
+      setSnackbar({
+        open: true,
+        message: 'No user selected for update',
+        severity: 'error',
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const updateData = {
+        username: userForm.username,
+        email: userForm.email,
+        fullName: userForm.fullName,
+        phoneNumber: userForm.phoneNumber,
+        role: userForm.role,
+        active: userForm.status === 'active'
+      };
+
+      await userService.updateUserProfile(selectedUser.id, updateData);
+
+      // Refresh the users list
+      await fetchAndProcessUsers();
+
+      setSnackbar({
+        open: true,
+        message: 'User updated successfully',
+        severity: 'success',
+      });
+
+      // Close the modal
+      setIsUserModalOpen(false);
+      setSelectedUser(null);
+      setUserForm({
+        username: '',
+        email: '',
+        fullName: '',
+        phoneNumber: '',
+        role: 'SEEKER',
+        status: 'active',
+      });
+
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update user';
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -342,81 +467,125 @@ const AdminDashboard = () => {
 
   const renderUserManagement = () => (
     <Container maxWidth="xl" sx={{ py: 2 }}>
-      <Stack spacing={2}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder="Search users..."
-            value={searchTerm}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: 'text.secondary' }} />
-                </InputAdornment>
-              ),
-              sx: { borderRadius: '12px' }
-            }}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <Stack spacing={3}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, md: 3 },
+            background: (theme) =>
+              `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.9)}, ${alpha(
+                theme.palette.background.paper,
+                0.95
+              )})`,
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: '1px solid',
+            borderColor: 'divider',
+            position: { xs: 'sticky', md: 'static' },
+            top: { xs: '64px', md: 0 },
+            zIndex: 2,
+          }}
+        >
+          <Grid2 container spacing={2} alignItems="center">
+            {/* Search Users - Takes 1/2 space on mobile */}
+            <Grid2 xs={12} sm={6} md={8.5}>
+              <TextField
+                fullWidth
+                variant="outlined"
+                placeholder="Search users..."
+                value={searchTerm}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                  sx: {
+                    borderRadius: '12px',
+                    bgcolor: 'background.paper',
+                    '&:hover': {
+                      bgcolor: (theme) => alpha(theme.palette.primary.main, 0.02),
+                    },
+                  },
+                }}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </Grid2>
 
-          <Select
-            fullWidth
-            value={userFilter}
-            onChange={(e) => setUserFilter(e.target.value)}
-            sx={{ borderRadius: '12px' }}
-          >
-            <MenuItem value="all">All Users</MenuItem>
-            <MenuItem value="SEEKER">Seekers</MenuItem>
-            <MenuItem value="LANDLORD">Landlords</MenuItem>
-            <MenuItem value="ADMIN">Admins</MenuItem>
-          </Select>
+            {/* Filter User - Takes 1/4 space on mobile */}
+            <Grid2 xs={6} sm={3} md="auto">
+              <Select
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+                fullWidth
+                sx={{
+                  minWidth: '120px',
+                  borderRadius: '12px',
+                  bgcolor: 'background.paper',
+                  '&:hover': {
+                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.02),
+                  },
+                }}
+              >
+                <MenuItem value="all">All</MenuItem>
+                <MenuItem value="SEEKER">Seekers</MenuItem>
+                <MenuItem value="LANDLORD">Landlords</MenuItem>
+                <MenuItem value="ADMIN">Admins</MenuItem>
+              </Select>
+            </Grid2>
 
-          <Button
-            fullWidth
-            variant="contained"
-            startIcon={<PersonAddIcon />}
-            sx={{
-              background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-              height: '56px',
-              borderRadius: '12px',
-            }}
-            onClick={() => setIsUserModalOpen(true)}
-          >
-            Add User
-          </Button>
-        </Stack>
+            {/* Add User - Takes 1/4 space on mobile */}
+            <Grid2 xs={6} sm={3} md="auto">
+              <Button
+                fullWidth
+                variant="contained"
+                startIcon={<PersonAddIcon />}
+                onClick={() => setIsUserModalOpen(true)}
+                sx={{
+                  borderRadius: '12px',
+                  background: (theme) =>
+                    `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 6px 16px rgba(0,0,0,0.15)',
+                  },
+                }}
+              >
+                Add
+              </Button>
+            </Grid2>
+          </Grid2>
+        </Paper>
 
-        <Paper sx={{
-          overflow: 'hidden',
-          '& .MuiTableCell-root': {
-            whiteSpace: 'nowrap', // Prevent text wrapping
-            py: 2, // Add vertical padding
-          },
-          '& .MuiTableCell-head': {
-            backgroundColor: (theme) => theme.palette.background.paper,
-            fontWeight: 600,
-          },
-        }}>
-          <TableContainer sx={{ maxHeight: '70vh' }}>
 
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell width="28%">User Info</TableCell>
-                  <TableCell width="25%">Contact Details</TableCell>
-                  <TableCell width="12%">Role</TableCell>
-                  <TableCell width="10%">Status</TableCell>
-                  <TableCell width="15%">Registration</TableCell>
-                  <TableCell width="10%">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <StyledTableRow key={user.id} hover>
-                    <TableCell>
-                      <Stack direction="row" alignItems="center" spacing={1.5}>
-                        {/* <Avatar sx={{
+        {/* Desktop View */}
+        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+          <Paper sx={{
+            overflow: 'hidden',
+            borderRadius: '16px',
+            border: '1px solid',
+            borderColor: 'divider',
+          }}>
+            <TableContainer sx={{ maxHeight: '70vh' }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell width="28%">User Info</TableCell>
+                    <TableCell width="25%">Contact Details</TableCell>
+                    <TableCell width="12%">Role</TableCell>
+                    <TableCell width="10%">Status</TableCell>
+                    <TableCell width="15%">Registration</TableCell>
+                    <TableCell width="10%">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <StyledTableRow key={user.id} hover>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1.5}>
+                          {/* <Avatar sx={{
                           width: 32,
                           height: 32,
                           bgcolor: theme.palette.primary.main,
@@ -424,59 +593,223 @@ const AdminDashboard = () => {
                         }}>
                           {user.username[0].toUpperCase()}
                         </Avatar> */}
-                        <Box>
-                          <Typography variant="subtitle2" noWrap>{user.username}</Typography>
-                          <Typography variant="caption" color="text.secondary" display="block" noWrap>
-                            {user.fullName}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            ID: {user.id}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" noWrap>
-                        {user.email}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        {user.phoneNumber}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <RoleBadge
-                        label={user.role}
-                        className={user.role}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
+                          <Box>
+                            <Typography variant="subtitle2" noWrap>{user.username}</Typography>
+                            <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                              {user.fullName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              ID: {user.id}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" noWrap>
+                          {user.email}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" noWrap>
+                          {user.phoneNumber}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <RoleBadge
+                          label={user.role}
+                          className={user.role}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={user.isActive ? 'Active' : 'Inactive'}
+                          size="small"
+                          sx={{
+                            fontSize: '0.75rem',
+                            height: 24,
+                            fontWeight: 600,
+                            backgroundColor: user.isActive
+                              ? alpha(theme.palette.success.main, 0.1)
+                              : alpha(theme.palette.error.main, 0.1),
+                            color: user.isActive
+                              ? theme.palette.success.main
+                              : theme.palette.error.main,
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" display="block" noWrap>
+                          Created: {new Date(user.createdAt).toLocaleDateString()}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap>
+                          Updated: {new Date(user.updatedAt).toLocaleDateString()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5}>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setUserForm({
+                                username: user.username,
+                                email: user.email,
+                                fullName: user.fullName,
+                                phoneNumber: user.phoneNumber,
+                                role: user.role,
+                                status: user.isActive ? 'active' : 'inactive',
+                              });
+                              setIsUserModalOpen(true);
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleUserAction(user.id, user.isActive ? 'deactivate' : 'activate')}
+                          >
+                            {user.isActive ? (
+                              <BlockIcon fontSize="small" />
+                            ) : (
+                              <CheckCircleIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleUserAction(user.id, 'delete')}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </TableCell>
+                    </StyledTableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        </Box>
+
+        {/* Mobile View - Enhanced Cards */}
+        <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+          <Stack spacing={2}>
+            {filteredUsers.map((user) => (
+              <Paper
+                key={user.id}
+                elevation={0}
+                sx={{
+                  p: 0,
+                  overflow: 'hidden',
+                  borderRadius: '16px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  transition: 'transform 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                  },
+
+                }}
+              >
+                {/* User Card Header */}
+                <Box sx={{
+                  p: 2,
+                  background: (theme) => `linear-gradient(145deg, ${alpha(theme.palette.primary.main, 0.05)}, ${alpha(theme.palette.primary.main, 0.1)})`,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                }}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Avatar
+                        sx={{
+                          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.2),
+                          color: 'primary.main',
+                        }}
+                      >
+                        {user.username[0].toUpperCase()}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          {user.username}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          ID: {user.id}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={1}>
                       <Chip
                         label={user.isActive ? 'Active' : 'Inactive'}
                         size="small"
                         sx={{
-                          fontSize: '0.75rem',
-                          height: 24,
-                          fontWeight: 600,
+                          borderRadius: '8px',
                           backgroundColor: user.isActive
                             ? alpha(theme.palette.success.main, 0.1)
                             : alpha(theme.palette.error.main, 0.1),
                           color: user.isActive
                             ? theme.palette.success.main
                             : theme.palette.error.main,
+                          fontWeight: 600,
                         }}
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption" display="block" noWrap>
+                    </Stack>
+                  </Stack>
+                </Box>
+
+                {/* User Card Content */}
+                <Box sx={{ p: 2 }}>
+                  <Stack spacing={2}>
+                    <Grid2 container spacing={2}>
+                      <Grid2 item xs={12}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <RoleBadge
+                            label={user.role}
+                            className={user.role}
+                            size="small"
+                          />
+                        </Stack>
+                      </Grid2>
+                      <Grid2 item xs={12}>
+                        <Stack spacing={1}>
+                          <Typography variant="body2" color="text.secondary">
+                            Contact Information
+                          </Typography>
+                          <Box sx={{ pl: 1 }}>
+                            <Typography variant="body2">
+                              {user.email}
+                            </Typography>
+                            <Typography variant="body2">
+                              {user.phoneNumber}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Grid2>
+                      <Grid2 item xs={12}>
+                        <Stack spacing={1}>
+                          <Typography variant="body2" color="text.secondary">
+                            Full Name
+                          </Typography>
+                          <Typography variant="body2" sx={{ pl: 1 }}>
+                            {user.fullName}
+                          </Typography>
+                        </Stack>
+                      </Grid2>
+                    </Grid2>
+
+                    <Divider />
+
+                    {/* Action Buttons */}
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography variant="caption" color="text.secondary">
                         Created: {new Date(user.createdAt).toLocaleDateString()}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        Updated: {new Date(user.updatedAt).toLocaleDateString()}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={0.5}>
+                      <Stack direction="row" spacing={1}>
                         <IconButton
                           size="small"
                           onClick={() => {
@@ -491,274 +824,156 @@ const AdminDashboard = () => {
                             });
                             setIsUserModalOpen(true);
                           }}
+                          sx={{
+                            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                            '&:hover': {
+                              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.2),
+                            },
+                          }}
                         >
                           <EditIcon fontSize="small" />
                         </IconButton>
                         <IconButton
                           size="small"
                           onClick={() => handleUserAction(user.id, user.isActive ? 'deactivate' : 'activate')}
+                          sx={{
+                            bgcolor: (theme) => alpha(
+                              user.isActive ? theme.palette.error.main : theme.palette.success.main,
+                              0.1
+                            ),
+                            '&:hover': {
+                              bgcolor: (theme) => alpha(
+                                user.isActive ? theme.palette.error.main : theme.palette.success.main,
+                                0.2
+                              ),
+                            },
+                          }}
                         >
                           {user.isActive ? (
-                            <BlockIcon fontSize="small" />
+                            <BlockIcon fontSize="small" color="error" />
                           ) : (
-                            <CheckCircleIcon fontSize="small" />
+                            <CheckCircleIcon fontSize="small" color="success" />
                           )}
                         </IconButton>
                         <IconButton
                           size="small"
                           onClick={() => handleUserAction(user.id, 'delete')}
+                          sx={{
+                            bgcolor: (theme) => alpha(theme.palette.error.main, 0.1),
+                            '&:hover': {
+                              bgcolor: (theme) => alpha(theme.palette.error.main, 0.2),
+                            },
+                          }}
                         >
-                          <DeleteIcon fontSize="small" />
+                          <DeleteIcon fontSize="small" color="error" />
                         </IconButton>
                       </Stack>
-                    </TableCell>
-                  </StyledTableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
+                    </Stack>
+                  </Stack>
+                </Box>
+              </Paper>
+            ))}
+          </Stack>
+        </Box>
       </Stack>
     </Container>
   );
 
- const renderUserAnalytics = () => {
-  const ROLE_COLORS = {
-    SEEKER: '#6366F1',
-    LANDLORD: '#10B981',
-    ADMIN: '#8B5CF6'
-  };
+  const renderUserAnalytics = () => {
+    const ROLE_COLORS = {
+      SEEKER: '#6366F1',
+      LANDLORD: '#10B981',
+      ADMIN: '#8B5CF6'
+    };
 
-  const roleData = Object.entries(userStats.userRoleDistribution).map(([role, count]) => ({
-    name: role,
-    value: count
-  }));
+    const roleData = Object.entries(userStats.userRoleDistribution).map(([role, count]) => ({
+      name: role,
+      value: count
+    }));
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
+    const CustomTooltip = ({ active, payload, label }) => {
+      if (!active || !payload || !payload.length) return null;
       return (
-        <Paper sx={{ p: 1.5, boxShadow: (theme) => theme.shadows[3] }}>
-          <Typography variant="body2" fontWeight={600}>{label}</Typography>
+        <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 4, bgcolor: 'background.paper' }}>
+          <Typography variant="subtitle2" fontWeight={600}>{label}</Typography>
           {payload.map((entry, index) => (
-            <Typography key={index} variant="caption" sx={{ color: entry.color, display: 'block' }}>
+            <Typography key={index} variant="caption" sx={{ color: entry.color }}>
               {`${entry.name}: ${entry.value}`}
             </Typography>
           ))}
         </Paper>
       );
-    }
-    return null;
-  };
+    };
 
-  return (
-    <Box 
-      sx={{ 
-        height: 'calc(100vh - 80px)', // Account for header height
-        p: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2
-      }}
-    >
-      {/* Stats Row - 20% height */}
-      <Grid2 
-        container 
-        spacing={2} 
-        sx={{ height: '20%', minHeight: '120px' }}
-      >
-        <Grid2 item xs={12} md={4} height="100%">
-          <StatCard
-            title="Total Users"
-            value={userStats.totalUsers}
-            icon={<PeopleIcon />}
-            color="#6366F1"
-          />
+    return (
+      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3, height: '100vh' }}>
+        {/* Stats Section */}
+        <Grid2 container spacing={3} sx={{ flex: 1 }}>
+          {[
+            { title: 'Total Users', value: userStats.totalUsers, color: '#6366F1' },
+            { title: 'Active Users', value: userStats.activeUsers, color: '#10B981' },
+            { title: 'Inactive Users', value: userStats.inactiveUsers, color: '#EF4444' }
+          ].map((stat, index) => (
+            <Grid2 key={index} item xs={12} sm={6} md={4}>
+              <StatCard title={stat.title} value={stat.value} icon={<PeopleIcon />} color={stat.color} />
+            </Grid2>
+          ))}
         </Grid2>
-        <Grid2 item xs={12} md={4} height="100%">
-          <StatCard
-            title="Active Users"
-            value={userStats.activeUsers}
-            icon={<PeopleIcon />}
-            color="#10B981"
-          />
-        </Grid2>
-        <Grid2 item xs={12} md={4} height="100%">
-          <StatCard
-            title="Inactive Users"
-            value={userStats.inactiveUsers}
-            icon={<PeopleIcon />}
-            color="#EF4444"
-          />
-        </Grid2>
-      </Grid2>
 
-      {/* Charts Row - 80% height */}
-      <Grid2 
-        container 
-        spacing={2} 
-        sx={{ height: '80%', minHeight: '400px' }}
-      >
-        {/* Role Distribution Chart */}
-        <Grid2 item xs={12} md={6} height="100%">
-          <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
-              Role Distribution
-            </Typography>
-            <Box sx={{ flex: 1, minHeight: 0 }}> {/* Ensure chart doesn't overflow */}
+        {/* Charts Section */}
+        <Grid2 container spacing={3} sx={{ flex: 2 }}>
+          {/* Role Distribution Chart */}
+          <Grid2 item xs={12} md={6}>
+            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Role Distribution</Typography>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={roleData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="60%"
-                    outerRadius="80%"
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
+                  <Pie data={roleData} cx="50%" cy="50%" innerRadius="50%" outerRadius="80%" paddingAngle={5} dataKey="value">
                     {roleData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={ROLE_COLORS[entry.name]}
-                        stroke={theme.palette.background.paper}
-                        strokeWidth={2}
-                      />
+                      <Cell key={`cell-${index}`} fill={ROLE_COLORS[entry.name]} strokeWidth={2} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend
-                    verticalAlign="bottom"
-                    height={36}
-                    content={({ payload }) => (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        gap: 3,
-                        mt: 'auto' 
-                      }}>
-                        {payload.map((entry) => (
-                          <Box
-                            key={entry.value}
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                bgcolor: entry.color
-                              }}
-                            />
-                            <Typography variant="caption" fontWeight={500}>
-                              {entry.value}
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
-                  />
+                  <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
               </ResponsiveContainer>
-            </Box>
-          </Paper>
-        </Grid2>
+            </Paper>
+          </Grid2>
 
-        {/* Activity Chart */}
-        <Grid2 item xs={12} md={6} height="100%">
-          <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
-              Activity Overview
-            </Typography>
-            <Box sx={{ flex: 1, minHeight: 0 }}> {/* Ensure chart doesn't overflow */}
+          {/* Activity Overview Chart */}
+          <Grid2 item xs={12} md={6}>
+            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Activity Overview</Typography>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={activityData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="activeUsers" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="newUsers" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis 
-                    dataKey="name"
-                    stroke={theme.palette.text.secondary}
-                    fontSize={11}
-                    tickMargin={8}
-                  />
-                  <YAxis
-                    stroke={theme.palette.text.secondary}
-                    fontSize={11}
-                    tickMargin={8}
-                  />
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                  <XAxis dataKey="name" fontSize={12} tickMargin={10} />
+                  <YAxis fontSize={12} tickMargin={10} />
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="Active Users"
-                    stroke="#6366F1"
-                    fillOpacity={1}
-                    fill="url(#activeUsers)"
-                    strokeWidth={2}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="New Users"
-                    stroke="#10B981"
-                    fillOpacity={1}
-                    fill="url(#newUsers)"
-                    strokeWidth={2}
-                  />
-                  <Legend
-                    verticalAlign="top"
-                    height={36}
-                    content={({ payload }) => (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        gap: 3,
-                        mb: 1
-                      }}>
-                        {payload.map((entry) => (
-                          <Box
-                            key={entry.value}
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                bgcolor: entry.color
-                              }}
-                            />
-                            <Typography variant="caption" fontWeight={500}>
-                              {entry.value}
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
-                  />
+                  <Area type="monotone" dataKey="Active Users" stroke="#6366F1" fill="url(#activeUsers)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="New Users" stroke="#10B981" fill="url(#newUsers)" strokeWidth={2} />
+                  <Legend verticalAlign="top" height={36} />
                 </AreaChart>
               </ResponsiveContainer>
-            </Box>
-          </Paper>
+            </Paper>
+          </Grid2>
         </Grid2>
-      </Grid2>
-    </Box>
-  );
-};
+      </Box>
+    );
+  };
+
+
+
   const renderSystemSettings = () => (
     <Container maxWidth="xl">
       <Stack spacing={3}>
@@ -789,26 +1004,31 @@ const AdminDashboard = () => {
       <CssBaseline />
       <Box sx={{ display: 'flex', minHeight: '100vh', m: 0, p: 0 }}>
         <Drawer
-          variant="permanent"
+          variant={isMobile ? "temporary" : "permanent"}
+          open={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
           sx={{
             width: 280,
             flexShrink: 0,
+            zIndex: (theme) => theme.zIndex.appBar + 1,
             '& .MuiDrawer-paper': {
               width: 280,
               boxSizing: 'border-box',
               borderRight: `1px solid ${theme.palette.divider}`,
-              // background: `linear-gradient(195deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${theme.palette.background.paper} 100%)`,
+              borderRadius: 0,
             },
           }}
         >
           <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="h4" fontWeight={800} sx={{
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              RoomRadar
-            </Typography>
+            <img
+              src="/src/assets/RR.png"
+              alt="RoomRadar Logo"
+              style={{
+
+                maxWidth: '200px',  // Adjust this value based on your needs
+                height: 'auto'
+              }}
+            />
           </Box>
           <Divider />
           <List sx={{ p: 2 }}>
@@ -816,7 +1036,22 @@ const AdminDashboard = () => {
               <ListItemButton
                 key={item.section}
                 selected={activeSection === item.section}
-                onClick={() => setActiveSection(item.section)}
+                onClick={() => {
+                  setActiveSection(item.section);
+                  switch (item.section) {
+                    case 'users':
+                      navigate('/dashboard/admin/user-management');
+                      break;
+                    case 'analytics':
+                      navigate('/dashboard/admin/user-analytics');
+                      break;
+                    case 'settings':
+                      navigate('/dashboard/admin/system-settings');
+                      break;
+                    default:
+                      break;
+                  }
+                }}
                 sx={{
                   borderRadius: '12px',
                   mb: 1,
@@ -841,21 +1076,6 @@ const AdminDashboard = () => {
                 />
               </ListItemButton>
             ))}
-          </List>
-          <Divider sx={{ my: 1 }} />
-          <List sx={{ p: 2 }}>
-            {/* <ListItemButton
-              onClick={toggleColorMode}
-              sx={{ borderRadius: '12px' }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>
-                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-              </ListItemIcon>
-              <ListItemText
-                primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                primaryTypographyProps={{ fontWeight: 600 }}
-              />
-            </ListItemButton> */}
             <ListItemButton
               onClick={handleLogout}
               sx={{
@@ -881,71 +1101,82 @@ const AdminDashboard = () => {
           component="main"
           sx={{
             flexGrow: 1,
-            width: { sm: `calc(100% - 280px)` },
+            width: { sm: `calc(100% - ${isMobile ? 0 : 280}px)` },
             height: '100vh',
-            overflow: 'auto',
           }}
         >
-          {/* <Box sx={{
-            width: '100%',
-            maxWidth: '1200px',
-            height: '100',
-            margin: '0 auto',
-            // backgroundColor: 'red',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '2rem',
-            borderRadius: '16px',
-            // boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
-          }}
-          > */}
-
-          <Box sx={{
-            margin: '0 auto',
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-          >
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              sx={{ mt: 0 }}
+          {/* Navigation Bar - Only show on mobile */}
+          {isMobile && (
+            <Box
+              sx={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100%',
+                zIndex: 1000,
+                bgcolor: 'background.default',
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                px: 3,
+                py: 2,
+              }}
             >
-              <Typography variant="h4" component="h1" fontWeight={700}>
-                {activeSectionTitles[activeSection]}
-              </Typography>
-              <IconButton
-                onClick={toggleColorMode}
-                sx={{
-                  position: 'fixed',
-                  top: 16,
-                  right: 16,
-                  bgcolor: 'background.paper',
-                  p: 1.5,
-                  boxShadow: theme.shadows[1],
-                  '&:hover': { transform: 'rotate(180deg)' },
-                  transition: 'all 0.3s ease',
-                }}
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                spacing={2}
               >
-                {mode === 'dark' ? (
-                  <LightModeIcon color="primary" />
-                ) : (
-                  <DarkModeIcon color="primary" />
-                )}
-              </IconButton>
-            </Stack>
+                {/* Logo */}
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <img
+                    src="/src/assets/RR.png"
+                    alt="RoomRadar Logo"
+                    style={{
+                      height: '40px',
+                      width: 'auto'
+                    }}
+                  />
+                </Box>
 
-            {activeSection === 'users' && renderUserManagement()}
-            {activeSection === 'analytics' && renderUserAnalytics()}
-            {activeSection === 'settings' && renderSystemSettings()}
-          </Box>
+                {/* Right section - Theme toggle and Menu */}
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <IconButton
+                    onClick={toggleColorMode}
+                    sx={{
+                      bgcolor: 'background.paper',
+                      p: 1,
+                      boxShadow: theme.shadows[1],
+                      '&:hover': { transform: 'rotate(180deg)' },
+                      transition: 'all 0.3s ease',
+                    }}
+                  >
+                    {mode === 'dark' ? (
+                      <LightModeIcon color="primary" />
+                    ) : (
+                      <DarkModeIcon color="primary" />
+                    )}
+                  </IconButton>
+
+                  <IconButton
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    sx={{
+                      bgcolor: 'background.paper',
+                      p: 1,
+                      boxShadow: theme.shadows[1],
+                    }}
+                  >
+                    <MenuIcon />
+                  </IconButton>
+                </Stack>
+              </Stack>
+            </Box>
+          )}
+          <Typography variant="h5" component="h1" fontWeight={700} margin={1}>
+            {activeSectionTitles[activeSection]}
+          </Typography>
+          {activeSection === 'users' && renderUserManagement()}
+          {activeSection === 'analytics' && renderUserAnalytics()}
+          {activeSection === 'settings' && renderSystemSettings()}
         </Box>
 
         <Snackbar
@@ -1017,6 +1248,14 @@ const AdminDashboard = () => {
               <Grid2 item xs={12} md={6}>
                 <TextField
                   fullWidth
+                  label="Password"
+                  variant="outlined"
+                  value={userForm.password}
+                  onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
                   label="Full Name"
                   variant="outlined"
                   value={userForm.fullName}
@@ -1044,17 +1283,6 @@ const AdminDashboard = () => {
                   <MenuItem value="ADMIN">Admin</MenuItem>
                 </Select>
               </Grid2>
-              <Grid2 item xs={12} md={6}>
-                <Select
-                  fullWidth
-                  label="Status"
-                  value={userForm.status}
-                  onChange={(e) => setUserForm({ ...userForm, status: e.target.value })}
-                >
-                  <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="inactive">Inactive</MenuItem>
-                </Select>
-              </Grid2>
             </Grid2>
           </DialogContent>
           <DialogActions sx={{
@@ -1070,12 +1298,18 @@ const AdminDashboard = () => {
             </Button>
             <Button
               variant="contained"
+              onClick={handleUpdateUser}
+              disabled={loading}
               sx={{
                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                 borderRadius: '12px',
               }}
             >
-              {selectedUser ? 'Update User' : 'Create User'}
+              {loading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                selectedUser ? 'Update User' : 'Create User'
+              )}
             </Button>
           </DialogActions>
         </Dialog>
