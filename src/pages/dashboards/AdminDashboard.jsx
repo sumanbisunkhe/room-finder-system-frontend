@@ -40,6 +40,11 @@ import {
   styled,
   alpha,
   CircularProgress,
+  Switch,
+  FormControl,
+  InputLabel,
+  FormGroup,
+  FormControlLabel,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
@@ -56,7 +61,17 @@ import {
   Search as SearchIcon,
   Block as BlockIcon,
   People as PeopleIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+   Home as HomeIcon,
+  Assessment as AssessmentIcon,
+  Notifications as NotificationsIcon,
+  Security as SecurityIcon,
+  Language as LanguageIcon,
+  BackupTable as BackupIcon,
+  Email as EmailIcon,
+  Assignment as AssignmentIcon,
+  Domain as DomainIcon,
+  Schedule as ScheduleIcon,
 
 
 } from '@mui/icons-material';
@@ -92,6 +107,52 @@ const AdminDashboard = () => {
     genderDistribution: {},
     ageGroups: {},
   });
+
+  // System settings states
+  const [emailSettings, setEmailSettings] = useState({
+    smtpServer: 'smtp.example.com',
+    smtpPort: '587',
+    emailFrom: 'noreply@roomradar.com',
+    enableSSL: true,
+  });
+
+  const [backupSettings, setBackupSettings] = useState({
+    autoBackup: true,
+    backupFrequency: 'daily',
+    retentionDays: 30,
+    backupTime: '00:00',
+  });
+
+  const [securitySettings, setSecuritySettings] = useState({
+    passwordMinLength: 8,
+    requireSpecialChar: true,
+    requireNumber: true,
+    sessionTimeout: 30,
+    maxLoginAttempts: 5,
+  });
+
+  const [generalSettings, setGeneralSettings] = useState({
+    siteName: 'RoomRadar',
+    supportEmail: 'support@roomradar.com',
+    supportPhone: '+1234567890',
+    defaultLanguage: 'en',
+    timezone: 'UTC',
+  });
+
+  
+  const getNewUsersCountByDate = (users, date) => {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    return users.filter(user => {
+      const createdAt = new Date(user.createdAt);
+      return createdAt >= startOfDay && createdAt <= endOfDay;
+    }).length;
+  };
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -106,6 +167,9 @@ const AdminDashboard = () => {
     role: 'SEEKER',
     status: 'active',
   });
+
+
+
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
   const toggleColorMode = () => {
     setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
@@ -421,20 +485,30 @@ const AdminDashboard = () => {
   }));
   // Prepare data for line chart (using the last 7 days)
   const activityData = useMemo(() => {
-    const dates = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const formattedDate = date.toLocaleDateString('en-US', { weekday: 'short' });
-      dates.push({
-        name: formattedDate,
-        'Active Users': Math.floor(userStats.activeUsers * (0.7 + Math.random() * 0.3)), // Simulated data
-        'New Users': Math.floor(userStats.totalUsers * 0.05 * Math.random()) // Simulated data
-      });
-    }
-    return dates;
-  }, [userStats.activeUsers, userStats.totalUsers]);
+  const dates = [];
+  const today = new Date();
+  
+  // Create data for the last 7 days
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    
+    // Calculate new users for this date
+    const newUsersCount = getNewUsersCountByDate(users, date);
+    
+    // Calculate active users (we'll keep the existing calculation but make it more realistic)
+    const activeUsersCount = Math.floor(
+      userStats.activeUsers * (0.85 + (Math.sin(i / 2) * 0.15))
+    );
+    
+    dates.push({
+      name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      'Active Users': activeUsersCount,
+      'New Users': newUsersCount
+    });
+  }
+  return dates;
+}, [users, userStats.activeUsers]);
 
   const StatCard = ({ title, value, icon, color }) => (
     <Paper sx={{
@@ -880,121 +954,514 @@ const AdminDashboard = () => {
   );
 
   const renderUserAnalytics = () => {
+    // Constants and utility functions
     const ROLE_COLORS = {
       SEEKER: '#6366F1',
       LANDLORD: '#10B981',
       ADMIN: '#8B5CF6'
     };
-
+  
+    const STATS_CONFIG = [
+      { title: 'Total Users', value: userStats.totalUsers, color: '#6366F1', icon: <PeopleIcon /> },
+      { title: 'Active Users', value: userStats.activeUsers, color: '#10B981', icon: <PeopleIcon /> },
+      { title: 'Inactive Users', value: userStats.inactiveUsers, color: '#EF4444', icon: <PeopleIcon /> }
+    ];
+  
     const roleData = Object.entries(userStats.userRoleDistribution).map(([role, count]) => ({
       name: role,
       value: count
     }));
-
+  
+    // Custom tooltip component for charts
     const CustomTooltip = ({ active, payload, label }) => {
       if (!active || !payload || !payload.length) return null;
       return (
-        <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 4, bgcolor: 'background.paper' }}>
+        <Paper 
+          sx={{ 
+            p: 2, 
+            borderRadius: 2, 
+            boxShadow: 4, 
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
           <Typography variant="subtitle2" fontWeight={600}>{label}</Typography>
           {payload.map((entry, index) => (
-            <Typography key={index} variant="caption" sx={{ color: entry.color }}>
+            <Typography 
+              key={index} 
+              variant="caption" 
+              display="block"
+              sx={{ color: entry.color }}
+            >
               {`${entry.name}: ${entry.value}`}
             </Typography>
           ))}
         </Paper>
       );
     };
-
+  
+    // Chart configurations
+    const chartConfigs = {
+      areaChart: {
+        gradients: (
+          <defs>
+            <linearGradient id="activeUsers" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="newUsers" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+        )
+      }
+    };
+  
     return (
-      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3, height: '100vh' }}>
-        {/* Stats Section */}
-        <Grid2 container spacing={3} sx={{ flex: 1 }}>
-          {[
-            { title: 'Total Users', value: userStats.totalUsers, color: '#6366F1' },
-            { title: 'Active Users', value: userStats.activeUsers, color: '#10B981' },
-            { title: 'Inactive Users', value: userStats.inactiveUsers, color: '#EF4444' }
-          ].map((stat, index) => (
-            <Grid2 key={index} item xs={12} sm={6} md={4}>
-              <StatCard title={stat.title} value={stat.value} icon={<PeopleIcon />} color={stat.color} />
+      <Container maxWidth="x1" sx={{ py: { xs: 2, md: 3 } }}>
+        <Stack spacing={{ xs: 2, md: 3 }}>
+          {/* Stats Cards Section */}
+          <Grid2 container spacing={{ xs: 2, md: 3 }}>
+            {STATS_CONFIG.map((stat, index) => (
+              <Grid2 key={index} item xs={12} sm={6} md={4}>
+                <Paper
+                  sx={{
+                    p: 3,
+                    height: '100%',
+                    background: `linear-gradient(135deg, ${stat.color} 0%, ${alpha(stat.color, 0.7)} 100%)`,
+                    color: 'white',
+                    borderRadius: '16px',
+                    transition: 'transform 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                    },
+                  }}
+                >
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Box>
+                      <Typography variant="body2" fontWeight={500} gutterBottom>
+                        {stat.title}
+                      </Typography>
+                      <Typography variant="h3" fontWeight={700}>
+                        {stat.value}
+                      </Typography>
+                    </Box>
+                    <Box sx={{
+                      bgcolor: alpha('#fff', 0.1),
+                      p: 1.5,
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}>
+                      {React.cloneElement(stat.icon, { sx: { fontSize: 32 } })}
+                    </Box>
+                  </Stack>
+                </Paper>
+              </Grid2>
+            ))}
+          </Grid2>
+  
+          {/* Charts Section */}
+          <Grid2 container spacing={{ xs: 2, md: 3 }} direction="column">
+            {/* Role Distribution Chart */}
+            <Grid2 >
+              <Paper 
+                sx={{ 
+                  p: 3,
+                  height: { xs: '400px', md: '500px' },
+                  borderRadius: '16px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  
+                }}
+              >
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Role Distribution
+                </Typography>
+                <Box sx={{ width: '100%', height: 'calc(100% - 40px)' }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={roleData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius="50%"
+                        outerRadius="80%"
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {roleData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={ROLE_COLORS[entry.name]} 
+                            strokeWidth={2}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        formatter={(value) => (
+                          <span style={{ color: ROLE_COLORS[value] }}>{value}</span>
+                        )}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Paper>
             </Grid2>
-          ))}
-        </Grid2>
+  
+            {/* Activity Overview Chart */}
+            <Grid2 >
+              <Paper 
+                sx={{ 
+                  p: 3,
+                  height: { xs: '400px', md: '500px' },
+                  borderRadius: '16px',
+                  border: '1px solid',
+                  borderColor: 'divider',
 
-        {/* Charts Section */}
-        <Grid2 container spacing={3} sx={{ flex: 2 }}>
-          {/* Role Distribution Chart */}
-          <Grid2 item xs={12} md={6}>
-            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Role Distribution</Typography>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={roleData} cx="50%" cy="50%" innerRadius="50%" outerRadius="80%" paddingAngle={5} dataKey="value">
-                    {roleData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={ROLE_COLORS[entry.name]} strokeWidth={2} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend verticalAlign="bottom" height={36} />
-                </PieChart>
-              </ResponsiveContainer>
-            </Paper>
+                }}
+              >
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Activity Overview
+                </Typography>
+                <Box sx={{ width: '100%', height: 'calc(100% - 40px)' }}>
+                  <ResponsiveContainer>
+                    <AreaChart 
+                      data={activityData}
+                      margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+                    >
+                      {chartConfigs.areaChart.gradients}
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                      <XAxis 
+                        dataKey="name" 
+                        fontSize={12} 
+                        tickMargin={10}
+                        stroke="text.secondary"
+                      />
+                      <YAxis 
+                        fontSize={12} 
+                        tickMargin={10}
+                        stroke="text.secondary"
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Area
+                        type="monotone"
+                        dataKey="Active Users"
+                        stroke="#6366F1"
+                        fill="url(#activeUsers)"
+                        strokeWidth={2}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="New Users"
+                        stroke="#10B981"
+                        fill="url(#newUsers)"
+                        strokeWidth={2}
+                      />
+                      <Legend verticalAlign="top" height={36} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Paper>
+            </Grid2>
           </Grid2>
-
-          {/* Activity Overview Chart */}
-          <Grid2 item xs={12} md={6}>
-            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Activity Overview</Typography>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={activityData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="activeUsers" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="newUsers" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="name" fontSize={12} tickMargin={10} />
-                  <YAxis fontSize={12} tickMargin={10} />
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="Active Users" stroke="#6366F1" fill="url(#activeUsers)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="New Users" stroke="#10B981" fill="url(#newUsers)" strokeWidth={2} />
-                  <Legend verticalAlign="top" height={36} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Paper>
-          </Grid2>
-        </Grid2>
-      </Box>
+        </Stack>
+      </Container>
     );
   };
 
-
-
   const renderSystemSettings = () => (
-    <Container maxWidth="xl">
+    <Container maxWidth="xl" sx={{ py: 3 }}>
       <Stack spacing={3}>
+        {/* General Settings */}
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom fontWeight={600}>
-            Theme Settings
-          </Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography>Color Mode</Typography>
-            <Button
-              variant="contained"
-              onClick={toggleColorMode}
-              startIcon={mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-              sx={{
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
-              }}
-            >
-              {mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
-            </Button>
+          <Stack spacing={2}>
+            <Typography variant="h6" gutterBottom fontWeight={600}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <DomainIcon color="primary" />
+                <span>General Settings</span>
+              </Stack>
+            </Typography>
+            <Grid2 container spacing={3}>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Site Name"
+                  value={generalSettings.siteName}
+                  onChange={(e) => setGeneralSettings({...generalSettings, siteName: e.target.value})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Support Email"
+                  value={generalSettings.supportEmail}
+                  onChange={(e) => setGeneralSettings({...generalSettings, supportEmail: e.target.value})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Support Phone"
+                  value={generalSettings.supportPhone}
+                  onChange={(e) => setGeneralSettings({...generalSettings, supportPhone: e.target.value})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Default Language</InputLabel>
+                  <Select
+                    value={generalSettings.defaultLanguage}
+                    label="Default Language"
+                    onChange={(e) => setGeneralSettings({...generalSettings, defaultLanguage: e.target.value})}
+                  >
+                    <MenuItem value="en">English</MenuItem>
+                    <MenuItem value="es">Spanish</MenuItem>
+                    <MenuItem value="fr">French</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid2>
+            </Grid2>
           </Stack>
         </Paper>
+
+        {/* Security Settings */}
+        <Paper sx={{ p: 3 }}>
+          <Stack spacing={2}>
+            <Typography variant="h6" gutterBottom fontWeight={600}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <SecurityIcon color="primary" />
+                <span>Security Settings</span>
+              </Stack>
+            </Typography>
+            <Grid2 container spacing={3}>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Minimum Password Length"
+                  value={securitySettings.passwordMinLength}
+                  onChange={(e) => setSecuritySettings({...securitySettings, passwordMinLength: parseInt(e.target.value)})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Session Timeout (minutes)"
+                  value={securitySettings.sessionTimeout}
+                  onChange={(e) => setSecuritySettings({...securitySettings, sessionTimeout: parseInt(e.target.value)})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Max Login Attempts"
+                  value={securitySettings.maxLoginAttempts}
+                  onChange={(e) => setSecuritySettings({...securitySettings, maxLoginAttempts: parseInt(e.target.value)})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <FormGroup>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={securitySettings.requireSpecialChar}
+                        onChange={(e) => setSecuritySettings({...securitySettings, requireSpecialChar: e.target.checked})}
+                      />
+                    }
+                    label="Require Special Characters"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={securitySettings.requireNumber}
+                        onChange={(e) => setSecuritySettings({...securitySettings, requireNumber: e.target.checked})}
+                      />
+                    }
+                    label="Require Numbers"
+                  />
+                </FormGroup>
+              </Grid2>
+            </Grid2>
+          </Stack>
+        </Paper>
+
+        {/* Email Settings */}
+        <Paper sx={{ p: 3 }}>
+          <Stack spacing={2}>
+            <Typography variant="h6" gutterBottom fontWeight={600}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <EmailIcon color="primary" />
+                <span>Email Configuration</span>
+              </Stack>
+            </Typography>
+            <Grid2 container spacing={3}>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="SMTP Server"
+                  value={emailSettings.smtpServer}
+                  onChange={(e) => setEmailSettings({...emailSettings, smtpServer: e.target.value})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="SMTP Port"
+                  value={emailSettings.smtpPort}
+                  onChange={(e) => setEmailSettings({...emailSettings, smtpPort: e.target.value})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="From Email Address"
+                  value={emailSettings.emailFrom}
+                  onChange={(e) => setEmailSettings({...emailSettings, emailFrom: e.target.value})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={emailSettings.enableSSL}
+                      onChange={(e) => setEmailSettings({...emailSettings, enableSSL: e.target.checked})}
+                    />
+                  }
+                  label="Enable SSL/TLS"
+                />
+              </Grid2>
+            </Grid2>
+          </Stack>
+        </Paper>
+
+        {/* Backup & Maintenance */}
+        <Paper sx={{ p: 3 }}>
+          <Stack spacing={2}>
+            <Typography variant="h6" gutterBottom fontWeight={600}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <BackupIcon color="primary" />
+                <span>Backup & Maintenance</span>
+              </Stack>
+            </Typography>
+            <Grid2 container spacing={3}>
+              <Grid2 item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Backup Frequency</InputLabel>
+                  <Select
+                    value={backupSettings.backupFrequency}
+                    label="Backup Frequency"
+                    onChange={(e) => setBackupSettings({...backupSettings, backupFrequency: e.target.value})}
+                  >
+                    <MenuItem value="hourly">Hourly</MenuItem>
+                    <MenuItem value="daily">Daily</MenuItem>
+                    <MenuItem value="weekly">Weekly</MenuItem>
+                    <MenuItem value="monthly">Monthly</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Retention Period (days)"
+                  value={backupSettings.retentionDays}
+                  onChange={(e) => setBackupSettings({...backupSettings, retentionDays: parseInt(e.target.value)})}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="time"
+                  label="Backup Time"
+                  value={backupSettings.backupTime}
+                  onChange={(e) => setBackupSettings({...backupSettings, backupTime: e.target.value})}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid2>
+              <Grid2 item xs={12} md={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={backupSettings.autoBackup}
+                      onChange={(e) => setBackupSettings({...backupSettings, autoBackup: e.target.checked})}
+                    />
+                  }
+                  label="Enable Automatic Backups"
+                />
+              </Grid2>
+              <Grid2 item xs={12}>
+                <Button
+                  variant="contained"
+                  startIcon={<BackupIcon />}
+                  onClick={() => {
+                    setSnackbar({
+                      open: true,
+                      message: 'Manual backup initiated',
+                      severity: 'info',
+                    });
+                  }}
+                >
+                  Run Manual Backup
+                </Button>
+              </Grid2>
+            </Grid2>
+          </Stack>
+        </Paper>
+
+        {/* Theme Settings */}
+        <Paper sx={{ p: 3 }}>
+          <Stack spacing={2}>
+            <Typography variant="h6" gutterBottom fontWeight={600}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <LightModeIcon color="primary" />
+                <span>Theme Settings</span>
+              </Stack>
+            </Typography>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Typography>Color Mode</Typography>
+              <Button
+                variant="contained"
+                onClick={toggleColorMode}
+                startIcon={mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+                sx={{
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                }}
+              >
+                {mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              </Button>
+            </Stack>
+          </Stack>
+        </Paper>
+
+        {/* Save Settings Button */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => {
+              setSnackbar({
+                open: true,
+                message: 'Settings saved successfully',
+                severity: 'success',
+              });
+            }}
+            sx={{
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              px: 4,
+              py: 1.5,
+            }}
+          >
+            Save All Settings
+          </Button>
+        </Box>
       </Stack>
     </Container>
   );
@@ -1100,9 +1567,14 @@ const AdminDashboard = () => {
         <Box
           component="main"
           sx={{
-            flexGrow: 1,
-            width: { sm: `calc(100% - ${isMobile ? 0 : 280}px)` },
-            height: '100vh',
+            // flexGrow: 1,
+            // width: { sm: `calc(100% - ${isMobile ? 0 : 280}px)` },
+            // height: '100vh',
+            // bgcolor: 'background.default', // This ensures the background color matches the theme
+            // minHeight: '100vh',
+            
+            // overflow: 'auto' ,
+            // overflowAnchor: 'none',
           }}
         >
           {/* Navigation Bar - Only show on mobile */}
