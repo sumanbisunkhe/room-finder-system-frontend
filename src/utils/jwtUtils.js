@@ -22,3 +22,16 @@ export const getUserRole = (token) => {
     return null;
   }
 };
+
+
+export const getUsername = (token) => {
+  try {
+    const payload = decodeToken(token);
+    if (!payload) return null;
+    
+    return payload.sub || payload.username || null;
+  } catch (error) {
+    console.error('Error extracting username:', error);
+    return null;
+  }
+};

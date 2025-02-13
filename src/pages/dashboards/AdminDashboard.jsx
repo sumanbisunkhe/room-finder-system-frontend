@@ -1,6 +1,6 @@
 // src\pages\dashboards\AdminDashboard.jsx
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -45,6 +45,8 @@ import {
   InputLabel,
   FormGroup,
   FormControlLabel,
+  Card,
+
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
@@ -62,7 +64,7 @@ import {
   Block as BlockIcon,
   People as PeopleIcon,
   CheckCircle as CheckCircleIcon,
-   Home as HomeIcon,
+  Home as HomeIcon,
   Assessment as AssessmentIcon,
   Notifications as NotificationsIcon,
   Security as SecurityIcon,
@@ -72,10 +74,16 @@ import {
   Assignment as AssignmentIcon,
   Domain as DomainIcon,
   Schedule as ScheduleIcon,
-
-
+  AccountCircleOutlined,
+  AccountCircle,
 } from '@mui/icons-material';
 import MenuIcon from '@mui/icons-material/Menu';
+import PersonIcon from '@mui/icons-material/Person';
+import BadgeIcon from '@mui/icons-material/Badge';
+import PhoneIcon from '@mui/icons-material/Phone';
+import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
+import PublishIcon from '@mui/icons-material/Publish';
+
 
 import * as userService from '../../services/userService';
 import Grid2 from '@mui/material/Unstable_Grid2';
@@ -83,12 +91,16 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, Area, AreaChart
 } from 'recharts';
-import { useNavigate, useLocation } from 'react-router-dom';
-
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { csCZ } from '@mui/material/locale';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+
+  // All state declarations moved to the top level
   const [mode, setMode] = useState('light');
   const [activeSection, setActiveSection] = useState('users');
   const [users, setUsers] = useState([]);
@@ -99,6 +111,9 @@ const AdminDashboard = () => {
   const [error, setError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [userStats, setUserStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -108,7 +123,31 @@ const AdminDashboard = () => {
     ageGroups: {},
   });
 
-  // System settings states
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const [profileForm, setProfileForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    fullName: '',
+    phoneNumber: '',
+    role: '',
+  });
+
+  const [userForm, setUserForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    fullName: '',
+    phoneNumber: '',
+    role: 'SEEKER',
+    status: 'active',
+  });
+
   const [emailSettings, setEmailSettings] = useState({
     smtpServer: 'smtp.example.com',
     smtpPort: '587',
@@ -139,42 +178,7 @@ const AdminDashboard = () => {
     timezone: 'UTC',
   });
 
-  
-  const getNewUsersCountByDate = (users, date) => {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-    
-    return users.filter(user => {
-      const createdAt = new Date(user.createdAt);
-      return createdAt >= startOfDay && createdAt <= endOfDay;
-    }).length;
-  };
-
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success',
-  });
-  const [userForm, setUserForm] = useState({
-    username: '',
-    email: '',
-    password: '',
-    fullName: '',
-    phoneNumber: '',
-    role: 'SEEKER',
-    status: 'active',
-  });
-
-
-
-  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-  const toggleColorMode = () => {
-    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
-  };
-
+  // Theme creation moved outside of conditional rendering
   const theme = useMemo(
     () =>
       createTheme({
@@ -229,8 +233,40 @@ const AdminDashboard = () => {
     [mode, prefersDarkMode]
   );
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log("Fetching current user...");
+
+      const response = await userService.getCurrentUser();
+      console.log("Full User Response:", response);
+
+      if (!response.success || !response.data) {
+        throw new Error("Invalid user data format");
+      }
+
+      const userData = response.data; // Extract the actual user object
+      console.log("Extracted User Data:", userData);
+
+      setCurrentUser(userData);
+      setProfileForm({
+        username: userData.username || '',
+        email: userData.email || '',
+        fullName: userData.fullName || '',
+        phoneNumber: userData.phoneNumber || '',
+        role: userData.role || 'ADMIN'
+      });
+    } catch (err) {
+      console.error("Fetch Current User Error:", err.message);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+
 
   const fetchAndProcessUsers = useCallback(async () => {
     try {
@@ -274,6 +310,124 @@ const AdminDashboard = () => {
     }
   }, []);
 
+  // Users CSV
+  const handleExportUsersCSV = async () => {
+    try {
+      setLoading(true);
+      await userService.exportUsersToCSV();
+      setSnackbar({ open: true, message: 'Users exported successfully', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message || 'Failed to export users', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportUsersCSV = async (file) => {
+    setLoading(true);
+    try {
+      await userService.importUsersFromCSV(file);
+      // Only proceed if no error was thrown
+      await fetchAndProcessUsers();
+      setSnackbar({
+        open: true,
+        message: 'Users imported successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.log('Caught error in handleImportUsersCSV:', error);
+      setSnackbar({
+        open: true,
+        message: error.message || 'Failed to import users',
+        severity: 'error'
+      });
+      // Return early to prevent any further processing
+      return;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  // Rooms CSV
+  const handleExportRoomsCSV = async () => {
+    try {
+      setLoading(true);
+      await userService.exportRoomsToCSV();
+      setSnackbar({ open: true, message: 'Rooms exported successfully', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message || 'Failed to export rooms', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportRoomsCSV = async (file) => {
+    try {
+      setLoading(true);
+      await userService.importRoomsFromCSV(file);
+      setSnackbar({ open: true, message: 'Rooms imported successfully', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message || 'Failed to import rooms', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Messages CSV
+  const handleExportMessagesCSV = async () => {
+    try {
+      setLoading(true);
+      await userService.exportMessagesToCSV();
+      setSnackbar({ open: true, message: 'Messages exported successfully', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message || 'Failed to export messages', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportMessagesCSV = async (file) => {
+    try {
+      setLoading(true);
+      await userService.importMessagesFromCSV(file);
+      setSnackbar({ open: true, message: 'Messages imported successfully', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message || 'Failed to import messages', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Bookings CSV
+  const handleExportBookingsCSV = async () => {
+    try {
+      setLoading(true);
+      await userService.exportBookingsToCSV();
+      setSnackbar({ open: true, message: 'Bookings exported successfully', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message || 'Failed to export bookings', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportBookingsCSV = async (file) => {
+    try {
+      setLoading(true);
+      await userService.importBookingsFromCSV(file);
+      setSnackbar({ open: true, message: 'Bookings imported successfully', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message || 'Failed to import bookings', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCurrentUser();
+  }, [fetchCurrentUser]);
+
   useEffect(() => {
     fetchAndProcessUsers();
   }, [fetchAndProcessUsers]);
@@ -302,7 +456,6 @@ const AdminDashboard = () => {
   }, [searchTerm, userFilter, users]);
 
   useEffect(() => {
-    // Set active section based on current URL
     const path = location.pathname;
     if (path.includes('user-management')) {
       setActiveSection('users');
@@ -311,7 +464,43 @@ const AdminDashboard = () => {
     } else if (path.includes('system-settings')) {
       setActiveSection('settings');
     }
+    else if (path.includes('profile-information')) {
+      setActiveSection('profile');
+    }
+    else if (path.includes('csv-operations')) {
+      setActiveSection('csv');
+    }
+
   }, [location.pathname]);
+
+  // Read URL params on mount and when URL changes
+  useEffect(() => {
+    const search = searchParams.get('search') || '';
+    const filter = searchParams.get('filter') || 'all';
+    setSearchTerm(search);
+    setUserFilter(filter);
+  }, [searchParams]);
+
+  // Update URL params when search or filter changes
+  useEffect(() => {
+    const params = {};
+    if (searchTerm) params.search = searchTerm;
+    if (userFilter !== 'all') params.filter = userFilter;
+    setSearchParams(params);
+  }, [searchTerm, userFilter, setSearchParams]);
+
+  const getNewUsersCountByDate = (users, date) => {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return users.filter(user => {
+      const createdAt = new Date(user.createdAt);
+      return createdAt >= startOfDay && createdAt <= endOfDay;
+    }).length;
+  };
 
   const handleUserAction = async (userId, action) => {
     if (!userId) {
@@ -323,7 +512,6 @@ const AdminDashboard = () => {
       return;
     }
 
-    // Show confirmation dialog for delete action
     if (action === 'delete') {
       const confirmed = window.confirm('Are you sure you want to delete this user? This action cannot be undone.');
       if (!confirmed) return;
@@ -352,7 +540,6 @@ const AdminDashboard = () => {
           throw new Error('Invalid action');
       }
 
-      // Refresh user list after successful action
       await fetchAndProcessUsers();
 
       setSnackbar({
@@ -364,7 +551,6 @@ const AdminDashboard = () => {
     } catch (error) {
       const errorMessage = error.message || `Failed to ${action} user`;
 
-      // Handle specific error cases
       if (error.response?.status === 404) {
         setSnackbar({
           open: true,
@@ -388,6 +574,7 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   };
+
   const handleUpdateUser = async () => {
     if (!selectedUser) {
       setSnackbar({
@@ -404,6 +591,7 @@ const AdminDashboard = () => {
       const updateData = {
         username: userForm.username,
         email: userForm.email,
+        password: userForm.password,
         fullName: userForm.fullName,
         phoneNumber: userForm.phoneNumber,
         role: userForm.role,
@@ -411,8 +599,6 @@ const AdminDashboard = () => {
       };
 
       await userService.updateUserProfile(selectedUser.id, updateData);
-
-      // Refresh the users list
       await fetchAndProcessUsers();
 
       setSnackbar({
@@ -421,7 +607,6 @@ const AdminDashboard = () => {
         severity: 'success',
       });
 
-      // Close the modal
       setIsUserModalOpen(false);
       setSelectedUser(null);
       setUserForm({
@@ -445,6 +630,23 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleUpdateProfile = async () => {
+    try {
+      await userService.updateUserProfile(currentUser.id, profileForm);
+      await fetchCurrentUser();
+      setIsEditModalOpen(false);
+      setSnackbar({ open: true, message: "Profile updated successfully!", severity: "success" });
+      setIsEditModalOpen(false);
+    } catch (err) {
+      console.error("Profile update error:", err);
+      setSnackbar({
+        open: true,
+        message: err.message || "Failed to update profile",
+        severity: "error"
+      });
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await userService.logout();
@@ -454,16 +656,24 @@ const AdminDashboard = () => {
     }
   };
 
+  const toggleColorMode = () => {
+    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+  };
+
   const menuItems = [
     { section: 'users', icon: <UsersIcon />, label: 'User Management' },
     { section: 'analytics', icon: <DashboardIcon />, label: 'User Analytics' },
     { section: 'settings', icon: <SettingsIcon />, label: 'System Settings' },
+    { section: 'csv', icon: <BackupIcon />, label: 'CSV Operations' },
+    { section: 'profile', icon: <AccountCircle />, label: 'Profile Information' }
+
   ];
 
   const activeSectionTitles = {
     users: 'User Management',
     analytics: 'User Analytics',
     settings: 'System Settings',
+    csv: 'CSV Operations',
   };
 
   const StyledTableRow = styled(TableRow)(({ theme }) => ({
@@ -483,32 +693,28 @@ const AdminDashboard = () => {
     '&.LANDLORD': { backgroundColor: alpha('#10B981', 0.1), color: '#10B981' },
     '&.ADMIN': { backgroundColor: alpha('#8B5CF6', 0.1), color: '#8B5CF6' },
   }));
-  // Prepare data for line chart (using the last 7 days)
+
   const activityData = useMemo(() => {
-  const dates = [];
-  const today = new Date();
-  
-  // Create data for the last 7 days
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    
-    // Calculate new users for this date
-    const newUsersCount = getNewUsersCountByDate(users, date);
-    
-    // Calculate active users (we'll keep the existing calculation but make it more realistic)
-    const activeUsersCount = Math.floor(
-      userStats.activeUsers * (0.85 + (Math.sin(i / 2) * 0.15))
-    );
-    
-    dates.push({
-      name: date.toLocaleDateString('en-US', { weekday: 'short' }),
-      'Active Users': activeUsersCount,
-      'New Users': newUsersCount
-    });
-  }
-  return dates;
-}, [users, userStats.activeUsers]);
+    const dates = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+
+      const newUsersCount = getNewUsersCountByDate(users, date);
+      const activeUsersCount = Math.floor(
+        userStats.activeUsers * (0.85 + (Math.sin(i / 2) * 0.15))
+      );
+
+      dates.push({
+        name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        'Active Users': activeUsersCount,
+        'New Users': newUsersCount
+      });
+    }
+    return dates;
+  }, [users, userStats.activeUsers]);
 
   const StatCard = ({ title, value, icon, color }) => (
     <Paper sx={{
@@ -539,8 +745,246 @@ const AdminDashboard = () => {
     </Paper>
   );
 
+  // Loading state
+  if (loading) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>Loading...</Typography>
+      </Container>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Paper sx={{ p: 3, textAlign: 'center', color: 'error.main' }}>
+          <Typography>{error}</Typography>
+        </Paper>
+      </Container>
+    );
+  }
+
+  const renderProfile = () => {
+    return (
+      // <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth={{ xs: "xl", md: "lg" }} sx={{ py: { xs: 8, md: 0 } }}>
+        <Stack spacing={4}>
+          {/* Header Card */}
+          <Card
+            sx={{
+              position: 'relative',
+              overflow: 'hidden',
+              p: 4,
+              background: (theme) =>
+                `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+              color: 'white',
+              borderRadius: '16px',
+              textAlign: 'center',
+            }}
+          >
+            <Avatar
+              sx={{
+                width: 120,
+                height: 120,
+                border: '4px solid lightgray ',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                fontSize: '3rem',
+                mx: 'auto',
+                mb: 2,
+              }}
+            >
+              {currentUser?.username?.[0]?.toUpperCase()}
+            </Avatar>
+            <Typography variant="h4" fontWeight="bold" >
+              {currentUser?.fullName || currentUser?.username}
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.8, mb: 2 }}>
+              {currentUser?.role}
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<EditIcon />}
+              onClick={() => setIsEditModalOpen(true)}
+              sx={{
+                bgcolor: 'white',
+                color: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'grey.100',
+                },
+              }}
+            >
+              Edit Profile
+            </Button>
+          </Card>
+
+          {/* Info Cards */}
+          <Grid2 container spacing={3}>
+            <Grid2 item xs={12} md={12}>
+              <Paper sx={{ p: 3, borderRadius: '12px' }}>
+                <Stack spacing={2}>
+                  <Typography variant="h6" fontWeight="bold">
+                    Personal Information
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <PersonIcon color="primary" />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" textAlign={'left'}>
+                        Username
+                      </Typography>
+                      <Typography variant="body1" textAlign={'left'}>{currentUser?.username}</Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <BadgeIcon color="primary" />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" textAlign={'left'}>
+                        Full Name
+                      </Typography>
+                      <Typography variant="body1" textAlign={'left'}>
+                        {currentUser?.fullName || 'Not set'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Grid2>
+
+            <Grid2 item xs={12} md={12}>
+              <Paper sx={{ p: 3, borderRadius: '12px' }}>
+                <Stack spacing={2}>
+                  <Typography variant="h6" fontWeight="bold">
+                    Contact Information
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <EmailIcon color="primary" />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" textAlign={'left'}>
+                        Email
+                      </Typography>
+                      <Typography variant="body1" textAlign={'left'}>{currentUser?.email}</Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <PhoneIcon color="primary" />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" textAlign={'left'}>
+                        Phone Number
+                      </Typography>
+                      <Typography variant="body1" textAlign={'left'}>
+                        {currentUser?.phoneNumber || 'Not set'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Grid2>
+          </Grid2>
+        </Stack>
+
+        {/* Edit Profile Dialog */}
+        <Dialog
+          open={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            Edit Profile
+            <IconButton
+              onClick={() => setIsEditModalOpen(false)}
+              sx={{ position: 'absolute', right: 8, top: 8 }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={3} sx={{ pt: 1 }}>
+              <TextField
+                fullWidth
+                label="Username"
+                value={profileForm.username}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, username: e.target.value })
+                }
+              />
+              <TextField
+                fullWidth
+                label="Email"
+                value={profileForm.email}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, email: e.target.value })
+                }
+              />
+              <TextField
+                fullWidth
+                label="Password"
+                value={profileForm.password}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, password: e.target.value })
+                }
+              />
+              <TextField
+                fullWidth
+                label="Full Name"
+                value={profileForm.fullName}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, fullName: e.target.value })
+                }
+              />
+              <TextField
+                fullWidth
+                label="Phone Number"
+                value={profileForm.phoneNumber}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, phoneNumber: e.target.value })
+                }
+              />
+              <TextField
+                fullWidth
+                disabled
+                label="Role"
+                value={profileForm.role}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, role: e.target.value })
+                }
+              />
+
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleUpdateProfile}>
+              Save Changes
+            </Button>
+          </DialogActions>
+        </Dialog>
+        <Snackbar
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        >
+          <Alert
+            onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+            severity={snackbar.severity}
+            sx={{
+              width: '100%',
+              borderRadius: '12px',
+              boxShadow: theme.shadows[3],
+            }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Container>
+    );
+  };
+
+
   const renderUserManagement = () => (
-    <Container maxWidth="xl" sx={{ py: 2 }}>
+    <Container maxWidth="xl" sx={{ pt: 2 }}>
       <Stack spacing={3}>
         <Paper
           elevation={0}
@@ -562,7 +1006,7 @@ const AdminDashboard = () => {
         >
           <Grid2 container spacing={2} alignItems="center">
             {/* Search Users - Takes 1/2 space on mobile */}
-            <Grid2 xs={12} sm={6} md={8.5}>
+            <Grid2 xs={12} sm={6} md={8}>
               <TextField
                 fullWidth
                 variant="outlined"
@@ -641,6 +1085,7 @@ const AdminDashboard = () => {
             borderRadius: '16px',
             border: '1px solid',
             borderColor: 'divider',
+
           }}>
             <TableContainer sx={{ maxHeight: '70vh' }}>
               <Table stickyHeader>
@@ -960,27 +1405,27 @@ const AdminDashboard = () => {
       LANDLORD: '#10B981',
       ADMIN: '#8B5CF6'
     };
-  
+
     const STATS_CONFIG = [
       { title: 'Total Users', value: userStats.totalUsers, color: '#6366F1', icon: <PeopleIcon /> },
       { title: 'Active Users', value: userStats.activeUsers, color: '#10B981', icon: <PeopleIcon /> },
       { title: 'Inactive Users', value: userStats.inactiveUsers, color: '#EF4444', icon: <PeopleIcon /> }
     ];
-  
+
     const roleData = Object.entries(userStats.userRoleDistribution).map(([role, count]) => ({
       name: role,
       value: count
     }));
-  
+
     // Custom tooltip component for charts
     const CustomTooltip = ({ active, payload, label }) => {
       if (!active || !payload || !payload.length) return null;
       return (
-        <Paper 
-          sx={{ 
-            p: 2, 
-            borderRadius: 2, 
-            boxShadow: 4, 
+        <Paper
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            boxShadow: 4,
             bgcolor: 'background.paper',
             border: '1px solid',
             borderColor: 'divider',
@@ -988,9 +1433,9 @@ const AdminDashboard = () => {
         >
           <Typography variant="subtitle2" fontWeight={600}>{label}</Typography>
           {payload.map((entry, index) => (
-            <Typography 
-              key={index} 
-              variant="caption" 
+            <Typography
+              key={index}
+              variant="caption"
               display="block"
               sx={{ color: entry.color }}
             >
@@ -1000,7 +1445,7 @@ const AdminDashboard = () => {
         </Paper>
       );
     };
-  
+
     // Chart configurations
     const chartConfigs = {
       areaChart: {
@@ -1018,7 +1463,7 @@ const AdminDashboard = () => {
         )
       }
     };
-  
+
     return (
       <Container maxWidth="x1" sx={{ py: { xs: 2, md: 3 } }}>
         <Stack spacing={{ xs: 2, md: 3 }}>
@@ -1062,19 +1507,19 @@ const AdminDashboard = () => {
               </Grid2>
             ))}
           </Grid2>
-  
+
           {/* Charts Section */}
           <Grid2 container spacing={{ xs: 2, md: 3 }} direction="column">
             {/* Role Distribution Chart */}
             <Grid2 >
-              <Paper 
-                sx={{ 
+              <Paper
+                sx={{
                   p: 3,
                   height: { xs: '400px', md: '500px' },
                   borderRadius: '16px',
                   border: '1px solid',
                   borderColor: 'divider',
-                  
+
                 }}
               >
                 <Typography variant="h6" fontWeight={600} gutterBottom>
@@ -1093,16 +1538,16 @@ const AdminDashboard = () => {
                         dataKey="value"
                       >
                         {roleData.map((entry, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={ROLE_COLORS[entry.name]} 
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={ROLE_COLORS[entry.name]}
                             strokeWidth={2}
                           />
                         ))}
                       </Pie>
                       <Tooltip content={<CustomTooltip />} />
-                      <Legend 
-                        verticalAlign="bottom" 
+                      <Legend
+                        verticalAlign="bottom"
                         height={36}
                         formatter={(value) => (
                           <span style={{ color: ROLE_COLORS[value] }}>{value}</span>
@@ -1113,11 +1558,11 @@ const AdminDashboard = () => {
                 </Box>
               </Paper>
             </Grid2>
-  
+
             {/* Activity Overview Chart */}
             <Grid2 >
-              <Paper 
-                sx={{ 
+              <Paper
+                sx={{
                   p: 3,
                   height: { xs: '400px', md: '500px' },
                   borderRadius: '16px',
@@ -1131,20 +1576,20 @@ const AdminDashboard = () => {
                 </Typography>
                 <Box sx={{ width: '100%', height: 'calc(100% - 40px)' }}>
                   <ResponsiveContainer>
-                    <AreaChart 
+                    <AreaChart
                       data={activityData}
                       margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
                     >
                       {chartConfigs.areaChart.gradients}
                       <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                      <XAxis 
-                        dataKey="name" 
-                        fontSize={12} 
+                      <XAxis
+                        dataKey="name"
+                        fontSize={12}
                         tickMargin={10}
                         stroke="text.secondary"
                       />
-                      <YAxis 
-                        fontSize={12} 
+                      <YAxis
+                        fontSize={12}
                         tickMargin={10}
                         stroke="text.secondary"
                       />
@@ -1193,7 +1638,7 @@ const AdminDashboard = () => {
                   fullWidth
                   label="Site Name"
                   value={generalSettings.siteName}
-                  onChange={(e) => setGeneralSettings({...generalSettings, siteName: e.target.value})}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, siteName: e.target.value })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1201,7 +1646,7 @@ const AdminDashboard = () => {
                   fullWidth
                   label="Support Email"
                   value={generalSettings.supportEmail}
-                  onChange={(e) => setGeneralSettings({...generalSettings, supportEmail: e.target.value})}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, supportEmail: e.target.value })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1209,7 +1654,7 @@ const AdminDashboard = () => {
                   fullWidth
                   label="Support Phone"
                   value={generalSettings.supportPhone}
-                  onChange={(e) => setGeneralSettings({...generalSettings, supportPhone: e.target.value})}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, supportPhone: e.target.value })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1218,7 +1663,7 @@ const AdminDashboard = () => {
                   <Select
                     value={generalSettings.defaultLanguage}
                     label="Default Language"
-                    onChange={(e) => setGeneralSettings({...generalSettings, defaultLanguage: e.target.value})}
+                    onChange={(e) => setGeneralSettings({ ...generalSettings, defaultLanguage: e.target.value })}
                   >
                     <MenuItem value="en">English</MenuItem>
                     <MenuItem value="es">Spanish</MenuItem>
@@ -1246,7 +1691,7 @@ const AdminDashboard = () => {
                   type="number"
                   label="Minimum Password Length"
                   value={securitySettings.passwordMinLength}
-                  onChange={(e) => setSecuritySettings({...securitySettings, passwordMinLength: parseInt(e.target.value)})}
+                  onChange={(e) => setSecuritySettings({ ...securitySettings, passwordMinLength: parseInt(e.target.value) })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1255,7 +1700,7 @@ const AdminDashboard = () => {
                   type="number"
                   label="Session Timeout (minutes)"
                   value={securitySettings.sessionTimeout}
-                  onChange={(e) => setSecuritySettings({...securitySettings, sessionTimeout: parseInt(e.target.value)})}
+                  onChange={(e) => setSecuritySettings({ ...securitySettings, sessionTimeout: parseInt(e.target.value) })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1264,7 +1709,7 @@ const AdminDashboard = () => {
                   type="number"
                   label="Max Login Attempts"
                   value={securitySettings.maxLoginAttempts}
-                  onChange={(e) => setSecuritySettings({...securitySettings, maxLoginAttempts: parseInt(e.target.value)})}
+                  onChange={(e) => setSecuritySettings({ ...securitySettings, maxLoginAttempts: parseInt(e.target.value) })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1273,7 +1718,7 @@ const AdminDashboard = () => {
                     control={
                       <Switch
                         checked={securitySettings.requireSpecialChar}
-                        onChange={(e) => setSecuritySettings({...securitySettings, requireSpecialChar: e.target.checked})}
+                        onChange={(e) => setSecuritySettings({ ...securitySettings, requireSpecialChar: e.target.checked })}
                       />
                     }
                     label="Require Special Characters"
@@ -1282,7 +1727,7 @@ const AdminDashboard = () => {
                     control={
                       <Switch
                         checked={securitySettings.requireNumber}
-                        onChange={(e) => setSecuritySettings({...securitySettings, requireNumber: e.target.checked})}
+                        onChange={(e) => setSecuritySettings({ ...securitySettings, requireNumber: e.target.checked })}
                       />
                     }
                     label="Require Numbers"
@@ -1308,7 +1753,7 @@ const AdminDashboard = () => {
                   fullWidth
                   label="SMTP Server"
                   value={emailSettings.smtpServer}
-                  onChange={(e) => setEmailSettings({...emailSettings, smtpServer: e.target.value})}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, smtpServer: e.target.value })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1316,7 +1761,7 @@ const AdminDashboard = () => {
                   fullWidth
                   label="SMTP Port"
                   value={emailSettings.smtpPort}
-                  onChange={(e) => setEmailSettings({...emailSettings, smtpPort: e.target.value})}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, smtpPort: e.target.value })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1324,7 +1769,7 @@ const AdminDashboard = () => {
                   fullWidth
                   label="From Email Address"
                   value={emailSettings.emailFrom}
-                  onChange={(e) => setEmailSettings({...emailSettings, emailFrom: e.target.value})}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, emailFrom: e.target.value })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1332,7 +1777,7 @@ const AdminDashboard = () => {
                   control={
                     <Switch
                       checked={emailSettings.enableSSL}
-                      onChange={(e) => setEmailSettings({...emailSettings, enableSSL: e.target.checked})}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, enableSSL: e.target.checked })}
                     />
                   }
                   label="Enable SSL/TLS"
@@ -1358,7 +1803,7 @@ const AdminDashboard = () => {
                   <Select
                     value={backupSettings.backupFrequency}
                     label="Backup Frequency"
-                    onChange={(e) => setBackupSettings({...backupSettings, backupFrequency: e.target.value})}
+                    onChange={(e) => setBackupSettings({ ...backupSettings, backupFrequency: e.target.value })}
                   >
                     <MenuItem value="hourly">Hourly</MenuItem>
                     <MenuItem value="daily">Daily</MenuItem>
@@ -1373,7 +1818,7 @@ const AdminDashboard = () => {
                   type="number"
                   label="Retention Period (days)"
                   value={backupSettings.retentionDays}
-                  onChange={(e) => setBackupSettings({...backupSettings, retentionDays: parseInt(e.target.value)})}
+                  onChange={(e) => setBackupSettings({ ...backupSettings, retentionDays: parseInt(e.target.value) })}
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1382,7 +1827,7 @@ const AdminDashboard = () => {
                   type="time"
                   label="Backup Time"
                   value={backupSettings.backupTime}
-                  onChange={(e) => setBackupSettings({...backupSettings, backupTime: e.target.value})}
+                  onChange={(e) => setBackupSettings({ ...backupSettings, backupTime: e.target.value })}
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid2>
@@ -1391,7 +1836,7 @@ const AdminDashboard = () => {
                   control={
                     <Switch
                       checked={backupSettings.autoBackup}
-                      onChange={(e) => setBackupSettings({...backupSettings, autoBackup: e.target.checked})}
+                      onChange={(e) => setBackupSettings({ ...backupSettings, autoBackup: e.target.checked })}
                     />
                   }
                   label="Enable Automatic Backups"
@@ -1466,6 +1911,164 @@ const AdminDashboard = () => {
     </Container>
   );
 
+  const CSVCard = ({ title, onExport, onImport, icon }) => {
+    const [loading, setLoading] = useState(false);
+    const inputRef = useRef(null);
+
+    const handleImportClick = () => {
+      inputRef.current.click();
+    };
+
+    const handleFileChange = async (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        try {
+          await handleImportUsersCSV(file);
+        } catch (error) {
+          console.error('File import error:', error);
+        }
+      }
+    };
+
+    const handleExportClick = async () => {
+      try {
+        setLoading(true);
+        await onExport();
+        setSnackbar({
+          open: true,
+          message: `${title} exported successfully`,
+          severity: 'success'
+        });
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: error.message || `Failed to export ${title.toLowerCase()}`,
+          severity: 'error'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <Grid2 item xs={12} sm={6} md={4}>
+        <Paper sx={{
+          p: 3,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          transition: 'transform 0.2s',
+          '&:hover': {
+            transform: 'translateY(-4px)',
+          },
+        }}>
+          <Box sx={{ mb: 2, color: 'primary.main' }}>
+            {React.cloneElement(icon, { sx: { fontSize: 40 } })}
+          </Box>
+          <Typography variant="h6" gutterBottom>{title}</Typography>
+
+          <input
+            type="file"
+            ref={inputRef}
+            style={{ display: 'none' }}
+            accept=".csv"
+            onChange={handleFileChange}
+          />
+
+          <Stack spacing={2} width="100%">
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleExportClick}
+              disabled={loading}
+              startIcon={<SystemUpdateAltIcon />}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Export CSV'}
+            </Button>
+
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handleImportClick}
+              disabled={loading}
+              startIcon={<PublishIcon />}
+            >
+              Import CSV
+            </Button>
+          </Stack>
+        </Paper>
+      </Grid2>
+    );
+  };
+
+  const renderCSV = () => (
+    <Container
+      maxWidth="x1" sx={{ py: { xs: 2, md: 3 } }}>
+      <Stack spacing={4}>
+        <Box textAlign="center">
+          {/* <Typography variant="h3" fontWeight={700} sx={{
+            mb: 2,
+            background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}>
+            CSV Management
+          </Typography> */}
+          <Typography variant="body1" color="text.secondary">
+            Import and export application data in CSV format
+          </Typography>
+        </Box>
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
+            <CircularProgress size={60} />
+          </Box>
+        ) : error ? (
+          <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'error.light' }}>
+            <Typography color="error">{error}</Typography>
+          </Paper>
+        ) : (
+          <Grid2 container spacing={3}
+            gap={{ md: 3 }}
+            justifyContent={{ md: 'center' }}
+
+          >
+            <CSVCard
+              title="Users"
+              icon={<PeopleIcon />}
+              onExport={handleExportUsersCSV}
+              onImport={handleImportUsersCSV}
+            />
+            <CSVCard
+              title="Rooms"
+              icon={<HomeIcon />}
+              onExport={handleExportRoomsCSV}
+              onImport={handleImportRoomsCSV}
+            />
+            <CSVCard
+              title="Messages"
+              icon={<EmailIcon />}
+              onExport={handleExportMessagesCSV}
+              onImport={handleImportMessagesCSV}
+            />
+            <CSVCard
+              title="Bookings"
+              icon={<AssignmentIcon />}
+              onExport={handleExportBookingsCSV}
+              onImport={handleImportBookingsCSV}
+            />
+          </Grid2>
+        )}
+
+        <Typography variant="caption" color="text.secondary" textAlign="center">
+          Supported formats: CSV files with UTF-8 encoding. Maximum file size: 10MB
+        </Typography>
+      </Stack>
+    </Container>
+  );
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -1506,6 +2109,9 @@ const AdminDashboard = () => {
                 onClick={() => {
                   setActiveSection(item.section);
                   switch (item.section) {
+                    case 'profile':
+                      navigate('/dashboard/admin/profile-information');
+                      break;
                     case 'users':
                       navigate('/dashboard/admin/user-management');
                       break;
@@ -1514,6 +2120,9 @@ const AdminDashboard = () => {
                       break;
                     case 'settings':
                       navigate('/dashboard/admin/system-settings');
+                      break;
+                    case 'csv':
+                      navigate('/dashboard/admin/csv-operations');
                       break;
                     default:
                       break;
@@ -1572,7 +2181,7 @@ const AdminDashboard = () => {
             // height: '100vh',
             // bgcolor: 'background.default', // This ensures the background color matches the theme
             // minHeight: '100vh',
-            
+
             // overflow: 'auto' ,
             // overflowAnchor: 'none',
           }}
@@ -1646,9 +2255,11 @@ const AdminDashboard = () => {
           <Typography variant="h5" component="h1" fontWeight={700} margin={1}>
             {activeSectionTitles[activeSection]}
           </Typography>
+          {activeSection === 'profile' && renderProfile()}
           {activeSection === 'users' && renderUserManagement()}
           {activeSection === 'analytics' && renderUserAnalytics()}
           {activeSection === 'settings' && renderSystemSettings()}
+          {activeSection === 'csv' && renderCSV()}
         </Box>
 
         <Snackbar
@@ -1683,7 +2294,7 @@ const AdminDashboard = () => {
             py: 2,
           }}>
             <Typography variant="h5" fontWeight={600}>
-              {selectedUser ? 'Edit User' : 'Create New User'}
+              {selectedUser ? 'Edit Role' : 'Create New User'}
             </Typography>
             <IconButton
               onClick={() => setIsUserModalOpen(false)}
@@ -1699,13 +2310,14 @@ const AdminDashboard = () => {
           </DialogTitle>
           <DialogContent sx={{ py: 3 }}>
             <Grid2 container spacing={3} sx={{ mt: 1 }}>
-              <Grid2 item xs={12} md={6}>
+              {/* <Grid2 item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Username"
                   variant="outlined"
                   value={userForm.username}
                   onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+                  disabled
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1715,6 +2327,7 @@ const AdminDashboard = () => {
                   variant="outlined"
                   value={userForm.email}
                   onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                  disabled
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1723,7 +2336,10 @@ const AdminDashboard = () => {
                   label="Password"
                   variant="outlined"
                   value={userForm.password}
-                  onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
+                  onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                  disabled
+                />
+
               </Grid2>
               <Grid2 item xs={12} md={6}>
                 <TextField
@@ -1732,6 +2348,7 @@ const AdminDashboard = () => {
                   variant="outlined"
                   value={userForm.fullName}
                   onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })}
+                  disabled
                 />
               </Grid2>
               <Grid2 item xs={12} md={6}>
@@ -1741,8 +2358,9 @@ const AdminDashboard = () => {
                   variant="outlined"
                   value={userForm.phoneNumber}
                   onChange={(e) => setUserForm({ ...userForm, phoneNumber: e.target.value })}
+                  disabled
                 />
-              </Grid2>
+              </Grid2> */}
               <Grid2 item xs={12} md={6}>
                 <Select
                   fullWidth
@@ -1780,7 +2398,7 @@ const AdminDashboard = () => {
               {loading ? (
                 <CircularProgress size={24} color="inherit" />
               ) : (
-                selectedUser ? 'Update User' : 'Create User'
+                selectedUser ? 'Update Role' : 'Create User'
               )}
             </Button>
           </DialogActions>

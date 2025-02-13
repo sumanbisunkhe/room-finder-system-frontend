@@ -47,11 +47,20 @@ const App = () => {
         }>
           {/* Default redirect for /dashboard/admin */}
           <Route index element={<Navigate to="user-management" replace />} />
-          
+
           {/* Admin sub-routes */}
-          <Route path="user-management" element={<AdminDashboard />} />
+          <Route path="user-management">
+            <Route index element={<AdminDashboard />} />
+            <Route path="add" element={<AdminDashboard />} />
+            <Route path="edit/:userId" element={<AdminDashboard />} />
+          </Route>
           <Route path="user-analytics" element={<AdminDashboard />} />
           <Route path="system-settings" element={<AdminDashboard />} />
+          <Route path="csv-operations" element={<AdminDashboard />} />
+          <Route path="profile-information">
+            <Route index element={<AdminDashboard />} />
+            <Route path="edit" element={<AdminDashboard />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />
