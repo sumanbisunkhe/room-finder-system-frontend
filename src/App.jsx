@@ -30,14 +30,22 @@ const App = () => {
           }
         />
 
-        <Route
+<Route
           path="/dashboard/landlord"
           element={
             <ProtectedRoute requiredRole="LANDLORD">
               <LandlordDashboard />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<Navigate to="properties" replace />} />
+          <Route path="property-management" element={<LandlordDashboard />} />
+          <Route path="add-property" element={<LandlordDashboard />} />
+          <Route path="applications" element={<LandlordDashboard />} />
+          <Route path="property-analytics" element={<LandlordDashboard />} />
+          <Route path="system-settings" element={<LandlordDashboard />} />
+          <Route path="profile-information" element={<LandlordDashboard />} />
+        </Route>
 
         {/* Admin Dashboard Routes */}
         <Route path="/dashboard/admin" element={

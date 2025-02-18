@@ -255,6 +255,40 @@ export const getCurrentUser = async () => {
   }
 };
 
+/* ==================== Password Management ==================== */
+
+/**
+ * Change user's password after validating current password.
+ * @param {number} userId - ID of the user
+ * @param {string} currentPassword - User's current password for validation
+ * @param {string} newPassword - New password to set
+ * @returns {Promise<Object>} API response
+ */
+export const changePassword = async (userId, currentPassword, newPassword) => {
+  try {
+    const response = await api.put(`/users/${userId}/change-password`, {
+      currentPassword,
+      newPassword
+    });
+    return response.data;
+  } catch (error) {
+    // Handle specific error cases
+    if (error.response) {
+      switch (error.response.status) {
+        case 400:
+          return handleError(error, 'Invalid password format or requirements');
+        case 401:
+          return handleError(error, 'Current password is incorrect');
+        case 403:
+          return handleError(error, 'Account is inactive');
+        default:
+          return handleError(error, 'Failed to change password');
+      }
+    }
+    return handleError(error, 'Network error while changing password');
+  }
+};
+
 /* ==================== CSV Import/Export Methods ==================== */
 
 // Export users to CSV.
@@ -311,6 +345,7 @@ export default {
   deleteUser,
   updateUserProfile,
   logout,
+  changePassword,
   // CSV methods for Users
   exportUsersToCSV,
   importUsersFromCSV,

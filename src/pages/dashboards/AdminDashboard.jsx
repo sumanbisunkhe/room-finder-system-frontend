@@ -178,60 +178,116 @@ const AdminDashboard = () => {
     timezone: 'UTC',
   });
 
-  // Theme creation moved outside of conditional rendering
   const theme = useMemo(
-    () =>
-      createTheme({
-        typography: {
-          fontFamily: ['"Inter", sans-serif', '"Space Grotesk", sans-serif'].join(','),
-          h1: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700 },
-          h2: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 600 },
-          h3: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 600 },
-          h4: { fontFamily: '"Space Grotesk", sans-serif', fontWeight: 600 },
+  () =>
+    createTheme({
+      typography: {
+        fontFamily: ['"Inter", sans-serif', '"Space Grotesk", sans-serif'].join(','),
+        h1: { 
+          fontFamily: '"Space Grotesk", sans-serif', 
+          fontWeight: 700,
+          letterSpacing: '-0.02em'
         },
-        palette: {
-          mode: mode === 'system' ? (prefersDarkMode ? 'dark' : 'light') : mode,
-          primary: {
-            main: mode === 'dark' ? '#7C4DFF' : '#6366F1',
-          },
-          secondary: {
-            main: mode === 'dark' ? '#22D3EE' : '#3B82F6',
-          },
-          background: {
-            default: mode === 'dark' ? '#0F172A' : '#F8FAFC',
-            paper: mode === 'dark' ? '#1E293B' : '#FFFFFF',
-          },
+        h2: { 
+          fontFamily: '"Space Grotesk", sans-serif', 
+          fontWeight: 600,
+          letterSpacing: '-0.01em'
         },
-        components: {
-          MuiButton: {
-            styleOverrides: {
-              root: {
-                textTransform: 'none',
-                borderRadius: '10px',
-                padding: '10px 20px',
-                fontWeight: 600,
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  transform: 'translateY(-1px)',
-                },
-              },
+        h3: { 
+          fontFamily: '"Space Grotesk", sans-serif', 
+          fontWeight: 600,
+          letterSpacing: '-0.01em'
+        },
+        h4: { 
+          fontFamily: '"Space Grotesk", sans-serif', 
+          fontWeight: 600
+        },
+        body1: {
+          lineHeight: 1.7
+        }
+      },
+      palette: {
+        mode: mode === 'system' ? (prefersDarkMode ? 'dark' : 'light') : mode,
+        primary: {
+          // Indigo in light mode, Vibrant purple in dark mode
+          main: mode === 'dark' ? '#8B5CF6' : '#4F46E5',
+          light: mode === 'dark' ? '#A78BFA' : '#818CF8',
+          dark: mode === 'dark' ? '#7C3AED' : '#4338CA',
+          contrastText: '#FFFFFF'
+        },
+        secondary: {
+          // Sky blue in light mode, Cyan in dark mode
+          main: mode === 'dark' ? '#06B6D4' : '#0EA5E9',
+          light: mode === 'dark' ? '#67E8F9' : '#38BDF8',
+          dark: mode === 'dark' ? '#0891B2' : '#0284C7',
+          contrastText: '#FFFFFF'
+        },
+        background: {
+          // Slate colors for better contrast and reduced eye strain
+          default: mode === 'dark' ? '#0F172A' : '#F8FAFC',
+          paper: mode === 'dark' ? '#1E293B' : '#FFFFFF'
+        },
+        text: {
+          primary: mode === 'dark' ? '#F1F5F9' : '#0F172A',
+          secondary: mode === 'dark' ? '#CBD5E1' : '#475569'
+        },
+        divider: mode === 'dark' ? '#334155' : '#E2E8F0',
+        action: {
+          hover: mode === 'dark' ? 'rgba(148, 163, 184, 0.08)' : 'rgba(51, 65, 85, 0.04)',
+          selected: mode === 'dark' ? 'rgba(148, 163, 184, 0.16)' : 'rgba(51, 65, 85, 0.08)',
+          disabled: mode === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(51, 65, 85, 0.26)'
+        }
+      },
+      components: {
+        MuiButton: {
+          styleOverrides: {
+            root: {
+              textTransform: 'none',
+              borderRadius: '12px',
+              padding: '10px 24px',
+              fontWeight: 600,
+              fontSize: '0.9375rem',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: mode === 'dark' 
+                  ? '0 4px 12px rgba(139, 92, 246, 0.3)'
+                  : '0 4px 12px rgba(79, 70, 229, 0.2)'
+              }
             },
-          },
-          MuiPaper: {
-            styleOverrides: {
-              root: {
-                borderRadius: '16px',
-                boxShadow: mode === 'dark'
-                  ? '0px 4px 6px rgba(0, 0, 0, 0.25)'
-                  : '0px 4px 6px rgba(0, 0, 0, 0.05)',
-                border: `1px solid ${mode === 'dark' ? '#2E3A4D' : '#E2E8F0'}`,
-              },
-            },
-          },
+            contained: {
+              boxShadow: 'none'
+            }
+          }
         },
-      }),
-    [mode, prefersDarkMode]
-  );
+        MuiPaper: {
+          styleOverrides: {
+            root: {
+              borderRadius: '16px',
+              boxShadow: mode === 'dark'
+                ? '0 4px 20px rgba(0, 0, 0, 0.25)'
+                : '0 4px 20px rgba(148, 163, 184, 0.1)',
+              border: `1px solid ${mode === 'dark' ? '#334155' : '#E2E8F0'}`,
+              backgroundImage: 'none'
+            },
+            elevation1: {
+              boxShadow: mode === 'dark'
+                ? '0 2px 12px rgba(0, 0, 0, 0.2)'
+                : '0 2px 12px rgba(148, 163, 184, 0.08)'
+            }
+          }
+        },
+        MuiCard: {
+          styleOverrides: {
+            root: {
+              backgroundImage: 'none'
+            }
+          }
+        }
+      }
+    }),
+  [mode, prefersDarkMode]
+);
 
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -309,6 +365,52 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   }, []);
+
+  const handleCreateUser = async () => {
+    try {
+      setLoading(true);
+
+      const newUser = {
+        username: userForm.username,
+        email: userForm.email,
+        password: userForm.password,
+        fullName: userForm.fullName,
+        phoneNumber: userForm.phoneNumber,
+        role: userForm.role,
+        active: userForm.status === 'active'
+      };
+
+      await userService.registerUser(newUser);
+      await fetchAndProcessUsers();
+
+      setSnackbar({
+        open: true,
+        message: 'User created successfully',
+        severity: 'success',
+      });
+
+      setIsUserModalOpen(false);
+      setUserForm({
+        username: '',
+        email: '',
+        password: '',
+        fullName: '',
+        phoneNumber: '',
+        role: 'SEEKER',
+        status: 'active',
+      });
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create user';
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   // Users CSV
   const handleExportUsersCSV = async () => {
@@ -1000,7 +1102,7 @@ const AdminDashboard = () => {
             border: '1px solid',
             borderColor: 'divider',
             position: { xs: 'sticky', md: 'static' },
-            top: { xs: '64px', md: 0 },
+            top: { xs: '72px', md: 0 },
             zIndex: 2,
           }}
         >
@@ -1209,7 +1311,7 @@ const AdminDashboard = () => {
         </Box>
 
         {/* Mobile View - Enhanced Cards */}
-        <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+        <Box sx={{ display: { xs: 'block', md: 'none', overflow:'hidden' } }}>
           <Stack spacing={2}>
             {filteredUsers.map((user) => (
               <Paper
@@ -2294,7 +2396,7 @@ const AdminDashboard = () => {
             py: 2,
           }}>
             <Typography variant="h5" fontWeight={600}>
-              {selectedUser ? 'Edit Role' : 'Create New User'}
+              {selectedUser ? 'Edit User' : 'Create New User'}
             </Typography>
             <IconButton
               onClick={() => setIsUserModalOpen(false)}
@@ -2310,69 +2412,101 @@ const AdminDashboard = () => {
           </DialogTitle>
           <DialogContent sx={{ py: 3 }}>
             <Grid2 container spacing={3} sx={{ mt: 1 }}>
-              {/* <Grid2 item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Username"
-                  variant="outlined"
-                  value={userForm.username}
-                  onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
-                  disabled
-                />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Email"
-                  variant="outlined"
-                  value={userForm.email}
-                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                  disabled
-                />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Password"
-                  variant="outlined"
-                  value={userForm.password}
-                  onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                  disabled
-                />
-
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Full Name"
-                  variant="outlined"
-                  value={userForm.fullName}
-                  onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })}
-                  disabled
-                />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Phone Number"
-                  variant="outlined"
-                  value={userForm.phoneNumber}
-                  onChange={(e) => setUserForm({ ...userForm, phoneNumber: e.target.value })}
-                  disabled
-                />
-              </Grid2> */}
-              <Grid2 item xs={12} md={6}>
-                <Select
-                  fullWidth
-                  label="Role"
-                  value={userForm.role}
-                  onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                >
-                  <MenuItem value="SEEKER">Seeker</MenuItem>
-                  <MenuItem value="LANDLORD">Landlord</MenuItem>
-                  <MenuItem value="ADMIN">Admin</MenuItem>
-                </Select>
-              </Grid2>
+              {selectedUser ? (
+                // Edit User Form
+                <>
+                  
+                  <Grid2 item xs={12} md={6}>
+                    <Select
+                      fullWidth
+                      label="Role"
+                      value={userForm.role}
+                      onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    >
+                      <MenuItem value="SEEKER">Seeker</MenuItem>
+                      <MenuItem value="LANDLORD">Landlord</MenuItem>
+                      <MenuItem value="ADMIN">Admin</MenuItem>
+                    </Select>
+                  </Grid2>
+                  
+                </>
+              ) : (
+                // Create User Form
+                <>
+                  <Grid2 item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Username"
+                      variant="outlined"
+                      value={userForm.username}
+                      onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+                      required
+                    />
+                  </Grid2>
+                  <Grid2 item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Email"
+                      variant="outlined"
+                      value={userForm.email}
+                      onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                      required
+                    />
+                  </Grid2>
+                  <Grid2 item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Password"
+                      variant="outlined"
+                      type="password"
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                      required
+                    />
+                  </Grid2>
+                  <Grid2 item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Full Name"
+                      variant="outlined"
+                      value={userForm.fullName}
+                      onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })}
+                    />
+                  </Grid2>
+                  <Grid2 item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Phone Number"
+                      variant="outlined"
+                      value={userForm.phoneNumber}
+                      onChange={(e) => setUserForm({ ...userForm, phoneNumber: e.target.value })}
+                    />
+                  </Grid2>
+                  <Grid2 item xs={12} md={6}>
+                    <Select
+                      fullWidth
+                      label="Role"
+                      value={userForm.role}
+                      onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    >
+                      <MenuItem value="SEEKER">Seeker</MenuItem>
+                      <MenuItem value="LANDLORD">Landlord</MenuItem>
+                      <MenuItem value="ADMIN">Admin</MenuItem>
+                    </Select>
+                  </Grid2>
+                  {/* <Grid2 item xs={12} md={6}>
+                    <Select
+                      fullWidth
+                      label="Status"
+                      value={userForm.status}
+                      onChange={(e) => setUserForm({ ...userForm, status: e.target.value })}
+                    >
+                      <MenuItem value="active">Active</MenuItem>
+                      <MenuItem value="inactive">Inactive</MenuItem>
+                    </Select>
+                  </Grid2> */}
+                </>
+              )}
             </Grid2>
           </DialogContent>
           <DialogActions sx={{
@@ -2388,7 +2522,7 @@ const AdminDashboard = () => {
             </Button>
             <Button
               variant="contained"
-              onClick={handleUpdateUser}
+              onClick={selectedUser ? handleUpdateUser : handleCreateUser}
               disabled={loading}
               sx={{
                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
@@ -2397,8 +2531,10 @@ const AdminDashboard = () => {
             >
               {loading ? (
                 <CircularProgress size={24} color="inherit" />
+              ) : selectedUser ? (
+                'Update User'
               ) : (
-                selectedUser ? 'Update Role' : 'Create User'
+                'Create User'
               )}
             </Button>
           </DialogActions>
