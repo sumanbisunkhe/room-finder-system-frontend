@@ -1,6 +1,7 @@
 // src\pages\dashboards\AdminDashboard.jsx
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import _ from 'lodash';
 import {
   Box,
   Typography,
@@ -83,10 +84,12 @@ import BadgeIcon from '@mui/icons-material/Badge';
 import PhoneIcon from '@mui/icons-material/Phone';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import PublishIcon from '@mui/icons-material/Publish';
+// import HomeIcon from '@mui/icons-material/Home';
+
 
 
 import * as userService from '../../services/userService';
-import Grid2 from '@mui/material/Unstable_Grid2';
+import { Grid } from "@mui/material";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, Area, AreaChart
@@ -99,12 +102,13 @@ const AdminDashboard = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-
-  // All state declarations moved to the top level
-  const [mode, setMode] = useState('light');
+  const [mode, setMode] = useState(() => {
+    const savedMode = localStorage.getItem('adminThemeMode');
+    return savedMode || 'light';
+  });
   const [activeSection, setActiveSection] = useState('users');
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
+  // const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [userFilter, setUserFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -179,115 +183,181 @@ const AdminDashboard = () => {
   });
 
   const theme = useMemo(
-  () =>
-    createTheme({
-      typography: {
-        fontFamily: ['"Inter", sans-serif', '"Space Grotesk", sans-serif'].join(','),
-        h1: { 
-          fontFamily: '"Space Grotesk", sans-serif', 
-          fontWeight: 700,
-          letterSpacing: '-0.02em'
+    () =>
+      createTheme({
+        typography: {
+          fontFamily: ['"Manrope", sans-serif', '"Space Grotesk", sans-serif'].join(','),
+          h1: {
+            fontFamily: '"Space Grotesk", sans-serif',
+            fontWeight: 800,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.2
+          },
+          h2: {
+            fontFamily: '"Space Grotesk", sans-serif',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            lineHeight: 1.3
+          },
+          h3: {
+            fontFamily: '"Space Grotesk", sans-serif',
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            lineHeight: 1.4
+          },
+          h4: {
+            fontFamily: '"Space Grotesk", sans-serif',
+            fontWeight: 600,
+            lineHeight: 1.4
+          },
+          body1: {
+            fontFamily: '"Manrope", sans-serif',
+            lineHeight: 1.75,
+            fontSize: '1rem'
+          },
+          body2: {
+            fontFamily: '"Manrope", sans-serif',
+            lineHeight: 1.6,
+            fontSize: '0.875rem'
+          }
         },
-        h2: { 
-          fontFamily: '"Space Grotesk", sans-serif', 
-          fontWeight: 600,
-          letterSpacing: '-0.01em'
+        palette: {
+          mode: mode === 'system' ? (prefersDarkMode ? 'dark' : 'light') : mode,
+          primary: {
+            main: mode === 'dark' ? '#3B82F6' : '#2563EB',
+            light: mode === 'dark' ? '#60A5FA' : '#3B82F6',
+            dark: mode === 'dark' ? '#1D4ED8' : '#1E40AF',
+            contrastText: '#FFFFFF'
+          },
+          secondary: {
+            main: mode === 'dark' ? '#FACC15' : '#EAB308',
+            light: mode === 'dark' ? '#FDE047' : '#FACC15',
+            dark: mode === 'dark' ? '#CA8A04' : '#A16207',
+            contrastText: mode === 'dark' ? '#0F172A' : '#000000'
+          },
+          background: {
+            default: mode === 'dark' ? '#0B1120' : '#FFFFFF',
+            paper: mode === 'dark' ? '#1E293B' : '#F8FAFC',
+            accent: mode === 'dark' ? '#2D3748' : '#EDF2F7'
+          },
+          text: {
+            primary: mode === 'dark' ? '#F8FAFC' : '#1A202C',
+            secondary: mode === 'dark' ? '#CBD5E1' : '#4A5568'
+          },
+          divider: mode === 'dark' ? '#2D3748' : '#E2E8F0',
+          action: {
+            hover: mode === 'dark' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(37, 99, 235, 0.04)',
+            selected: mode === 'dark' ? 'rgba(59, 130, 246, 0.16)' : 'rgba(37, 99, 235, 0.08)',
+            disabled: mode === 'dark' ? 'rgba(203, 213, 225, 0.3)' : 'rgba(74, 85, 104, 0.26)',
+            focus: mode === 'dark' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(37, 99, 235, 0.12)'
+          }
         },
-        h3: { 
-          fontFamily: '"Space Grotesk", sans-serif', 
-          fontWeight: 600,
-          letterSpacing: '-0.01em'
+        shape: {
+          borderRadius: 16
         },
-        h4: { 
-          fontFamily: '"Space Grotesk", sans-serif', 
-          fontWeight: 600
-        },
-        body1: {
-          lineHeight: 1.7
-        }
-      },
-      palette: {
-        mode: mode === 'system' ? (prefersDarkMode ? 'dark' : 'light') : mode,
-        primary: {
-          // Indigo in light mode, Vibrant purple in dark mode
-          main: mode === 'dark' ? '#8B5CF6' : '#4F46E5',
-          light: mode === 'dark' ? '#A78BFA' : '#818CF8',
-          dark: mode === 'dark' ? '#7C3AED' : '#4338CA',
-          contrastText: '#FFFFFF'
-        },
-        secondary: {
-          // Sky blue in light mode, Cyan in dark mode
-          main: mode === 'dark' ? '#06B6D4' : '#0EA5E9',
-          light: mode === 'dark' ? '#67E8F9' : '#38BDF8',
-          dark: mode === 'dark' ? '#0891B2' : '#0284C7',
-          contrastText: '#FFFFFF'
-        },
-        background: {
-          // Slate colors for better contrast and reduced eye strain
-          default: mode === 'dark' ? '#0F172A' : '#F8FAFC',
-          paper: mode === 'dark' ? '#1E293B' : '#FFFFFF'
-        },
-        text: {
-          primary: mode === 'dark' ? '#F1F5F9' : '#0F172A',
-          secondary: mode === 'dark' ? '#CBD5E1' : '#475569'
-        },
-        divider: mode === 'dark' ? '#334155' : '#E2E8F0',
-        action: {
-          hover: mode === 'dark' ? 'rgba(148, 163, 184, 0.08)' : 'rgba(51, 65, 85, 0.04)',
-          selected: mode === 'dark' ? 'rgba(148, 163, 184, 0.16)' : 'rgba(51, 65, 85, 0.08)',
-          disabled: mode === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(51, 65, 85, 0.26)'
-        }
-      },
-      components: {
-        MuiButton: {
-          styleOverrides: {
-            root: {
-              textTransform: 'none',
-              borderRadius: '12px',
-              padding: '10px 24px',
-              fontWeight: 600,
-              fontSize: '0.9375rem',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: mode === 'dark' 
-                  ? '0 4px 12px rgba(139, 92, 246, 0.3)'
-                  : '0 4px 12px rgba(79, 70, 229, 0.2)'
+        components: {
+          MuiButton: {
+            styleOverrides: {
+              root: {
+                textTransform: 'none',
+                borderRadius: '12px',
+                padding: '12px 24px',
+                fontWeight: 600,
+                fontSize: '0.9375rem',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: mode === 'dark'
+                    ? '0 8px 24px rgba(59, 130, 246, 0.25)'
+                    : '0 8px 24px rgba(37, 99, 235, 0.15)'
+                },
+                '&:active': {
+                  transform: 'translateY(1px)'
+                }
+              },
+              contained: {
+                boxShadow: 'none',
+                backgroundImage: mode === 'dark'
+                  ? 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)'
+                  : 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)',
+                '&:hover': {
+                  backgroundImage: mode === 'dark'
+                    ? 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%)'
+                    : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
+                }
+              },
+              outlined: {
+                borderWidth: '2px',
+                '&:hover': {
+                  borderWidth: '2px',
+                  backgroundColor: mode === 'dark'
+                    ? 'rgba(59, 130, 246, 0.08)'
+                    : 'rgba(37, 99, 235, 0.04)'
+                }
               }
-            },
-            contained: {
-              boxShadow: 'none'
             }
-          }
-        },
-        MuiPaper: {
-          styleOverrides: {
-            root: {
-              borderRadius: '16px',
-              boxShadow: mode === 'dark'
-                ? '0 4px 20px rgba(0, 0, 0, 0.25)'
-                : '0 4px 20px rgba(148, 163, 184, 0.1)',
-              border: `1px solid ${mode === 'dark' ? '#334155' : '#E2E8F0'}`,
-              backgroundImage: 'none'
-            },
-            elevation1: {
-              boxShadow: mode === 'dark'
-                ? '0 2px 12px rgba(0, 0, 0, 0.2)'
-                : '0 2px 12px rgba(148, 163, 184, 0.08)'
+          },
+          MuiPaper: {
+            styleOverrides: {
+              root: {
+                borderRadius: '20px',
+                boxShadow: mode === 'dark'
+                  ? '0 4px 24px rgba(0, 0, 0, 0.3)'
+                  : '0 4px 24px rgba(148, 163, 184, 0.08)',
+                border: `1px solid ${mode === 'dark' ? '#2D3748' : '#E2E8F0'}`,
+                backgroundImage: 'none',
+                '&:hover': {
+                  boxShadow: mode === 'dark'
+                    ? '0 8px 32px rgba(0, 0, 0, 0.4)'
+                    : '0 8px 32px rgba(148, 163, 184, 0.12)'
+                }
+              },
+              elevation1: {
+                boxShadow: mode === 'dark'
+                  ? '0 2px 16px rgba(0, 0, 0, 0.25)'
+                  : '0 2px 16px rgba(148, 163, 184, 0.06)'
+              }
             }
-          }
-        },
-        MuiCard: {
-          styleOverrides: {
-            root: {
-              backgroundImage: 'none'
+          },
+          MuiCard: {
+            styleOverrides: {
+              root: {
+                backgroundImage: 'none',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: mode === 'dark'
+                    ? '0 12px 32px rgba(0, 0, 0, 0.4)'
+                    : '0 12px 32px rgba(148, 163, 184, 0.12)'
+                }
+              }
+            }
+          },
+          MuiTextField: {
+            styleOverrides: {
+              root: {
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: mode === 'dark' ? '#3B82F6' : '#2563EB',
+                    borderWidth: '2px'
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: mode === 'dark' ? '#3B82F6' : '#2563EB',
+                    borderWidth: '2px',
+                    boxShadow: mode === 'dark'
+                      ? '0 0 0 4px rgba(59, 130, 246, 0.1)'
+                      : '0 0 0 4px rgba(37, 99, 235, 0.1)'
+                  }
+                }
+              }
             }
           }
         }
-      }
-    }),
-  [mode, prefersDarkMode]
-);
+      }),
+    [mode, prefersDarkMode]
+  );
 
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -351,7 +421,7 @@ const AdminDashboard = () => {
       };
 
       setUsers(processedUsers);
-      setFilteredUsers(processedUsers);
+      // setFilteredUsers(processedUsers);
       setUserStats(stats);
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch users';
@@ -366,10 +436,39 @@ const AdminDashboard = () => {
     }
   }, []);
 
+  // Optimized handleCreateUser with optimistic updates
   const handleCreateUser = async () => {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticUser = {
+      id: tempId,
+      username: userForm.username,
+      email: userForm.email,
+      fullName: userForm.fullName,
+      phoneNumber: userForm.phoneNumber,
+      role: userForm.role,
+      isActive: userForm.status === 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
     try {
       setLoading(true);
 
+      // Optimistic update
+      setUsers(prev => [optimisticUser, ...prev]);
+
+      // Update stats optimistically
+      setUserStats(prev => ({
+        ...prev,
+        totalUsers: prev.totalUsers + 1,
+        activeUsers: userForm.status === 'active' ? prev.activeUsers + 1 : prev.activeUsers,
+        userRoleDistribution: {
+          ...prev.userRoleDistribution,
+          [userForm.role]: (prev.userRoleDistribution[userForm.role] || 0) + 1
+        }
+      }));
+
+      // API call
       const newUser = {
         username: userForm.username,
         email: userForm.email,
@@ -380,8 +479,14 @@ const AdminDashboard = () => {
         active: userForm.status === 'active'
       };
 
-      await userService.registerUser(newUser);
-      await fetchAndProcessUsers();
+      const createdUser = await userService.registerUser(newUser);
+
+      // Replace optimistic user with real data
+      setUsers(prev =>
+        prev.map(user =>
+          user.id === tempId ? { ...createdUser, id: createdUser.id } : user
+        )
+      );
 
       setSnackbar({
         open: true,
@@ -400,6 +505,18 @@ const AdminDashboard = () => {
         status: 'active',
       });
     } catch (error) {
+      // Rollback on error
+      setUsers(prev => prev.filter(user => user.id !== tempId));
+      setUserStats(prev => ({
+        ...prev,
+        totalUsers: prev.totalUsers - 1,
+        activeUsers: userForm.status === 'active' ? prev.activeUsers - 1 : prev.activeUsers,
+        userRoleDistribution: {
+          ...prev.userRoleDistribution,
+          [userForm.role]: prev.userRoleDistribution[userForm.role] - 1
+        }
+      }));
+
       const errorMessage = error.response?.data?.message || error.message || 'Failed to create user';
       setSnackbar({
         open: true,
@@ -409,6 +526,13 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Update search field with debounce
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value); // Immediate update for controlled component
+    debounceSearch(value); // Debounced update for actual filtering
   };
 
 
@@ -534,27 +658,55 @@ const AdminDashboard = () => {
     fetchAndProcessUsers();
   }, [fetchAndProcessUsers]);
 
-  useEffect(() => {
+  // useEffect(() => {
+  //   let result = users;
+  //   if (searchTerm) {
+  //     result = result.filter((user) => {
+  //       const username = user?.username?.toLowerCase() || '';
+  //       const email = user?.email?.toLowerCase() || '';
+  //       const firstName = user?.firstName?.toLowerCase() || '';
+  //       const lastName = user?.lastName?.toLowerCase() || '';
+  //       const searchTermLower = searchTerm.toLowerCase();
+  //       return (
+  //         username.includes(searchTermLower) ||
+  //         email.includes(searchTermLower) ||
+  //         firstName.includes(searchTermLower) ||
+  //         lastName.includes(searchTermLower)
+  //       );
+  //     });
+  //   }
+  //   if (userFilter !== 'all') {
+  //     result = result.filter((user) => user?.role === userFilter);
+  //   }
+  //   setFilteredUsers(result);
+  // }, [searchTerm, userFilter, users]);
+
+  // Keep the useMemo for filteredUsers:
+
+  // Add debounce ref
+  const debounceSearch = useRef(
+    _.debounce(value => setSearchTerm(value), 300)
+  ).current;
+
+  const filteredUsers = useMemo(() => {
     let result = users;
     if (searchTerm) {
+      const searchTermLower = searchTerm.toLowerCase();
       result = result.filter((user) => {
         const username = user?.username?.toLowerCase() || '';
         const email = user?.email?.toLowerCase() || '';
-        const firstName = user?.firstName?.toLowerCase() || '';
-        const lastName = user?.lastName?.toLowerCase() || '';
-        const searchTermLower = searchTerm.toLowerCase();
+        const fullName = user?.fullName?.toLowerCase() || '';
         return (
           username.includes(searchTermLower) ||
           email.includes(searchTermLower) ||
-          firstName.includes(searchTermLower) ||
-          lastName.includes(searchTermLower)
+          fullName.includes(searchTermLower)
         );
       });
     }
     if (userFilter !== 'all') {
       result = result.filter((user) => user?.role === userFilter);
     }
-    setFilteredUsers(result);
+    return result;
   }, [searchTerm, userFilter, users]);
 
   useEffect(() => {
@@ -759,7 +911,11 @@ const AdminDashboard = () => {
   };
 
   const toggleColorMode = () => {
-    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+    setMode((prevMode) => {
+      const newMode = prevMode === 'light' ? 'dark' : 'light';
+      localStorage.setItem('adminThemeMode', newMode);
+      return newMode;
+    });
   };
 
   const menuItems = [
@@ -868,6 +1024,7 @@ const AdminDashboard = () => {
     );
   }
 
+
   const renderProfile = () => {
     return (
       // <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -911,7 +1068,7 @@ const AdminDashboard = () => {
               onClick={() => setIsEditModalOpen(true)}
               sx={{
                 bgcolor: 'white',
-                color: 'primary.main',
+                color: 'tertiary.main',
                 '&:hover': {
                   bgcolor: 'grey.100',
                 },
@@ -922,8 +1079,8 @@ const AdminDashboard = () => {
           </Card>
 
           {/* Info Cards */}
-          <Grid2 container spacing={3}>
-            <Grid2 item xs={12} md={12}>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={12}>
               <Paper sx={{ p: 3, borderRadius: '12px' }}>
                 <Stack spacing={2}>
                   <Typography variant="h6" fontWeight="bold">
@@ -951,9 +1108,9 @@ const AdminDashboard = () => {
                   </Box>
                 </Stack>
               </Paper>
-            </Grid2>
+            </Grid>
 
-            <Grid2 item xs={12} md={12}>
+            <Grid item xs={12} md={12}>
               <Paper sx={{ p: 3, borderRadius: '12px' }}>
                 <Stack spacing={2}>
                   <Typography variant="h6" fontWeight="bold">
@@ -981,8 +1138,8 @@ const AdminDashboard = () => {
                   </Box>
                 </Stack>
               </Paper>
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
         </Stack>
 
         {/* Edit Profile Dialog */}
@@ -1106,9 +1263,9 @@ const AdminDashboard = () => {
             zIndex: 2,
           }}
         >
-          <Grid2 container spacing={2} alignItems="center">
+          <Grid container spacing={2} alignItems="center">
             {/* Search Users - Takes 1/2 space on mobile */}
-            <Grid2 xs={12} sm={6} md={8}>
+            <Grid xs={12} sm={6} md={8}>
               <TextField
                 fullWidth
                 variant="outlined"
@@ -1128,12 +1285,12 @@ const AdminDashboard = () => {
                     },
                   },
                 }}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchChange}
               />
-            </Grid2>
+            </Grid>
 
             {/* Filter User - Takes 1/4 space on mobile */}
-            <Grid2 xs={6} sm={3} md="auto">
+            <Grid xs={6} sm={3} md="auto">
               <Select
                 value={userFilter}
                 onChange={(e) => setUserFilter(e.target.value)}
@@ -1152,10 +1309,10 @@ const AdminDashboard = () => {
                 <MenuItem value="LANDLORD">Landlords</MenuItem>
                 <MenuItem value="ADMIN">Admins</MenuItem>
               </Select>
-            </Grid2>
+            </Grid>
 
             {/* Add User - Takes 1/4 space on mobile */}
-            <Grid2 xs={6} sm={3} md="auto">
+            <Grid xs={6} sm={3} md="auto">
               <Button
                 fullWidth
                 variant="contained"
@@ -1175,8 +1332,8 @@ const AdminDashboard = () => {
               >
                 Add
               </Button>
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
         </Paper>
 
 
@@ -1225,6 +1382,7 @@ const AdminDashboard = () => {
                           </Box>
                         </Stack>
                       </TableCell>
+
                       <TableCell>
                         <Typography variant="body2" noWrap>
                           {user.email}
@@ -1311,7 +1469,7 @@ const AdminDashboard = () => {
         </Box>
 
         {/* Mobile View - Enhanced Cards */}
-        <Box sx={{ display: { xs: 'block', md: 'none', overflow:'hidden' } }}>
+        <Box sx={{ display: { xs: 'block', md: 'none', overflow: 'hidden' } }}>
           <Stack spacing={2}>
             {filteredUsers.map((user) => (
               <Paper
@@ -1349,7 +1507,7 @@ const AdminDashboard = () => {
                           color: 'primary.main',
                         }}
                       >
-                        {user.username[0].toUpperCase()}
+                        {user.username?.[0]?.toUpperCase() || '?'}
                       </Avatar>
                       <Box>
                         <Typography variant="subtitle1" fontWeight={600}>
@@ -1382,8 +1540,8 @@ const AdminDashboard = () => {
                 {/* User Card Content */}
                 <Box sx={{ p: 2 }}>
                   <Stack spacing={2}>
-                    <Grid2 container spacing={2}>
-                      <Grid2 item xs={12}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <RoleBadge
                             label={user.role}
@@ -1391,8 +1549,8 @@ const AdminDashboard = () => {
                             size="small"
                           />
                         </Stack>
-                      </Grid2>
-                      <Grid2 item xs={12}>
+                      </Grid>
+                      <Grid item xs={12}>
                         <Stack spacing={1}>
                           <Typography variant="body2" color="text.secondary">
                             Contact Information
@@ -1406,8 +1564,8 @@ const AdminDashboard = () => {
                             </Typography>
                           </Box>
                         </Stack>
-                      </Grid2>
-                      <Grid2 item xs={12}>
+                      </Grid>
+                      <Grid item xs={12}>
                         <Stack spacing={1}>
                           <Typography variant="body2" color="text.secondary">
                             Full Name
@@ -1416,8 +1574,8 @@ const AdminDashboard = () => {
                             {user.fullName}
                           </Typography>
                         </Stack>
-                      </Grid2>
-                    </Grid2>
+                      </Grid>
+                    </Grid>
 
                     <Divider />
 
@@ -1570,9 +1728,9 @@ const AdminDashboard = () => {
       <Container maxWidth="x1" sx={{ py: { xs: 2, md: 3 } }}>
         <Stack spacing={{ xs: 2, md: 3 }}>
           {/* Stats Cards Section */}
-          <Grid2 container spacing={{ xs: 2, md: 3 }}>
+          <Grid container spacing={{ xs: 2, md: 3 }}>
             {STATS_CONFIG.map((stat, index) => (
-              <Grid2 key={index} item xs={12} sm={6} md={4}>
+              <Grid key={index} item xs={12} sm={6} md={4}>
                 <Paper
                   sx={{
                     p: 3,
@@ -1606,14 +1764,14 @@ const AdminDashboard = () => {
                     </Box>
                   </Stack>
                 </Paper>
-              </Grid2>
+              </Grid>
             ))}
-          </Grid2>
+          </Grid>
 
           {/* Charts Section */}
-          <Grid2 container spacing={{ xs: 2, md: 3 }} direction="column">
+          <Grid container spacing={{ xs: 2, md: 3 }} direction="column">
             {/* Role Distribution Chart */}
-            <Grid2 >
+            <Grid >
               <Paper
                 sx={{
                   p: 3,
@@ -1659,10 +1817,10 @@ const AdminDashboard = () => {
                   </ResponsiveContainer>
                 </Box>
               </Paper>
-            </Grid2>
+            </Grid>
 
             {/* Activity Overview Chart */}
-            <Grid2 >
+            <Grid >
               <Paper
                 sx={{
                   p: 3,
@@ -1715,8 +1873,8 @@ const AdminDashboard = () => {
                   </ResponsiveContainer>
                 </Box>
               </Paper>
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
         </Stack>
       </Container>
     );
@@ -1734,32 +1892,32 @@ const AdminDashboard = () => {
                 <span>General Settings</span>
               </Stack>
             </Typography>
-            <Grid2 container spacing={3}>
-              <Grid2 item xs={12} md={6}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Site Name"
                   value={generalSettings.siteName}
                   onChange={(e) => setGeneralSettings({ ...generalSettings, siteName: e.target.value })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Support Email"
                   value={generalSettings.supportEmail}
                   onChange={(e) => setGeneralSettings({ ...generalSettings, supportEmail: e.target.value })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Support Phone"
                   value={generalSettings.supportPhone}
                   onChange={(e) => setGeneralSettings({ ...generalSettings, supportPhone: e.target.value })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
                   <InputLabel>Default Language</InputLabel>
                   <Select
@@ -1772,8 +1930,8 @@ const AdminDashboard = () => {
                     <MenuItem value="fr">French</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid2>
-            </Grid2>
+              </Grid>
+            </Grid>
           </Stack>
         </Paper>
 
@@ -1786,8 +1944,8 @@ const AdminDashboard = () => {
                 <span>Security Settings</span>
               </Stack>
             </Typography>
-            <Grid2 container spacing={3}>
-              <Grid2 item xs={12} md={6}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   type="number"
@@ -1795,8 +1953,8 @@ const AdminDashboard = () => {
                   value={securitySettings.passwordMinLength}
                   onChange={(e) => setSecuritySettings({ ...securitySettings, passwordMinLength: parseInt(e.target.value) })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   type="number"
@@ -1804,8 +1962,8 @@ const AdminDashboard = () => {
                   value={securitySettings.sessionTimeout}
                   onChange={(e) => setSecuritySettings({ ...securitySettings, sessionTimeout: parseInt(e.target.value) })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   type="number"
@@ -1813,8 +1971,8 @@ const AdminDashboard = () => {
                   value={securitySettings.maxLoginAttempts}
                   onChange={(e) => setSecuritySettings({ ...securitySettings, maxLoginAttempts: parseInt(e.target.value) })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <FormGroup>
                   <FormControlLabel
                     control={
@@ -1835,8 +1993,8 @@ const AdminDashboard = () => {
                     label="Require Numbers"
                   />
                 </FormGroup>
-              </Grid2>
-            </Grid2>
+              </Grid>
+            </Grid>
           </Stack>
         </Paper>
 
@@ -1849,32 +2007,32 @@ const AdminDashboard = () => {
                 <span>Email Configuration</span>
               </Stack>
             </Typography>
-            <Grid2 container spacing={3}>
-              <Grid2 item xs={12} md={6}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="SMTP Server"
                   value={emailSettings.smtpServer}
                   onChange={(e) => setEmailSettings({ ...emailSettings, smtpServer: e.target.value })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="SMTP Port"
                   value={emailSettings.smtpPort}
                   onChange={(e) => setEmailSettings({ ...emailSettings, smtpPort: e.target.value })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="From Email Address"
                   value={emailSettings.emailFrom}
                   onChange={(e) => setEmailSettings({ ...emailSettings, emailFrom: e.target.value })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <FormControlLabel
                   control={
                     <Switch
@@ -1884,8 +2042,8 @@ const AdminDashboard = () => {
                   }
                   label="Enable SSL/TLS"
                 />
-              </Grid2>
-            </Grid2>
+              </Grid>
+            </Grid>
           </Stack>
         </Paper>
 
@@ -1898,8 +2056,8 @@ const AdminDashboard = () => {
                 <span>Backup & Maintenance</span>
               </Stack>
             </Typography>
-            <Grid2 container spacing={3}>
-              <Grid2 item xs={12} md={6}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
                   <InputLabel>Backup Frequency</InputLabel>
                   <Select
@@ -1913,8 +2071,8 @@ const AdminDashboard = () => {
                     <MenuItem value="monthly">Monthly</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   type="number"
@@ -1922,8 +2080,8 @@ const AdminDashboard = () => {
                   value={backupSettings.retentionDays}
                   onChange={(e) => setBackupSettings({ ...backupSettings, retentionDays: parseInt(e.target.value) })}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   type="time"
@@ -1932,8 +2090,8 @@ const AdminDashboard = () => {
                   onChange={(e) => setBackupSettings({ ...backupSettings, backupTime: e.target.value })}
                   InputLabelProps={{ shrink: true }}
                 />
-              </Grid2>
-              <Grid2 item xs={12} md={6}>
+              </Grid>
+              <Grid item xs={12} md={6}>
                 <FormControlLabel
                   control={
                     <Switch
@@ -1943,8 +2101,8 @@ const AdminDashboard = () => {
                   }
                   label="Enable Automatic Backups"
                 />
-              </Grid2>
-              <Grid2 item xs={12}>
+              </Grid>
+              <Grid item xs={12}>
                 <Button
                   variant="contained"
                   startIcon={<BackupIcon />}
@@ -1958,8 +2116,8 @@ const AdminDashboard = () => {
                 >
                   Run Manual Backup
                 </Button>
-              </Grid2>
-            </Grid2>
+              </Grid>
+            </Grid>
           </Stack>
         </Paper>
 
@@ -2053,7 +2211,7 @@ const AdminDashboard = () => {
     };
 
     return (
-      <Grid2 item xs={12} sm={6} md={4}>
+      <Grid item xs={12} sm={6} md={4}>
         <Paper sx={{
           p: 3,
           height: '100%',
@@ -2101,7 +2259,7 @@ const AdminDashboard = () => {
             </Button>
           </Stack>
         </Paper>
-      </Grid2>
+      </Grid>
     );
   };
 
@@ -2132,7 +2290,7 @@ const AdminDashboard = () => {
             <Typography color="error">{error}</Typography>
           </Paper>
         ) : (
-          <Grid2 container spacing={3}
+          <Grid container spacing={3}
             gap={{ md: 3 }}
             justifyContent={{ md: 'center' }}
 
@@ -2161,7 +2319,7 @@ const AdminDashboard = () => {
               onExport={handleExportBookingsCSV}
               onImport={handleImportBookingsCSV}
             />
-          </Grid2>
+          </Grid>
         )}
 
         <Typography variant="caption" color="text.secondary" textAlign="center">
@@ -2411,12 +2569,12 @@ const AdminDashboard = () => {
             </IconButton>
           </DialogTitle>
           <DialogContent sx={{ py: 3 }}>
-            <Grid2 container spacing={3} sx={{ mt: 1 }}>
+            <Grid container spacing={3} sx={{ mt: 1 }}>
               {selectedUser ? (
                 // Edit User Form
                 <>
-                  
-                  <Grid2 item xs={12} md={6}>
+
+                  <Grid item xs={12} md={6}>
                     <Select
                       fullWidth
                       label="Role"
@@ -2427,13 +2585,13 @@ const AdminDashboard = () => {
                       <MenuItem value="LANDLORD">Landlord</MenuItem>
                       <MenuItem value="ADMIN">Admin</MenuItem>
                     </Select>
-                  </Grid2>
-                  
+                  </Grid>
+
                 </>
               ) : (
                 // Create User Form
                 <>
-                  <Grid2 item xs={12} md={6}>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Username"
@@ -2441,9 +2599,11 @@ const AdminDashboard = () => {
                       value={userForm.username}
                       onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
                       required
+                      // error={!userForm.username}
+                      helperText={!userForm.username && 'Username is required'}
                     />
-                  </Grid2>
-                  <Grid2 item xs={12} md={6}>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Email"
@@ -2452,8 +2612,8 @@ const AdminDashboard = () => {
                       onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
                       required
                     />
-                  </Grid2>
-                  <Grid2 item xs={12} md={6}>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Password"
@@ -2463,8 +2623,8 @@ const AdminDashboard = () => {
                       onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
                       required
                     />
-                  </Grid2>
-                  <Grid2 item xs={12} md={6}>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Full Name"
@@ -2472,8 +2632,8 @@ const AdminDashboard = () => {
                       value={userForm.fullName}
                       onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })}
                     />
-                  </Grid2>
-                  <Grid2 item xs={12} md={6}>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Phone Number"
@@ -2481,8 +2641,8 @@ const AdminDashboard = () => {
                       value={userForm.phoneNumber}
                       onChange={(e) => setUserForm({ ...userForm, phoneNumber: e.target.value })}
                     />
-                  </Grid2>
-                  <Grid2 item xs={12} md={6}>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
                     <Select
                       fullWidth
                       label="Role"
@@ -2493,8 +2653,8 @@ const AdminDashboard = () => {
                       <MenuItem value="LANDLORD">Landlord</MenuItem>
                       <MenuItem value="ADMIN">Admin</MenuItem>
                     </Select>
-                  </Grid2>
-                  {/* <Grid2 item xs={12} md={6}>
+                  </Grid>
+                  {/* <Grid item xs={12} md={6}>
                     <Select
                       fullWidth
                       label="Status"
@@ -2504,10 +2664,10 @@ const AdminDashboard = () => {
                       <MenuItem value="active">Active</MenuItem>
                       <MenuItem value="inactive">Inactive</MenuItem>
                     </Select>
-                  </Grid2> */}
+                  </Grid> */}
                 </>
               )}
-            </Grid2>
+            </Grid>
           </DialogContent>
           <DialogActions sx={{
             px: 3,

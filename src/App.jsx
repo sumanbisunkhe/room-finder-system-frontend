@@ -1,3 +1,5 @@
+
+
 // src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
@@ -21,27 +23,35 @@ const App = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
-        <Route
+       {/* Seeker Dashboard Routes */}
+       <Route 
           path="/dashboard/seeker"
           element={
             <ProtectedRoute requiredRole="SEEKER">
               <SeekerDashboard />
             </ProtectedRoute>
           }
-        />
-
-<Route
+        >
+          <Route index element={<Navigate to="browse-property" replace />} />
+          <Route path="browse-property" element={<SeekerDashboard />} />
+          <Route path="bookings" element={<SeekerDashboard />} />
+          <Route path="property-analytics" element={<SeekerDashboard />} />
+          <Route path="system-settings" element={<SeekerDashboard />} />
+          <Route path="profile-information" element={<SeekerDashboard />} />
+        </Route>
+        <Route
           path="/dashboard/landlord"
           element={
             <ProtectedRoute requiredRole="LANDLORD">
               <LandlordDashboard />
             </ProtectedRoute>
-          }
-        >
+          }>
+
           <Route index element={<Navigate to="properties" replace />} />
           <Route path="property-management" element={<LandlordDashboard />} />
+          <Route path="property-bookings" element={<LandlordDashboard />} />
           <Route path="add-property" element={<LandlordDashboard />} />
-          <Route path="applications" element={<LandlordDashboard />} />
+          <Route path="messages" element={<LandlordDashboard />} />
           <Route path="property-analytics" element={<LandlordDashboard />} />
           <Route path="system-settings" element={<LandlordDashboard />} />
           <Route path="profile-information" element={<LandlordDashboard />} />

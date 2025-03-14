@@ -108,6 +108,15 @@ export const deleteRoom = async (roomId, landlordId) => {
   }
 };
 
+export const fetchAllRooms = async () => {
+  try {
+    const response = await api.get('/rooms');
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'fetch all rooms');
+  }
+};
+
 export const getRoomById = async (roomId) => {
   try {
     const response = await api.get(`/rooms/${roomId}`);
@@ -210,6 +219,7 @@ export default {
   createRoom,
   updateRoom,
   deleteRoom,
+  fetchAllRooms,
   getRoomById,
   fetchRoomsByLandlord,
   searchRooms,

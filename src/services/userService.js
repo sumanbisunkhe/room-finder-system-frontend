@@ -255,6 +255,8 @@ export const getCurrentUser = async () => {
   }
 };
 
+
+
 /* ==================== Password Management ==================== */
 
 /**
@@ -289,6 +291,30 @@ export const changePassword = async (userId, currentPassword, newPassword) => {
   }
 };
 
+export const fetchUserById = async (userId) => {
+  try {
+    const response = await api.get(`/users/${userId}`);
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'Failed to fetch user by ID');
+  }
+};
+
+export const getUserById = async (userId) => {
+  try {
+    const response = await api.get(`/users/${userId}`);
+    // Access the nested data from the backend response
+    return { 
+      success: true, 
+      data: response.data.data // Adjusted to response.data.data
+    };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error.response?.data?.message || 'User not found' 
+    };
+  }
+};
 /* ==================== CSV Import/Export Methods ==================== */
 
 // Export users to CSV.
@@ -338,6 +364,8 @@ export default {
   getCurrentUser,
   registerUser,
   fetchUsers,
+  fetchUserById,
+  getUserById,
   fetchUserByUsername,
   fetchUserByEmail,
   deactivateUser,

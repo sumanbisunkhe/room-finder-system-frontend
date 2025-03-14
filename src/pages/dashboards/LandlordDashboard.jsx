@@ -1,8 +1,8 @@
 // src/pages/dashboards/LandlordDashboard.jsx
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import SwipeableViews from 'react-swipeable-views';
 
+// MUI v6 core imports
 import {
   Box,
   Typography,
@@ -25,22 +25,18 @@ import {
   Chip,
   Drawer,
   List,
+  ListItem,
   ListItemIcon,
   ListItemText,
   IconButton,
   Snackbar,
   Alert,
   CssBaseline,
-  ThemeProvider,
-  createTheme,
-  useMediaQuery,
   Container,
   Divider,
   Avatar,
   InputAdornment,
   ListItemButton,
-  styled,
-  alpha,
   CircularProgress,
   Switch,
   FormControl,
@@ -48,7 +44,17 @@ import {
   FormGroup,
   FormControlLabel,
   Card,
+  Checkbox,
+  Radio,
+  RadioGroup,
+  FormLabel,
+  ImageList,
+  ImageListItem,
+  Grid,
+  Tabs,
+  Tab,
 } from '@mui/material';
+
 import {
   MoreVert as MoreVertIcon,
   Home as HomeIcon,
@@ -69,15 +75,26 @@ import {
   Email as EmailIcon,
   Assignment as AssignmentIcon,
   AccountCircle as AccountCircleIcon,
+  Schedule as ScheduleIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  CancelOutlined as CancelOutlinedIcon,
+  BlockOutlined as BlockOutlinedIcon,
+  EventNoteRounded as EventNoteRoundedIcon,
+  AllInboxRounded as AllInboxRoundedIcon,
+  MonetizationOnOutlined as MonetizationOnOutlinedIcon,
+  SquareFoot as SquareFootOutlinedIcon,
+  LocationOnOutlined as LocationOnOutlinedIcon,
+  ArrowForwardRounded as ArrowForwardRoundedIcon,
+  CheckRounded as CheckRoundedIcon,
+  CloseRounded as CloseRoundedIcon,
 } from '@mui/icons-material';
+
+import { motion, AnimatePresence } from 'framer-motion';
+
 import MenuIcon from '@mui/icons-material/Menu';
 import PersonIcon from '@mui/icons-material/Person';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PhoneIcon from '@mui/icons-material/Phone';
-import Checkbox from '@mui/material/Checkbox';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
-import FormLabel from '@mui/material/FormLabel';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import LockIcon from '@mui/icons-material/Lock';
 import PasswordIcon from '@mui/icons-material/Password';
@@ -85,41 +102,139 @@ import LocationCityIcon from '@mui/icons-material/LocationCity';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import InfoIcon from '@mui/icons-material/Info';
-import ImageList from '@mui/material/ImageList';
-import ImageListItem from '@mui/material/ImageListItem';
+
+
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import DomainIcon from '@mui/icons-material/Domain';
+import EventIcon from '@mui/icons-material/Event';
+import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported';
 
+
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+
+
+// import HomeIcon from '@mui/icons-material/Home';
+
+
+// MUI styles imports
+import { createTheme, ThemeProvider, useTheme, styled, alpha } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
+
+// Recharts imports
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  LabelList,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  Area,
+  AreaChart,
+  BarChart,
+  Bar
+} from 'recharts';
+
+
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
+
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Keyboard, Mousewheel } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 
 import * as userService from '../../services/userService';
-import DomainIcon from '@mui/icons-material/Domain';
-
-
 import * as roomService from '../../services/roomService';
-import Grid2 from '@mui/material/Unstable_Grid2';
-import { useTheme } from '@mui/material/styles';
+import * as bookingService from '../../services/bookingService';
+
 import {
-  PieChart, Pie, Cell, ResponsiveContainer,
-  LabelList, ReferenceLine, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, Area, AreaChart,
-  BarChart, Bar
-} from 'recharts';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+  sendMessage,
+  markAsRead,
+  deleteMessage,
+  getRoomMessages,
+  getConversation,
+  getUnreadMessages,
+  getDirectConversations
+} from '../../services/messageService';
+
+
+
+
+
+
+const transitionStyles = `
+  .fade-enter {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .fade-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 300ms, transform 300ms;
+  }
+
+  .fade-exit {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .fade-exit-active {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 300ms, transform 300ms;
+  }
+`;
+
+// Inject the styles into the document
+const styleSheet = document.createElement("style");
+styleSheet.type = "text/css";
+styleSheet.innerText = transitionStyles;
+document.head.appendChild(styleSheet);
 
 const LandlordDashboard = () => {
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const stompClientRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const socket = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+  const [mode, setMode] = useState(() => {
+    const savedMode = localStorage.getItem('landlordThemeMode');
+    return savedMode || 'light';
+  });
+  const [messageSearchTerm, setMessageSearchTerm] = useState('');
 
-  // All state declarations moved to the top level
-  const [mode, setMode] = useState('light');
+
+  const [bookings, setBookings] = useState([]);
+  const [selectedTab, setSelectedTab] = useState('pending');
+  const [loadingBookings, setLoadingBookings] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [actionType, setActionType] = useState('approve');
+  const [tenants, setTenants] = useState({});
+  const [loadingTenants, setLoadingTenants] = useState(false);
+
+
+
+
   const [activeSection, setActiveSection] = useState('properties');
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [selectedPropertyImages, setSelectedPropertyImages] = useState([]);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [localFilteredBookings, setLocalFilteredBookings] = useState([]);
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [zoomedIndex, setZoomedIndex] = useState(null);
   const [propertyFilter, setPropertyFilter] = useState('all');
@@ -129,11 +244,36 @@ const LandlordDashboard = () => {
   const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState({
+    id: '',
+    username: '',
+    email: '',
+    password: '',
+    fullName: '',
+    phoneNumber: '',
+    role: '',
+
+  }
+
+
+
+  );
+
+
+
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [securityDialogOpen, setSecurityDialogOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
+
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const messagesEndRef = useRef(null);
+  const swiperRef = useRef(null);
+
+
   const [newPassword, setNewPassword] = useState('');
   const [propertyStats, setPropertyStats] = useState({
     totalProperties: 0,
@@ -182,62 +322,137 @@ const LandlordDashboard = () => {
     availability: 'all',
   });
 
+
+  const pageVariants = {
+    initial: { opacity: 0, y: 20 },
+    in: { opacity: 1, y: 0 },
+    out: { opacity: 0, y: -20 },
+  };
+
+  const pageTransition = {
+    type: "tween",
+    ease: "anticipate",
+    duration: 0.3,
+  };
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(booking => {
+      if (selectedTab === 'all') return true;
+      return booking.status.toLowerCase() === selectedTab;
+    });
+  }, [bookings, selectedTab]);
+
+  const statusChip = (status) => {
+    const statusMap = {
+      pending: { color: 'warning', label: 'Pending' },
+      approved: { color: 'success', label: 'Approved' },
+      rejected: { color: 'error', label: 'Rejected' },
+      cancelled: { color: 'default', label: 'Cancelled' }
+    };
+    const { color, label } = statusMap[status.toLowerCase()] || {};
+    return <Chip label={label} color={color} size="small" />;
+  };
+
+  const TenantDetails = ({ seekerId }) => {
+    const tenant = tenants[seekerId];
+
+    if (loadingTenants) {
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CircularProgress size={20} />
+          <Typography variant="body2">Loading tenant...</Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <Box>
+        <Typography fontWeight={600}>
+          {tenant?.fullName || 'Unknown Tenant'}
+        </Typography>
+        <Typography variant="body2">
+          {tenant?.email || 'No email available'}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {tenant?.phoneNumber || 'No phone number'}
+        </Typography>
+      </Box>
+    );
+  };
+
+
   const theme = useMemo(
     () =>
       createTheme({
         typography: {
-          fontFamily: ['"Inter", sans-serif', '"Space Grotesk", sans-serif'].join(','),
+          fontFamily: ['"Manrope", sans-serif', '"Space Grotesk", sans-serif'].join(','),
           h1: {
             fontFamily: '"Space Grotesk", sans-serif',
-            fontWeight: 700,
-            letterSpacing: '-0.02em'
+            fontWeight: 800,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.2
           },
           h2: {
             fontFamily: '"Space Grotesk", sans-serif',
-            fontWeight: 600,
-            letterSpacing: '-0.01em'
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            lineHeight: 1.3
           },
           h3: {
             fontFamily: '"Space Grotesk", sans-serif',
             fontWeight: 600,
-            letterSpacing: '-0.01em'
+            letterSpacing: '-0.01em',
+            lineHeight: 1.4
           },
           h4: {
             fontFamily: '"Space Grotesk", sans-serif',
-            fontWeight: 600
+            fontWeight: 600,
+            lineHeight: 1.4
           },
           body1: {
-            lineHeight: 1.7
+            fontFamily: '"Manrope", sans-serif',
+            lineHeight: 1.75,
+            fontSize: '1rem'
+          },
+          body2: {
+            fontFamily: '"Manrope", sans-serif',
+            lineHeight: 1.6,
+            fontSize: '0.875rem'
           }
         },
         palette: {
           mode: mode === 'system' ? (prefersDarkMode ? 'dark' : 'light') : mode,
           primary: {
-            main: mode === 'dark' ? '#8B5CF6' : '#4F46E5',
-            light: mode === 'dark' ? '#A78BFA' : '#818CF8',
-            dark: mode === 'dark' ? '#7C3AED' : '#4338CA',
+            main: mode === 'dark' ? '#3B82F6' : '#2563EB',
+            light: mode === 'dark' ? '#60A5FA' : '#3B82F6',
+            dark: mode === 'dark' ? '#1D4ED8' : '#1E40AF',
             contrastText: '#FFFFFF'
           },
           secondary: {
-            main: mode === 'dark' ? '#06B6D4' : '#0EA5E9',
-            light: mode === 'dark' ? '#67E8F9' : '#38BDF8',
-            dark: mode === 'dark' ? '#0891B2' : '#0284C7',
-            contrastText: '#FFFFFF'
+            main: mode === 'dark' ? '#FACC15' : '#EAB308',
+            light: mode === 'dark' ? '#FDE047' : '#FACC15',
+            dark: mode === 'dark' ? '#CA8A04' : '#A16207',
+            contrastText: mode === 'dark' ? '#0F172A' : '#000000'
           },
           background: {
-            default: mode === 'dark' ? '#0F172A' : '#F8FAFC',
-            paper: mode === 'dark' ? '#1E293B' : '#FFFFFF'
+            default: mode === 'dark' ? '#0B1120' : '#FFFFFF',
+            paper: mode === 'dark' ? '#1E293B' : '#F8FAFC',
+            accent: mode === 'dark' ? '#2D3748' : '#EDF2F7'
           },
           text: {
-            primary: mode === 'dark' ? '#F1F5F9' : '#0F172A',
-            secondary: mode === 'dark' ? '#CBD5E1' : '#475569'
+            primary: mode === 'dark' ? '#F8FAFC' : '#1A202C',
+            secondary: mode === 'dark' ? '#CBD5E1' : '#4A5568'
           },
-          divider: mode === 'dark' ? '#334155' : '#E2E8F0',
+          divider: mode === 'dark' ? '#2D3748' : '#E2E8F0',
           action: {
-            hover: mode === 'dark' ? 'rgba(148, 163, 184, 0.08)' : 'rgba(51, 65, 85, 0.04)',
-            selected: mode === 'dark' ? 'rgba(148, 163, 184, 0.16)' : 'rgba(51, 65, 85, 0.08)',
-            disabled: mode === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(51, 65, 85, 0.26)'
+            hover: mode === 'dark' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(37, 99, 235, 0.04)',
+            selected: mode === 'dark' ? 'rgba(59, 130, 246, 0.16)' : 'rgba(37, 99, 235, 0.08)',
+            disabled: mode === 'dark' ? 'rgba(203, 213, 225, 0.3)' : 'rgba(74, 85, 104, 0.26)',
+            focus: mode === 'dark' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(37, 99, 235, 0.12)'
           }
+        },
+        shape: {
+          borderRadius: 16
         },
         components: {
           MuiButton: {
@@ -245,43 +460,96 @@ const LandlordDashboard = () => {
               root: {
                 textTransform: 'none',
                 borderRadius: '12px',
-                padding: '10px 24px',
+                padding: '12px 24px',
                 fontWeight: 600,
                 fontSize: '0.9375rem',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 '&:hover': {
                   transform: 'translateY(-2px)',
                   boxShadow: mode === 'dark'
-                    ? '0 4px 12px rgba(139, 92, 246, 0.3)'
-                    : '0 4px 12px rgba(79, 70, 229, 0.2)'
+                    ? '0 8px 24px rgba(59, 130, 246, 0.25)'
+                    : '0 8px 24px rgba(37, 99, 235, 0.15)'
+                },
+                '&:active': {
+                  transform: 'translateY(1px)'
                 }
               },
               contained: {
-                boxShadow: 'none'
+                boxShadow: 'none',
+                backgroundImage: mode === 'dark'
+                  ? 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)'
+                  : 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)',
+                '&:hover': {
+                  backgroundImage: mode === 'dark'
+                    ? 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%)'
+                    : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
+                }
+              },
+              outlined: {
+                borderWidth: '2px',
+                '&:hover': {
+                  borderWidth: '2px',
+                  backgroundColor: mode === 'dark'
+                    ? 'rgba(59, 130, 246, 0.08)'
+                    : 'rgba(37, 99, 235, 0.04)'
+                }
               }
             }
           },
           MuiPaper: {
             styleOverrides: {
               root: {
-                borderRadius: '16px',
+                borderRadius: '20px',
                 boxShadow: mode === 'dark'
-                  ? '0 4px 20px rgba(0, 0, 0, 0.25)'
-                  : '0 4px 20px rgba(148, 163, 184, 0.1)',
-                border: `1px solid ${mode === 'dark' ? '#334155' : '#E2E8F0'}`,
-                backgroundImage: 'none'
+                  ? '0 4px 24px rgba(0, 0, 0, 0.3)'
+                  : '0 4px 24px rgba(148, 163, 184, 0.08)',
+                border: `1px solid ${mode === 'dark' ? '#2D3748' : '#E2E8F0'}`,
+                backgroundImage: 'none',
+                '&:hover': {
+                  boxShadow: mode === 'dark'
+                    ? '0 8px 32px rgba(0, 0, 0, 0.4)'
+                    : '0 8px 32px rgba(148, 163, 184, 0.12)'
+                }
               },
               elevation1: {
                 boxShadow: mode === 'dark'
-                  ? '0 2px 12px rgba(0, 0, 0, 0.2)'
-                  : '0 2px 12px rgba(148, 163, 184, 0.08)'
+                  ? '0 2px 16px rgba(0, 0, 0, 0.25)'
+                  : '0 2px 16px rgba(148, 163, 184, 0.06)'
               }
             }
           },
           MuiCard: {
             styleOverrides: {
               root: {
-                backgroundImage: 'none'
+                backgroundImage: 'none',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: mode === 'dark'
+                    ? '0 12px 32px rgba(0, 0, 0, 0.4)'
+                    : '0 12px 32px rgba(148, 163, 184, 0.12)'
+                }
+              }
+            }
+          },
+          MuiTextField: {
+            styleOverrides: {
+              root: {
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: mode === 'dark' ? '#3B82F6' : '#2563EB',
+                    borderWidth: '2px'
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: mode === 'dark' ? '#3B82F6' : '#2563EB',
+                    borderWidth: '2px',
+                    boxShadow: mode === 'dark'
+                      ? '0 0 0 4px rgba(59, 130, 246, 0.1)'
+                      : '0 0 0 4px rgba(37, 99, 235, 0.1)'
+                  }
+                }
               }
             }
           }
@@ -409,25 +677,114 @@ const LandlordDashboard = () => {
     );
   };
 
+  const fetchBookings = useCallback(async () => {
+    try {
+      setLoadingBookings(true);
+      const bookingsData = await bookingService.getBookingsByLandlord(currentUser.id);
+
+      // Get unique room IDs from all bookings
+      const roomIds = [...new Set(bookingsData.map(b => b.roomId))];
+
+      // Fetch all related properties in parallel
+      const propertiesData = await Promise.all(
+        roomIds.map(id => roomService.getRoomById(id))
+      );
+
+      // Create a property map for quick lookup
+      const propertyMap = propertiesData.reduce((acc, property) => {
+        acc[property.id] = property;
+        return acc;
+      }, {});
+
+      // Enhance bookings with property data
+      const enrichedBookings = bookingsData.map(booking => ({
+        ...booking,
+        property: propertyMap[booking.roomId] || null
+      }));
+
+      setBookings(enrichedBookings);
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error.message || 'Failed to fetch bookings',
+        severity: 'error'
+      });
+    } finally {
+      setLoadingBookings(false);
+    }
+  }, [currentUser.id]);
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return isNaN(date) ? 'Invalid date' : date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchBookings();
+    }
+  }, [currentUser?.id, fetchBookings]);
+
+  const handleBookingAction = async (bookingId, action) => {
+    try {
+      setLoadingBookings(true);
+      switch (action) {
+        case 'approve':
+          await bookingService.approveBooking(bookingId);
+          break;
+        case 'reject':
+          await bookingService.rejectBooking(bookingId);
+          break;
+        default:
+          break;
+      }
+      await fetchBookings();
+      setSnackbar({
+        open: true,
+        message: `Booking ${action}d successfully`,
+        severity: 'success'
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error.message || `Failed to ${action} booking`,
+        severity: 'error'
+      });
+    } finally {
+      setLoadingBookings(false);
+      setActionDialogOpen(false);
+    }
+  };
+
 
 
 
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [messageInput, setMessageInput] = useState('');
+  const messagesContainerRef = useRef(null);
+
+
+
   const fetchCurrentUser = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("Fetching current user...");
 
       const response = await userService.getCurrentUser();
-      console.log("Full User Response:", response);
-
       if (!response.success || !response.data) {
         throw new Error("Invalid user data format");
       }
 
       const userData = response.data; // Extract the actual user object
       console.log("Extracted User Data:", userData);
+      if (!userData.id && userData._id) {
+        userData.id = userData._id;
+      }
 
       setCurrentUser(userData);
       setProfileForm({
@@ -447,6 +804,11 @@ const LandlordDashboard = () => {
   }, [navigate]);
 
   const fetchAndProcessProperties = useCallback(async () => {
+
+    if (!currentUser?.id) {
+      console.error('Cannot fetch properties without user ID');
+      return;
+    }
     try {
       setLoading(true);
       const fetchedProperties = await roomService.fetchRoomsByLandlord(currentUser.id);
@@ -507,18 +869,245 @@ const LandlordDashboard = () => {
     }
   }, [currentUser]);
 
+  // Messages
+  // Fetch conversations list with last messages and unread counts
+  // In LandlordDashboard.jsx
+  const fetchConversations = useCallback(async () => {
+    try {
+      // 1. Fetch basic conversation data
+      const conversationsData = await getDirectConversations();
+
+      // 2. Extract unique user IDs from conversations
+      const uniqueUserIds = [...new Set(conversationsData.map(c => c.otherUserId))];
+
+      // 3. Fetch user details in parallel with error handling
+      const userResults = await Promise.allSettled(
+        uniqueUserIds.map(userId => userService.getUserById(userId))
+      );
+
+      // 4. Create a map of user details
+      const userMap = userResults.reduce((acc, result, index) => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          const user = result.value.data;
+          acc[uniqueUserIds[index]] = { // Use index to match userId
+            username: user.username,
+            fullName: user.fullName,
+            avatar: user.avatar
+          };
+        }
+        return acc;
+      }, {});
+
+      // 5. Process conversations with user details
+      const processed = conversationsData
+        .filter(convo => userMap[convo.otherUserId]) // Filter out invalid users
+        .map(convo => {
+          const user = userMap[convo.otherUserId];
+          console.log("User Data:", user);
+          return {
+            userId: convo.otherUserId,
+            otherUser: {
+              id: convo.otherUserId,
+              name: user.fullName || user.username || `User ${convo.otherUserId}`,
+              avatar: user.avatar
+            },
+            lastMessage: convo.lastMessage?.content || 'No messages yet',
+            lastMessageAt: convo.lastMessage?.sentAt || '',
+            unreadCount: convo.unreadCount
+          };
+        });
+
+      // 6. Sort conversations by latest message
+      setConversations(
+        processed.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt))
+      );
+
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message, severity: 'error' });
+    }
+  }, [currentUser?.id]);
+
+
+
+  const fetchMessages = useCallback(async (userId) => {
+    try {
+      setLoadingMessages(true);
+      const messages = await getConversation(userId);
+
+      const sortedMessages = messages.sort((a, b) =>
+        new Date(a.sentAt) - new Date(b.sentAt)
+      );
+
+      // Mark messages as read
+      const unreadIds = messages
+        .filter(msg => !msg.isRead && msg.receiverId === currentUser.id)
+        .map(msg => msg.id);
+
+      if (unreadIds.length > 0) {
+        await Promise.all(unreadIds.map(id => markAsRead(id)));
+      }
+
+      setSelectedConversation({
+        userId,
+        messages: sortedMessages.map(msg => ({
+          ...msg,
+          isRead: msg.receiverId === currentUser.id ? true : msg.isRead
+        })),
+        otherUser: conversations.find(c => c.userId === userId)?.otherUser
+      });
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message, severity: 'error' });
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, [currentUser.id, conversations]);
+
+  // Send new message
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation?.userId) return;
+
+
+    // Check connection status and client existence
+    if (!stompClientRef.current?.connected) {
+      setSnackbar({
+        open: true,
+        message: "Connecting to server...",
+        severity: "info"
+      });
+      return;
+    }
+
+    const tempId = Date.now();
+    const tempMessage = {
+      tempId,
+      content: newMessage,
+      senderId: currentUser.id,
+      receiverId: selectedConversation.userId,
+      sentAt: new Date().toISOString(),
+      status: 'sending'
+    };
+
+    setSelectedConversation(prev => ({
+      ...prev,
+      messages: [...prev.messages, tempMessage]
+    }));
+    setNewMessage('');
+
+    try {
+      await stompClientRef.current.publish({
+        destination: "/app/chat.send",
+        body: JSON.stringify({
+          receiverId: selectedConversation.userId,
+          content: newMessage
+        }),
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          "content-type": "application/json"
+        }
+      });
+
+      // Update message status to sent
+      setSelectedConversation(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg.tempId === tempId ? { ...msg, status: 'sent' } : msg
+        )
+      }));
+    } catch (error) {
+      // Update message status to error
+      setSelectedConversation(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg.tempId === tempId ? { ...msg, status: 'error', error: error.message } : msg
+        )
+      }));
+    }
+  };
+  // // Add connection status indicator in render()
+  // {
+  //   !isMobile && (
+  //     <Box sx={{
+  //       position: 'fixed',
+  //       bottom: 16,
+  //       right: 16,
+  //       display: 'flex',
+  //       alignItems: 'center',
+  //       bgcolor: connectionStatus === 'connected'
+  //         ? 'success.light'
+  //         : 'error.light',
+  //       p: 1,
+  //       borderRadius: '8px',
+  //       boxShadow: 3,
+  //       zIndex: 9999
+  //     }}>
+  //       <Box sx={{
+  //         width: 10,
+  //         height: 10,
+  //         borderRadius: '50%',
+  //         bgcolor: connectionStatus === 'connected'
+  //           ? 'success.main'
+  //           : 'error.main',
+  //         mr: 1
+  //       }} />
+  //       <Typography variant="caption" color="text.primary">
+  //         {connectionStatus === 'connected'
+  //           ? 'Connected'
+  //           : 'Disconnected'}
+  //       </Typography>
+  //     </Box>
+  //   )
+  // }
+
+  // Add this filtering function
+  const filteredConversations = useMemo(() => {
+    if (!messageSearchTerm) return conversations;
+
+    const searchLower = messageSearchTerm.toLowerCase();
+    return conversations.filter(conv => {
+      return (
+        conv.otherUser.name.toLowerCase().includes(searchLower) ||
+        conv.lastMessage.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [conversations, messageSearchTerm]);
+
+  const handleIncomingMessage = useCallback((message) => {
+    setConversations(prev => updateConversations(prev, message));
+
+    setSelectedConversation(prevConv => {
+      if (!prevConv) return prevConv;
+      const isPartOfConversation = [message.senderId, message.receiverId].includes(prevConv.userId);
+
+      if (isPartOfConversation) {
+        return {
+          ...prevConv,
+          messages: [...prevConv.messages, message]
+            .sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt))
+        };
+      }
+      return prevConv;
+    });
+  }, [currentUser.id]);
+
 
   useEffect(() => {
     fetchCurrentUser();
   }, [fetchCurrentUser]);
 
+
+
   useEffect(() => {
     const path = location.pathname;
     if (path.includes('property-management')) {
       setActiveSection('properties');
+    } else if (path.includes('property-bookings')) {
+      setActiveSection('bookings');
     } else if (path.includes('property-analytics')) {
       setActiveSection('analytics');
-    } else if (path.includes('system-settings')) {
+    } else if (path.includes('messages')) {
+      setActiveSection('messages');
+    }
+    else if (path.includes('system-settings')) {
       setActiveSection('settings');
     }
     else if (path.includes('profile-information')) {
@@ -532,10 +1121,79 @@ const LandlordDashboard = () => {
 
   useEffect(() => {
     if (currentUser?.id) {
-      console.log("Fetching properties for user:", currentUser.id); // Debugging log
       fetchAndProcessProperties();
     }
   }, [currentUser, fetchAndProcessProperties]);
+
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchConversations();
+    }
+  }, [currentUser?.id, fetchConversations]);
+
+  // In LandlordDashboard.jsx - Update the useEffect handling WebSocket connection
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token || !currentUser?.id) return;
+
+    // Create SockJS instance with token in query params
+    const socket = new SockJS(`${import.meta.env.VITE_API_URL}/ws?token=${token}`, null, {
+      withCredentials: true
+    });
+
+    const client = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      debug: (str) => console.debug('STOMP:', str),
+
+      // Connection callbacks
+      onConnect: (frame) => {
+        console.log('Connected:', frame);
+        setConnectionStatus('connected');
+
+        // Subscribe to user-specific queues
+        client.subscribe(`/user/queue/messages`, (message) => {
+          const parsedMessage = JSON.parse(message.body);
+          handleIncomingMessage(parsedMessage);
+        });
+
+        client.subscribe(`/user/queue/errors`, (message) => {
+          const error = JSON.parse(message.body);
+          setSnackbar({ open: true, message: error.message, severity: 'error' });
+        });
+      },
+
+      onDisconnect: () => {
+        setConnectionStatus('disconnected');
+      },
+
+      onStompError: (frame) => {
+        console.error('STOMP Error:', frame.headers.message);
+        setSnackbar({ open: true, message: frame.headers.message, severity: 'error' });
+      },
+
+      onWebSocketError: (event) => {
+        console.error('WebSocket Error:', event);
+        setSnackbar({ open: true, message: 'Connection error', severity: 'error' });
+      }
+    });
+
+    client.activate();
+    stompClientRef.current = client;
+
+    return () => {
+      if (client.connected) {
+        client.deactivate();
+      }
+    };
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedConversation?.messages]);
 
   useEffect(() => {
     const filtered = properties.filter((property) => {
@@ -555,6 +1213,74 @@ const LandlordDashboard = () => {
 
     setFilteredProperties(filtered);
   }, [properties, searchTerm, filters]);
+
+  // Fetch tenant details when bookings change
+  useEffect(() => {
+    const fetchTenants = async () => {
+      const uniqueSeekerIds = [...new Set(bookings.map(b => b.seekerId))];
+      try {
+        setLoadingTenants(true);
+        const tenantsData = await Promise.all(
+          uniqueSeekerIds.map(id => userService.getUserById(id))
+        );
+
+        const tenantsMap = tenantsData.reduce((acc, response) => {
+          if (response.success && response.data) {
+            acc[response.data.id] = response.data;
+          }
+          return acc;
+        }, {});
+
+        setTenants(tenantsMap);
+      } catch (error) {
+        setSnackbar({ open: true, message: 'Error loading tenant details', severity: 'error' });
+      } finally {
+        setLoadingTenants(false);
+      }
+    };
+
+    if (bookings.length > 0) fetchTenants();
+  }, [bookings]);
+
+  useEffect(() => {
+    const filtered = filteredBookings.filter(booking => {
+      const searchLower = searchTerm.toLowerCase();
+      const tenant = tenants[booking.seekerId];
+      const tenantName = tenant?.fullName?.toLowerCase() || '';
+      const propertyTitle = booking.property?.title?.toLowerCase() || '';
+      const propertyCity = booking.property?.city?.toLowerCase() || '';
+      const propertyAddress = booking.property?.address?.toLowerCase() || '';
+      const startDate = formatDate(booking.startDate).toLowerCase();
+      const endDate = formatDate(booking.endDate).toLowerCase();
+
+      return (
+        tenantName.includes(searchLower) ||
+        propertyTitle.includes(searchLower) ||
+        propertyCity.includes(searchLower) ||
+        propertyAddress.includes(searchLower) ||
+        startDate.includes(searchLower) ||
+        endDate.includes(searchLower)
+      );
+    });
+    setLocalFilteredBookings(filtered);
+  }, [filteredBookings, searchTerm, tenants]);
+
+  const updateConversations = (prevConversations, newMessage) => {
+    return prevConversations.map(conv => {
+      if (conv.userId === newMessage.senderId ||
+        conv.userId === newMessage.receiverId) {
+        return {
+          ...conv,
+          lastMessage: newMessage.content,
+          lastMessageAt: newMessage.sentAt,
+          unreadCount: conv.userId === newMessage.senderId &&
+            newMessage.receiverId === currentUser.id ?
+            conv.unreadCount + 1 : conv.unreadCount
+        };
+      }
+      return conv;
+    }).sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+  };
 
 
   const handleCreateProperty = async () => {
@@ -731,11 +1457,11 @@ const LandlordDashboard = () => {
       switch (action) {
         case 'deactivate':
           response = await roomService.toggleAvailability(propertyId, currentUser.id);
-          successMessage = '❌ Property is now unavailable for booking.';
+          successMessage = 'Property is now unavailable for booking.';
           break;
         case 'activate':
           response = await roomService.toggleAvailability(propertyId, currentUser.id);
-          successMessage = '🎉 Property is now available for booking.';
+          successMessage = 'Property is now available for booking.';
           break;
         case 'delete':
           response = await roomService.deleteRoom(propertyId, currentUser.id);
@@ -806,20 +1532,31 @@ const LandlordDashboard = () => {
     }
   };
 
+
+
+
   const toggleColorMode = () => {
-    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+    setMode((prevMode) => {
+      const newMode = prevMode === 'light' ? 'dark' : 'light';
+      localStorage.setItem('landlordThemeMode', newMode);
+      return newMode;
+    });
   };
 
   const menuItems = [
-    { section: 'properties', icon: <HomeIcon />, label: 'Property Management' },
-    { section: 'analytics', icon: <DashboardIcon />, label: 'Property Analytics' },
+    { section: 'properties', icon: <HomeIcon />, label: 'View Properties' },
+    { section: 'bookings', icon: <EventIcon />, label: 'Manage Bookings' },
+    { section: 'analytics', icon: <DashboardIcon />, label: 'View Analytics' },
     { section: 'settings', icon: <SettingsIcon />, label: 'System Settings' },
-    { section: 'profile', icon: <AccountCircleIcon />, label: 'Profile Information' }
+    { section: 'profile', icon: <AccountCircleIcon />, label: 'View Profile' }
   ];
+
 
   const activeSectionTitles = {
     properties: 'Property Management',
+    bookings: 'Bookings',
     analytics: 'Property Analytics',
+    messages: 'Messages',
     settings: 'System Settings',
     profile: 'Profile Information',
   };
@@ -942,15 +1679,14 @@ const LandlordDashboard = () => {
             borderRadius: '2px',
             border: '1px solid',
             borderColor: 'divider',
-            position: { xs: 'sticky', md: 'static' },
+            // position: { xs: 'sticky', md: 'static' },
             top: { xs: '72px', md: 0 },
             zIndex: 2,
-
           }}
         >
-          <Grid2 container spacing={2} alignItems="center">
+          <Grid container spacing={2} alignItems="center">
             {/* Search Properties */}
-            <Grid2 xs={12} sm={6} md={4}>
+            <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
                 variant="outlined"
@@ -972,10 +1708,10 @@ const LandlordDashboard = () => {
                   },
                 }}
               />
-            </Grid2>
+            </Grid>
 
             {/* Price Filter */}
-            <Grid2 xs={6} sm={3} md={2}>
+            <Grid item xs={6} sm={3} md={2}>
               <TextField
                 fullWidth
                 type="number"
@@ -987,10 +1723,10 @@ const LandlordDashboard = () => {
                   bgcolor: 'background.paper',
                 }}
               />
-            </Grid2>
+            </Grid>
 
             {/* Size Filter */}
-            <Grid2 xs={6} sm={3} md={2}>
+            <Grid item xs={6} sm={3} md={2}>
               <TextField
                 fullWidth
                 type="number"
@@ -1002,10 +1738,10 @@ const LandlordDashboard = () => {
                   bgcolor: 'background.paper',
                 }}
               />
-            </Grid2>
+            </Grid>
 
             {/* Availability Filter */}
-            <Grid2 xs={6} sm={3} md={2}>
+            <Grid item xs={6} sm={3} md={2}>
               <FormControl fullWidth>
                 <Select
                   value={filters.availability}
@@ -1021,10 +1757,10 @@ const LandlordDashboard = () => {
                   <MenuItem value="unavailable">Unavailable</MenuItem>
                 </Select>
               </FormControl>
-            </Grid2>
+            </Grid>
 
             {/* Add Property Button */}
-            <Grid2 xs={6} sm={3} md={2}>
+            <Grid item xs={6} sm={3} md={2}>
               <Button
                 fullWidth
                 variant="contained"
@@ -1037,8 +1773,8 @@ const LandlordDashboard = () => {
               >
                 Add
               </Button>
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
         </Paper>
 
 
@@ -1204,9 +1940,9 @@ const LandlordDashboard = () => {
 
         {/* Mobile View */}
         <Box sx={{ display: { xs: 'block', md: 'none' } }}>
-          <Grid2 container spacing={2}>
+          <Grid container spacing={2}>
             {filteredProperties.map((property) => (
-              <Grid2 item xs={12} key={property.id}>
+              <Grid item xs={12} key={property.id}>
                 <Paper sx={{
                   borderRadius: '16px',
                   border: '1px solid',
@@ -1364,54 +2100,454 @@ const LandlordDashboard = () => {
                     </Stack>
                   </Box>
                 </Paper>
-              </Grid2>
+              </Grid>
             ))}
-          </Grid2>
+          </Grid>
         </Box>
       </Stack>
     </Container>
   );
 
+
+
+
+
+  const renderPropertyBookings = () => {
+    const handleStatusUpdate = async (action) => {
+      if (!selectedBooking) return;
+  
+      try {
+        setLoadingBookings(true);
+        switch (action) {
+          case 'approve':
+            await bookingService.approveBooking(selectedBooking.id);
+            break;
+          case 'reject':
+            await bookingService.rejectBooking(selectedBooking.id);
+            break;
+          default:
+            break;
+        }
+        await fetchBookings();
+        setSnackbar({
+          open: true,
+          message: `Booking ${action}d successfully`,
+          severity: 'success'
+        });
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: error.message || `Failed to ${action} booking`,
+          severity: 'error'
+        });
+      } finally {
+        setLoadingBookings(false);
+        setActionDialogOpen(false);
+      }
+    };
+  
+    return (
+      <Container maxWidth="xl" sx={{ py: 3 }}>
+        <Stack spacing={3}>
+          {/* Controls */}
+          <Paper elevation={0} sx={{
+            p: 3,
+            background: theme => `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.9)}, ${alpha(
+              theme.palette.background.paper,
+              0.95
+            )})`,
+            borderRadius: '16px',
+            border: '1px solid',
+            borderColor: 'divider'
+          }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth>
+                  <InputLabel>Filter by Status</InputLabel>
+                  <Select
+                    value={selectedTab}
+                    label="Filter by Status"
+                    onChange={e => setSelectedTab(e.target.value)}
+                    sx={{ borderRadius: '12px' }}
+                  >
+                    <MenuItem value="all">All Bookings</MenuItem>
+                    <MenuItem value="pending">Pending Approval</MenuItem>
+                    <MenuItem value="approved">Approved</MenuItem>
+                    <MenuItem value="rejected">Rejected</MenuItem>
+                    <MenuItem value="cancelled">Cancelled</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+  
+              <Grid item xs={12} md={8}>
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  placeholder="Search bookings..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  InputProps={{
+                    startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
+                    sx: { borderRadius: '12px' },
+                  }}
+                />
+              </Grid>
+            </Grid>
+          </Paper>
+  
+          {/* Desktop Table */}
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+            <Paper sx={{
+              overflow: 'hidden',
+              borderRadius: '16px',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Property</TableCell>
+                      <TableCell>Tenant</TableCell>
+                      <TableCell>Check-In</TableCell>
+                      <TableCell>Check-Out</TableCell>
+                      <TableCell>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+  
+                  <TableBody>
+                    {localFilteredBookings.map(booking => (
+                      <StyledTableRow key={booking.id} hover>
+                        <TableCell>
+                          <Stack direction="row" alignItems="center" spacing={2}>
+                            <IconButton
+                              onClick={() => {
+                                setSelectedPropertyImages(booking.property?.images || []);
+                                setIsImageModalOpen(true);
+                              }}
+                              sx={{ p: 0 }}
+                            >
+                              <Avatar
+                                variant="rounded"
+                                src={booking.property?.images?.[0] &&
+                                  `${import.meta.env.VITE_API_URL}/uploads/${booking.property.images[0]}`
+                                }
+                                sx={{ width: 56, height: 56 }}
+                              >
+                                <HomeIcon />
+                              </Avatar>
+                            </IconButton>
+                            <Box>
+                              <Typography variant="subtitle2">
+                                {booking.property?.title || 'N/A'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {booking.property?.city}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </TableCell>
+  
+                        <TableCell>
+                          <TenantDetails seekerId={booking.seekerId} />
+                        </TableCell>
+  
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDate(booking.startDate)}
+                          </Typography>
+                        </TableCell>
+  
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDate(booking.endDate)}
+                          </Typography>
+                        </TableCell>
+  
+                        <TableCell>
+                          <Stack alignItems="flex-start">
+                            {statusChip(booking.status)}
+                            {booking.status.toLowerCase() === 'pending' && (
+                              <Stack direction="row" spacing={0} sx={{ mt: 1 }}>
+                                <IconButton
+                                  size='small'
+                                  color="success"
+                                  onClick={() => {
+                                    setSelectedBooking(booking);
+                                    setActionType('approve');
+                                    setActionDialogOpen(true);
+                                  }}
+                                  sx={{
+                                    '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) }
+                                  }}
+                                >
+                                  <CheckCircleOutlineIcon />
+                                </IconButton>
+                                <IconButton
+                                  color="error"
+                                  onClick={() => {
+                                    setSelectedBooking(booking);
+                                    setActionType('reject');
+                                    setActionDialogOpen(true);
+                                  }}
+                                  sx={{
+                                    '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+                                  }}
+                                >
+                                  <CancelOutlinedIcon />
+                                </IconButton>
+                              </Stack>
+                            )}
+                          </Stack>
+                        </TableCell>
+                      </StyledTableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Box>
+  
+          {/* Mobile Cards */}
+          <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+            <Grid container spacing={2}>
+              {localFilteredBookings.map(booking => (
+                <Grid item xs={12} key={booking.id}>
+                  <Paper sx={{
+                    p: 2,
+                    borderRadius: '16px',
+                    border: '1px solid',
+                    borderColor: 'divider'
+                  }}>
+                    <Stack spacing={2}>
+                      {/* Header */}
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          {booking.property?.title}
+                        </Typography>
+                        {statusChip(booking.status)}
+                      </Stack>
+  
+                      {/* Property Image and Info */}
+                      <Stack direction="column" spacing={2} alignItems="center">
+                        {/* Image Container */}
+                        <Box sx={{
+                          width: '100%',
+                          height: 180,
+                          bgcolor: 'background.default',
+                          position: 'relative'
+                        }}>
+                          {booking.property?.images?.[0] ? (
+                            <img
+                              src={`${import.meta.env.VITE_API_URL}/uploads/${booking.property.images[0]}`}
+                              alt={booking.property.title}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                borderRadius: '16px 16px 0 0',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => {
+                                setSelectedPropertyImages(booking.property?.images || []);
+                                setIsImageModalOpen(true);
+                              }}
+                            />
+                          ) : (
+                            <Box sx={{
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'text.secondary'
+                            }}>
+                              <HomeIcon sx={{ fontSize: 48 }} />
+                            </Box>
+                          )}
+                        </Box>
+  
+                        <Box>
+                          <Typography variant="body2">
+                            {booking.property?.address}, {booking.property?.city}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Rs. {booking.property?.price?.toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </Stack>
+  
+                      <Divider />
+  
+                      {/* Tenant Details */}
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Tenant Details
+                        </Typography>
+                        <TenantDetails seekerId={booking.seekerId} />
+                      </Box>
+  
+                      {/* Dates */}
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            Check-In
+                          </Typography>
+                          <Typography variant="body2">
+                            {formatDate(booking.startDate)}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            Check-Out
+                          </Typography>
+                          <Typography variant="body2">
+                            {formatDate(booking.endDate)}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                      <Divider />
+  
+                      {/* Action Buttons - Bottom of Card */}
+                      {booking.status.toLowerCase() === 'pending' && (
+                        <Box sx={{
+                          mt: 2,
+                          display: 'flex',
+                          gap: 1,
+                          justifyContent: 'space-between'
+                        }}>
+                          <Button
+                            fullWidth
+                            variant='outlined'
+                            color="success"
+                            size="small"
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setActionType('approve');
+                              setActionDialogOpen(true);
+                            }}
+                          >
+                            <CheckCircleOutlineIcon fontSize="small" />
+                            <Typography marginLeft={2}>
+                              Approve
+                            </Typography>
+                          </Button>
+                          <Button
+                            fullWidth
+                            variant='outlined'
+                            color="error"
+                            size="small"
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setActionType('reject');
+                              setActionDialogOpen(true);
+                            }}
+                          >
+                            <CancelOutlinedIcon fontSize="small" />
+                            <Typography marginLeft={2}>
+                              Reject
+                            </Typography>
+                          </Button>
+                        </Box>
+                      )}
+                    </Stack>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+  
+          {/* Confirmation Dialog */}
+          <Dialog open={actionDialogOpen} onClose={() => setActionDialogOpen(false)}>
+            <DialogTitle>
+              Confirm {actionType === 'approve' ? 'Approval' : 'Rejection'}
+            </DialogTitle>
+            <DialogContent>
+              <Typography variant="body1" gutterBottom>
+                Are you sure you want to {actionType} this booking?
+              </Typography>
+              {selectedBooking && (
+                <Box sx={{ mt: 2 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Avatar
+                      src={selectedBooking.property?.images?.[0] &&
+                        `${import.meta.env.VITE_API_URL}/uploads/${selectedBooking.property.images[0]}`
+                      }
+                      sx={{ width: 60, height: 60 }}
+                    >
+                      <HomeIcon />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle2">
+                        {selectedBooking.property?.title}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatDate(selectedBooking.startDate)} - {formatDate(selectedBooking.endDate)}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2">
+                      Tenant: {tenants[selectedBooking.seekerId]?.fullName || 'Unknown'}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setActionDialogOpen(false)}>Cancel</Button>
+              <Button
+                variant="contained"
+                color={actionType === 'approve' ? 'success' : 'error'}
+                onClick={() => handleStatusUpdate(actionType)}
+              >
+                Confirm {actionType}
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </Stack>
+      </Container>
+    );
+  };
   const renderPropertyAnalytics = () => (
     <Container maxWidth="xl" sx={{ py: 3 }}>
 
-      <Grid2 container spacing={3}>
+      <Grid container spacing={3}>
         {/* Summary Cards */}
-        <Grid2 item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Properties"
             value={propertyStats.totalProperties}
             icon={<DomainIcon />}
             color="#4F46E5"
           />
-        </Grid2>
-        <Grid2 item xs={12} sm={6} md={3}>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Available"
             value={propertyStats.availableProperties}
             icon={<CheckCircleIcon />}
             color="#10B981"
           />
-        </Grid2>
-        <Grid2 item xs={12} sm={6} md={3}>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Occupied"
             value={propertyStats.unavailableProperties}
             icon={<BlockIcon />}
             color="#EF4444"
           />
-        </Grid2>
-        <Grid2 item xs={12} sm={6} md={3}>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Avg Price"
             value={Math.round(properties.reduce((sum, p) => sum + p.price, 0) / (properties.length || 1))}
             icon={<AssessmentIcon />}
             color="#8B5CF6"
           />
-        </Grid2>
+        </Grid>
 
         {/* City Distribution */}
-        <Grid2 item xs={12} md={12}>
+        <Grid item xs={12} md={12}>
           <Paper sx={{
             p: 3,
             height: 400,
@@ -1459,10 +2595,10 @@ const LandlordDashboard = () => {
               </PieChart>
             </ResponsiveContainer>
           </Paper>
-        </Grid2>
+        </Grid>
 
         {/* Price Distribution */}
-        <Grid2 item xs={12} md={12}>
+        <Grid item xs={12} md={12}>
           <Paper sx={{
             p: 3,
             height: 550,
@@ -1617,10 +2753,10 @@ const LandlordDashboard = () => {
               </Box>
             </Stack>
           </Paper>
-        </Grid2>
+        </Grid>
 
         {/* Activity Timeline */}
-        <Grid2 item xs={12}>
+        <Grid item xs={12}>
           <Paper sx={{
             p: 3,
             height: 500,
@@ -1829,10 +2965,485 @@ const LandlordDashboard = () => {
               </Box>
             </Stack>
           </Paper>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </Container>
   );
+
+  // const renderMessages = () => (
+  //   <Container maxWidth={false} sx={{
+  //     py: { xs: 1, md: 2 },
+  //     px: { xs: 1, md: 2 },
+  //     height: { xs: 'calc(100vh - 56px)', md: 'calc(100vh - 64px)' },
+  //     maxWidth: '100%',
+  //   }}>
+  //     <Grid container spacing={2} sx={{
+  //       height: '100%',
+  //       flexWrap: { xs: 'nowrap', md: 'nowrap' },
+  //       overflow: 'hidden',
+
+
+
+  //     }}>
+  //       {/* Conversations List - Fixed width */}
+  //       <Grid item xs={12} md={3} lg={3} xl={2} sx={{
+  //         height: '100%',
+  //         display: { xs: selectedConversation ? 'none' : 'block', md: 'block' },
+  //         overflow: 'hidden',
+  //         width: { md: '250px' },
+  //         flexShrink: 0,
+  //         flexGrow: 0
+  //       }}>
+  //         <Paper sx={{
+  //           height: '100%',
+  //           display: 'flex',
+  //           flexDirection: 'column',
+  //           borderRadius: { xs: 0, md: '16px' },
+  //           border: { md: `1px solid ${theme.palette.divider}` },
+  //           boxShadow: { md: theme.shadows[3] },
+  //           bgcolor: 'background.paper',
+  //           overflow: 'hidden'
+  //         }}>
+  //           {/* Search Header */}
+  //           <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
+  //             <TextField
+  //               fullWidth
+  //               variant="outlined"
+  //               placeholder="Search conversations..."
+  //               value={messageSearchTerm}
+  //               onChange={(e) => setMessageSearchTerm(e.target.value)}
+  //               InputProps={{
+  //                 startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
+  //                 sx: { borderRadius: '12px', bgcolor: 'background.paper' }
+  //               }}
+  //             />
+  //           </Box>
+
+  //           {/* Conversations List */}
+  //           <List sx={{
+  //             flex: 1,
+  //             overflow: 'auto',
+  //             p: 0,
+  //             '&::-webkit-scrollbar': { width: '4px' },
+  //             '&::-webkit-scrollbar-thumb': {
+  //               bgcolor: alpha(theme.palette.primary.main, 0.3),
+  //               borderRadius: '4px'
+  //             }
+  //           }}>
+  //             {filteredConversations.map((conv) => {
+  //               const messageDate = new Date(conv.lastMessageAt);
+  //               // Format date as "Feb 21, 2025"
+  //               const formattedDate = messageDate.toLocaleDateString('en-US', {
+  //                 month: 'short',
+  //                 day: 'numeric',
+  //                 year: 'numeric'
+  //               });
+
+  //               // Format time as "12:30 PM"
+  //               const formattedTime = messageDate.toLocaleTimeString('en-US', {
+  //                 hour: 'numeric',
+  //                 minute: '2-digit',
+  //                 hour12: true
+  //               });
+
+  //               // Get day of week
+  //               const dayOfWeek = messageDate.toLocaleDateString('en-US', { weekday: 'long' });
+
+  //               return (
+  //                 <ListItemButton
+  //                   key={conv.userId}
+  //                   selected={selectedConversation?.userId === conv.userId}
+  //                   onClick={() => fetchMessages(conv.userId)}
+  //                   sx={{
+  //                     px: 2,
+  //                     py: 1.5,
+  //                     borderBottom: `1px solid ${theme.palette.divider}`,
+  //                     transition: 'all 0.2s ease',
+  //                     '&.Mui-selected': {
+  //                       bgcolor: alpha(theme.palette.primary.main, 0.1),
+  //                       '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.15) }
+  //                     },
+  //                     '&:hover': {
+  //                       bgcolor: alpha(theme.palette.primary.main, 0.05)
+  //                     }
+  //                   }}
+  //                 >
+  //                   <Avatar
+  //                     src={conv.otherUser.avatar}
+  //                     sx={{
+  //                       mr: 2,
+  //                       width: 44,
+  //                       height: 44,
+  //                       bgcolor: alpha(theme.palette.primary.main, 0.7),
+  //                       fontSize: '1.1rem',
+  //                       flexShrink: 0
+  //                     }}
+  //                   >
+  //                     {conv.otherUser?.name?.[0]?.toUpperCase() || '?'}
+  //                   </Avatar>
+  //                   <Box sx={{
+  //                     flex: '1 1 auto',
+  //                     overflow: 'hidden',
+  //                     minWidth: 0 // Important for proper text truncation
+  //                   }}>
+  //                     <Typography
+  //                       variant="subtitle2"
+  //                       sx={{
+  //                         fontWeight: 600,
+  //                         fontSize: { xs: '0.85rem', sm: '0.9rem', md: '0.95rem' },
+  //                         whiteSpace: 'nowrap',
+  //                         overflow: 'hidden',
+  //                         textOverflow: 'ellipsis',
+  //                         display: 'block',
+  //                         width: '100%'
+  //                       }}
+  //                     >
+  //                       {conv.otherUser?.name || 'Unknown User'}
+  //                     </Typography>
+  //                     <Typography
+  //                       variant="caption"
+  //                       sx={{
+  //                         color: 'text.secondary',
+  //                         display: 'block',
+  //                         fontSize: '0.75rem',
+  //                         whiteSpace: 'nowrap',
+  //                         overflow: 'hidden',
+  //                         textOverflow: 'ellipsis'
+  //                       }}
+  //                     >
+  //                       {conv.lastMessage}
+  //                     </Typography>
+  //                     <Typography variant="caption" sx={{
+  //                       color: 'text.secondary',
+  //                       fontSize: '0.7rem',
+  //                       whiteSpace: 'nowrap',
+  //                       display: 'block',
+  //                       mt: 0.5
+  //                     }}>
+  //                       {formattedDate}
+  //                     </Typography>
+  //                   </Box>
+  //                   <Box sx={{
+  //                     display: 'flex',
+  //                     flexDirection: 'column',
+  //                     alignItems: 'flex-end',
+  //                     ml: 1,
+  //                     minWidth: '30px',
+  //                     flexShrink: 0
+  //                   }}>
+  //                     {conv.unreadCount > 0 && (
+  //                       <Chip
+  //                         label={conv.unreadCount}
+  //                         size="small"
+  //                         sx={{
+  //                           height: 20,
+  //                           fontSize: '0.7rem',
+  //                           bgcolor: theme.palette.primary.main,
+  //                           color: 'white',
+  //                           minWidth: '20px',
+  //                           py: 0
+  //                         }}
+  //                       />
+  //                     )}
+  //                   </Box>
+  //                 </ListItemButton>
+  //               )
+  //             }
+  //             )}
+  //           </List>
+  //         </Paper>
+  //       </Grid>
+
+  //       {/* Chat Window - Takes remaining space */}
+  //       <Grid item xs sx={{
+  //         height: '100%',
+  //         display: { xs: selectedConversation ? 'block' : 'none', md: 'block' },
+  //         pl: { md: '0!important' },
+  //         overflow: 'hidden',
+  //         flex: '1 1 auto',
+  //         width: { md: '650px' },
+  //         position: 'relative'
+  //       }}>
+  //         <Paper sx={{
+  //           height: '100%',
+  //           display: 'flex',
+  //           flexDirection: 'column',
+  //           borderRadius: { xs: 0, md: '16px' },
+  //           border: { md: `1px solid ${theme.palette.divider}` },
+  //           boxShadow: { md: theme.shadows[3] },
+  //           bgcolor: 'background.paper',
+  //           position: 'relative',
+  //           overflow: 'hidden'
+  //         }}>
+  //           {selectedConversation ? (
+  //             <>
+  //               {/* Chat Header */}
+  //               <Box sx={{
+  //                 p: 2,
+  //                 display: 'flex',
+  //                 alignItems: 'center',
+  //                 borderBottom: `1px solid ${theme.palette.divider}`,
+  //                 bgcolor: 'background.default'
+  //               }}>
+  //                 <IconButton
+  //                   onClick={() => setSelectedConversation(null)}
+  //                   sx={{
+  //                     display: { md: 'none' },
+  //                     mr: 1,
+  //                     color: 'text.primary'
+  //                   }}
+  //                 >
+  //                   <ChevronLeftIcon />
+  //                 </IconButton>
+  //                 <Avatar
+  //                   src={selectedConversation.otherUser.avatar}
+  //                   sx={{
+  //                     mr: 2,
+  //                     width: 44,
+  //                     height: 44,
+  //                     bgcolor: alpha(theme.palette.primary.main, 0.9),
+  //                     flexShrink: 0
+  //                   }}
+  //                 />
+  //                 <Typography
+  //                   variant="subtitle1"
+  //                   fontWeight={600}
+  //                   sx={{
+  //                     overflow: 'hidden',
+  //                     textOverflow: 'ellipsis',
+  //                     whiteSpace: 'nowrap',
+  //                     fontSize: { xs: '0.95rem', sm: '1rem', md: '1.1rem' }
+
+  //                   }}
+  //                 >
+  //                   {selectedConversation.otherUser.name}
+  //                 </Typography>
+  //               </Box>
+
+  //               {/* Messages Container */}
+  //               <Box
+  //                 sx={{
+  //                   flex: 1,
+  //                   overflow: 'auto',
+  //                   textAlign: 'left',
+  //                   p: 2,
+  //                   bgcolor: alpha(theme.palette.background.default, 0.5),
+  //                   backgroundImage: `linear-gradient(to bottom, ${alpha(theme.palette.background.default, 0.7)}, ${alpha(theme.palette.background.default, 0.4)})`,
+  //                   '&::-webkit-scrollbar': { width: '4px' },
+  //                   '&::-webkit-scrollbar-thumb': {
+  //                     bgcolor: alpha(theme.palette.primary.main, 0.3),
+  //                     borderRadius: '4px',
+  //                   },
+  //                 }}
+  //               >
+  //                 {selectedConversation.messages.map((message) => {
+  //                   const isCurrentUser = message.senderId === currentUser.id;
+  //                   const messageDate = new Date(message.sentAt);
+  //                   const formattedDate = messageDate.toLocaleDateString('en-US', {
+  //                     month: 'short',
+  //                     day: 'numeric',
+  //                     year: 'numeric'
+  //                   });
+  //                   const formattedTime = messageDate.toLocaleTimeString('en-US', {
+  //                     hour: 'numeric',
+  //                     minute: '2-digit',
+  //                     hour12: true
+  //                   });
+
+  //                   return (
+  //                     <React.Fragment key={message.id || message.tempId}>
+  //                       <Box
+  //                         sx={{
+  //                           display: 'flex',
+  //                           justifyContent: isCurrentUser ? 'flex-end' : 'flex-start',
+  //                           mb: 2,
+  //                           transition: 'all 0.2s ease',
+  //                         }}
+  //                       >
+  //                         <Box
+  //                           sx={{
+  //                             maxWidth: { xs: '85%', sm: '80%', md: '75%' },
+  //                             display: 'flex',
+  //                             flexDirection: 'column',
+  //                             alignItems: isCurrentUser ? 'flex-end' : 'flex-start',
+  //                           }}
+  //                         >
+  //                           <Paper
+  //                             elevation={1}
+  //                             sx={{
+  //                               p: 1.5,
+  //                               borderRadius: '16px',
+  //                               borderTopRightRadius: isCurrentUser ? '4px' : '16px',
+  //                               borderTopLeftRadius: isCurrentUser ? '16px' : '4px',
+  //                               bgcolor: isCurrentUser ? theme.palette.primary.main : 'background.paper',
+  //                               color: isCurrentUser ? 'white' : 'text.primary',
+  //                               position: 'relative',
+  //                             }}
+  //                           >
+  //                             <Typography
+  //                               variant="body2"
+  //                               sx={{
+  //                                 wordBreak: 'break-word',
+  //                                 lineHeight: 1.4,
+  //                                 fontSize: { xs: '0.875rem', sm: '0.9rem', md: '0.95rem' }
+  //                               }}
+  //                             >
+  //                               {message.content}
+  //                             </Typography>
+  //                           </Paper>
+
+  //                           {/* Read/Unread Icon Indicator for messages sent by current user */}
+  //                           {isCurrentUser && (
+  //                             <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+  //                               {message.status === 'sending' ? (
+  //                                 <CircularProgress size={12} />
+  //                               ) : message.status === 'error' ? (
+  //                                 <Typography variant="caption" color="error">
+  //                                   {message.error}
+  //                                 </Typography>
+  //                               ) : message.isRead ? (
+  //                                 <DoneAllIcon fontSize="small" sx={{ color: theme.palette.primary.main }} />
+  //                               ) : (
+  //                                 <DoneIcon fontSize="small" sx={{ color: '#C0C0C0' }} />
+  //                               )}
+  //                             </Box>
+  //                           )}
+
+
+  //                           {/* Timestamp */}
+  //                           <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center' }}>
+  //                             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', mr: 1 }}>
+  //                               {formattedDate}
+  //                             </Typography>
+  //                             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+  //                               {formattedTime}
+  //                             </Typography>
+  //                           </Box>
+  //                         </Box>
+  //                       </Box>
+  //                     </React.Fragment>
+  //                   );
+  //                 })}
+
+  //                 <div ref={messagesEndRef} />
+  //               </Box>
+
+  //               {/* Message Input */}
+  //               <Box sx={{
+  //                 p: 2,
+  //                 borderTop: `1px solid ${theme.palette.divider}`,
+  //                 bgcolor: 'background.paper',
+  //                 position: 'sticky',
+  //                 bottom: 0,
+  //                 zIndex: 2
+  //               }}>
+  //                 <Grid container spacing={1.5} alignItems="flex-end">
+  //                   <Grid item xs>
+  //                     <TextField
+  //                       fullWidth
+  //                       variant="outlined"
+  //                       placeholder="Type a message..."
+  //                       value={newMessage}
+  //                       onChange={(e) => setNewMessage(e.target.value)}
+  //                       onKeyDown={(e) => {
+  //                         if (e.key === 'Enter' && !e.shiftKey) {
+  //                           e.preventDefault();
+  //                           handleSendMessage();
+  //                         }
+  //                       }}
+  //                       multiline
+  //                       maxRows={4}
+  //                       sx={{
+  //                         '& .MuiOutlinedInput-root': {
+  //                           borderRadius: '20px',
+  //                           bgcolor: 'background.default',
+  //                           transition: 'all 0.2s ease',
+  //                           '&:hover': {
+  //                             bgcolor: 'background.default'
+  //                           },
+  //                           '& .MuiOutlinedInput-input': {
+  //                             py: 1.5,
+  //                             px: 2
+  //                           }
+  //                         }
+  //                       }}
+  //                     />
+  //                   </Grid>
+  //                   <Grid item xs="auto">
+  //                     <Button
+  //                       variant="contained"
+  //                       onClick={handleSendMessage}
+  //                       disabled={!newMessage.trim() || connectionStatus !== 'connected'}
+  //                       sx={{
+  //                         minWidth: '80px',
+  //                         height: '48px',
+  //                         borderRadius: '24px',
+  //                         bgcolor: 'primary.main',
+  //                         boxShadow: theme.shadows[2],
+  //                         '&:hover': {
+  //                           bgcolor: 'primary.main',
+  //                           transform: 'translateY(-2px)',
+  //                           boxShadow: theme.shadows[4]
+
+  //                         },
+  //                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+  //                       }}
+  //                     >
+  //                       Send
+  //                     </Button>
+  //                   </Grid>
+  //                 </Grid>
+  //               </Box>
+  //             </>
+  //           ) : (
+  //             <Box sx={{
+  //               flex: 1,
+  //               display: 'flex',
+  //               alignItems: 'center',
+  //               justifyContent: 'center',
+  //               bgcolor: alpha(theme.palette.background.default, 0.5),
+  //               textAlign: 'center',
+  //               p: 3
+  //             }}>
+  //               <Box sx={{
+  //                 maxWidth: 400,
+  //                 px: 3,
+  //                 py: 5,
+  //                 borderRadius: '16px',
+  //                 bgcolor: alpha(theme.palette.background.paper, 0.7),
+  //                 backdropFilter: 'blur(8px)'
+  //               }}>
+  //                 <ChatIcon sx={{
+  //                   fontSize: 72,
+  //                   color: alpha(theme.palette.primary.main, 0.6),
+  //                   mb: 3
+  //                 }} />
+  //                 <Typography variant="h6" sx={{
+  //                   color: 'text.primary',
+  //                   mb: 2,
+  //                   fontWeight: 600
+  //                 }}>
+  //                   {conversations.length > 0
+  //                     ? "Select a conversation to start chatting"
+  //                     : "No conversations yet"}
+  //                 </Typography>
+  //                 <Typography variant="body2" sx={{
+  //                   color: 'text.secondary',
+  //                   fontSize: '0.95rem'
+  //                 }}>
+  //                   {conversations.length > 0
+  //                     ? "Your existing conversations will appear here"
+  //                     : "Start a new conversation from your property listings"}
+  //                 </Typography>
+  //               </Box>
+  //             </Box>
+  //           )}
+  //         </Paper>
+  //       </Grid>
+  //     </Grid>
+  //   </Container>
+  // );
+
 
   const renderSystemSettings = () => {
     const handleExportData = async () => {
@@ -1940,9 +3551,9 @@ const LandlordDashboard = () => {
     };
     return (
       <Container maxWidth="xl" sx={{ py: 3 }}>
-        <Grid2 container spacing={3}>
+        <Grid container spacing={3}>
           {/* Theme Settings */}
-          <Grid2 item xs={12} md={6}>
+          <Grid item xs={12} md={6}>
             <Paper sx={{
               p: { xs: 2, md: 3 },
               height: '100%',
@@ -1980,10 +3591,10 @@ const LandlordDashboard = () => {
                 </Box>
               </Stack>
             </Paper>
-          </Grid2>
+          </Grid>
 
           {/* Notification Settings */}
-          <Grid2 item xs={12} md={6}>
+          <Grid item xs={12} md={6}>
             <Paper sx={{
               p: { xs: 2, md: 3 },
               height: '100%',
@@ -2036,10 +3647,10 @@ const LandlordDashboard = () => {
                 </FormGroup>
               </Stack>
             </Paper>
-          </Grid2>
+          </Grid>
 
           {/* Data Management */}
-          <Grid2 item xs={12} md={6}>
+          <Grid item xs={12} md={6}>
             <Paper sx={{
               p: { xs: 2, md: 3 },
               height: '100%',
@@ -2096,10 +3707,10 @@ const LandlordDashboard = () => {
                 </label>
               </Stack>
             </Paper>
-          </Grid2>
+          </Grid>
 
           {/* Security Settings */}
-          <Grid2 item xs={12} md={6}>
+          <Grid item xs={12} md={6}>
             <Paper sx={{
               p: { xs: 2, md: 3 },
               height: '100%',
@@ -2148,8 +3759,8 @@ const LandlordDashboard = () => {
                 </Button>
               </Stack>
             </Paper>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
 
         {/* Security Dialog */}
         <Dialog open={securityDialogOpen} onClose={() => setSecurityDialogOpen(false)}>
@@ -2201,7 +3812,7 @@ const LandlordDashboard = () => {
               overflow: 'hidden',
               p: 4,
               background: (theme) =>
-                `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.dark} 100%)`,
               color: 'white',
               borderRadius: '16px',
               textAlign: 'center',
@@ -2233,7 +3844,7 @@ const LandlordDashboard = () => {
               onClick={() => setIsEditModalOpen(true)}
               sx={{
                 bgcolor: 'white',
-                color: 'primary.main',
+                color: 'tertiary.main',
                 '&:hover': {
                   bgcolor: 'grey.100',
                 },
@@ -2244,8 +3855,8 @@ const LandlordDashboard = () => {
           </Card>
 
           {/* Info Cards */}
-          <Grid2 container spacing={3}>
-            <Grid2 item xs={12} md={12}>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={12}>
               <Paper sx={{ p: 3, borderRadius: '12px' }}>
                 <Stack spacing={2}>
                   <Typography variant="h6" fontWeight="bold">
@@ -2273,9 +3884,9 @@ const LandlordDashboard = () => {
                   </Box>
                 </Stack>
               </Paper>
-            </Grid2>
+            </Grid>
 
-            <Grid2 item xs={12} md={12}>
+            <Grid item xs={12} md={12}>
               <Paper sx={{ p: 3, borderRadius: '12px' }}>
                 <Stack spacing={2}>
                   <Typography variant="h6" fontWeight="bold">
@@ -2303,8 +3914,8 @@ const LandlordDashboard = () => {
                   </Box>
                 </Stack>
               </Paper>
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
         </Stack>
 
         {/* Edit Profile Dialog */}
@@ -2418,14 +4029,16 @@ const LandlordDashboard = () => {
           }}
         >
           <Box sx={{ p: 3, textAlign: 'center' }}>
-            <img
-              src="/src/assets/RR.png"
-              alt="RoomRadar Logo"
-              style={{
-                maxWidth: '200px',
-                height: 'auto'
-              }}
-            />
+            <RouterLink to="/dashboard/landlord/property-management" component={RouterLink} sx={{ display: 'inline-block' }}>
+              <img
+                src="/src/assets/RR.png"
+                alt="RoomRadar Logo"
+                style={{
+                  maxWidth: '200px',
+                  height: 'auto'
+                }}
+              />
+            </RouterLink >
           </Box>
           <Divider />
           <List sx={{ p: 2 }}>
@@ -2439,8 +4052,14 @@ const LandlordDashboard = () => {
                     case 'properties':
                       navigate('/dashboard/landlord/property-management');
                       break;
+                    case 'bookings':
+                      navigate('/dashboard/landlord/property-bookings');
+                      break;
                     case 'analytics':
                       navigate('/dashboard/landlord/property-analytics');
+                      break;
+                    case 'messages':
+                      navigate('/dashboard/landlord/messages');
                       break;
                     case 'settings':
                       navigate('/dashboard/landlord/system-settings');
@@ -2507,6 +4126,24 @@ const LandlordDashboard = () => {
             // minHeight: '100vh',
             // overflow: 'auto',
             // overflowAnchor: 'none',
+
+            // flexGrow: 1,
+            // width: { sm: `calc(100% - ${isMobile ? 0 : 280}px)`, },
+            // bgcolor: 'background.default',
+            // minHeight: '100vh',
+            // overflow: 'auto'
+
+
+            // flexGrow: 1,
+            // width: { xs: '100%', sm: `calc(100% - 280px)` },
+            // minHeight: '100vh',
+            // bgcolor: 'background.default',
+            // position: 'relative',
+            // left: { xs: 0, sm: 0 },
+            // p: 0,
+            // m: 0,
+            // overflow: 'hidden'
+
           }}
         >
           {/* Navigation Bar - Only show on mobile */}
@@ -2532,14 +4169,16 @@ const LandlordDashboard = () => {
               >
                 {/* Logo */}
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <img
-                    src="/src/assets/RR.png"
-                    alt="RoomRadar Logo"
-                    style={{
-                      height: '40px',
-                      width: 'auto'
-                    }}
-                  />
+                  <RouterLink to="/dashboard/landlord/property-management" component={RouterLink} sx={{ display: 'inline-block' }}>
+                    <img
+                      src="/src/assets/RR.png"
+                      alt="RoomRadar Logo"
+                      style={{
+                        maxWidth: '200px',
+                        height: 'auto'
+                      }}
+                    />
+                  </RouterLink>
                 </Box>
 
                 {/* Right section - Theme toggle and Menu */}
@@ -2578,10 +4217,23 @@ const LandlordDashboard = () => {
           <Typography variant="h5" component="h1" fontWeight={700} margin={1}>
             {activeSectionTitles[activeSection]}
           </Typography>
-          {activeSection === 'properties' && renderPropertyManagement()}
-          {activeSection === 'analytics' && renderPropertyAnalytics()}
-          {activeSection === 'settings' && renderSystemSettings()}
-          {activeSection === 'profile' && renderProfile()}
+          <AnimatePresence mode='wait'>
+            <motion.div
+              key={activeSection}
+              initial="initial"
+              animate="in"
+              exit="out"
+              variants={pageVariants}
+              transition={pageTransition}
+              style={{ padding: 16 }}
+            >
+              {activeSection === 'properties' && renderPropertyManagement()}
+              {activeSection === 'bookings' && renderPropertyBookings()}
+              {activeSection === 'analytics' && renderPropertyAnalytics()}
+              {activeSection === 'settings' && renderSystemSettings()}
+              {activeSection === 'profile' && renderProfile()}
+            </motion.div>
+          </AnimatePresence>
         </Box>
 
         <Snackbar
@@ -2631,9 +4283,9 @@ const LandlordDashboard = () => {
             </IconButton>
           </DialogTitle>
           <DialogContent sx={{ py: 3 }}>
-            <Grid2 container spacing={3} sx={{ mt: 1 }}>
+            <Grid container spacing={3} sx={{ mt: 1 }}>
               {/* Title */}
-              <Grid2 item xs={12} md={6}>
+              <Grid item xs={12} md={6}>
                 {/* Title Field */}
                 <TextField
                   fullWidth
@@ -2645,10 +4297,10 @@ const LandlordDashboard = () => {
                   error={!propertyForm.title}
                   helperText={!propertyForm.title && "Title is required"}
                 />
-              </Grid2>
+              </Grid>
 
               {/* Description */}
-              <Grid2 item xs={12} md={6}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Description"
@@ -2658,10 +4310,10 @@ const LandlordDashboard = () => {
                   value={propertyForm.description}
                   onChange={(e) => setPropertyForm({ ...propertyForm, description: e.target.value })}
                 />
-              </Grid2>
+              </Grid>
 
               {/* Price */}
-              <Grid2 item xs={12} md={6}>
+              <Grid item xs={12} md={6}>
                 {/* Price Field */}
                 <TextField
                   fullWidth
@@ -2683,10 +4335,10 @@ const LandlordDashboard = () => {
                   error={!propertyForm.price || isNaN(parseFloat(propertyForm.price))}
                   helperText={(!propertyForm.price || isNaN(parseFloat(propertyForm.price))) && "Valid price required"}
                 />
-              </Grid2>
+              </Grid>
 
               {/* Size */}
-              <Grid2 item xs={12} md={6}>
+              <Grid item xs={12} md={6}>
                 {/* Size Field */}
                 <TextField
                   fullWidth
@@ -2709,10 +4361,10 @@ const LandlordDashboard = () => {
                   helperText={(!propertyForm.size || isNaN(parseInt(propertyForm.size, 10))) && "Valid size required"}
                 />
 
-              </Grid2>
+              </Grid>
 
               {/* Address */}
-              <Grid2 item xs={12} md={6}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Address *"
@@ -2723,10 +4375,10 @@ const LandlordDashboard = () => {
                   error={!propertyForm.address}
                   helperText={!propertyForm.address && "Address is required"}
                 />
-              </Grid2>
+              </Grid>
 
               {/* City */}
-              <Grid2 item xs={12} md={6}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="City *"
@@ -2737,10 +4389,10 @@ const LandlordDashboard = () => {
                   error={!propertyForm.city}
                   helperText={!propertyForm.city && "City is required"}
                 />
-              </Grid2>
+              </Grid>
 
               {/* Image Upload */}
-              <Grid2 item xs={12}>
+              <Grid item xs={12}>
                 <FormControl fullWidth>
                   <input
                     accept="image/*"
@@ -2843,11 +4495,11 @@ const LandlordDashboard = () => {
                     })}
                   </Box>
                 </FormControl>
-              </Grid2>
+              </Grid>
 
 
               {/* Amenities Checkboxes */}
-              <Grid2 item xs={12}>
+              <Grid item xs={12}>
                 <Typography variant="subtitle2" gutterBottom>
                   Amenities *
                 </Typography>
@@ -2872,12 +4524,12 @@ const LandlordDashboard = () => {
                     />
                   ))}
                 </FormGroup>
-              </Grid2>
+              </Grid>
 
 
 
               {/* Availability Radio Buttons */}
-              <Grid2 item xs={12}>
+              <Grid item xs={12}>
                 <FormControl component="fieldset">
                   <Typography variant="subtitle2" gutterBottom>
                     Availability *
@@ -2902,8 +4554,8 @@ const LandlordDashboard = () => {
                     />
                   </RadioGroup>
                 </FormControl>
-              </Grid2>
-            </Grid2>
+              </Grid>
+            </Grid>
           </DialogContent>
 
           <DialogActions sx={{
@@ -2922,7 +4574,7 @@ const LandlordDashboard = () => {
               onClick={selectedProperty ? handleUpdateProperty : handleCreateProperty}
               disabled={loading}
               sx={{
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                 borderRadius: '12px',
               }}
             >
@@ -2936,7 +4588,7 @@ const LandlordDashboard = () => {
             </Button>
           </DialogActions>
         </Dialog>
-       
+
         <Dialog
           fullScreen
           open={isImageModalOpen}
@@ -2967,10 +4619,29 @@ const LandlordDashboard = () => {
             justifyContent: 'center',
             height: '100vh',
           }}>
-            <SwipeableViews
-              enableMouseEvents
-              index={currentImageIndex}
-              onChangeIndex={(index) => setCurrentImageIndex(index)}
+            <Swiper
+              modules={[Navigation, Pagination, Keyboard, Mousewheel]}
+              initialSlide={currentImageIndex}
+              onSlideChange={(swiper) => setCurrentImageIndex(swiper.activeIndex)}
+              onSwiper={(swiper) => (swiperRef.current = swiper)}
+              navigation={{
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev',
+              }}
+              pagination={{ clickable: true }}
+              keyboard
+              mousewheel
+              spaceBetween={50}
+              slidesPerView={1}
+              style={{
+                width: '100%',
+                height: '100%',
+                '--swiper-navigation-color': '#fff',
+                '--swiper-pagination-color': '#fff',
+                '--swiper-pagination-bottom': '24px',
+                '--swiper-pagination-bullet-size': '0px',
+                '--swiper-pagination-bullet-horizontal-gap': '6px',
+              }}
             >
               {selectedPropertyImages.map((image, index) => {
                 const imageUrl = typeof image === 'string'
@@ -2978,62 +4649,60 @@ const LandlordDashboard = () => {
                   : URL.createObjectURL(image.file);
 
                 return (
-                  <Box key={index} sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100vh',
-                    position: 'relative',
-                  }}>
-                    <img
-                      src={imageUrl}
-                      alt={`Property image ${index + 1}`}
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '90vh',
-                        objectFit: 'contain',
-                        cursor: 'zoom-in',
-                        transform: zoomedIndex === index ? 'scale(2)' : 'scale(1)',
-                        transition: 'transform 0.3s ease',
-                      }}
-                      onClick={() => setZoomedIndex(zoomedIndex === index ? null : index)}
-                    />
-                  </Box>
+                  <SwiperSlide key={index}>
+                    <Box sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: '100vh',
+                      position: 'relative',
+                    }}>
+                      <img
+                        src={imageUrl}
+                        alt={`Property image ${index + 1}`}
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '90vh',
+                          objectFit: 'contain',
+                          cursor: 'zoom-in',
+                          transform: zoomedIndex === index ? 'scale(2)' : 'scale(1)',
+                          transition: 'transform 0.3s ease',
+                        }}
+                        onClick={() => setZoomedIndex(zoomedIndex === index ? null : index)}
+                      />
+                    </Box>
+                  </SwiperSlide>
                 );
               })}
-            </SwipeableViews>
+            </Swiper>
 
-            {/* Navigation Arrows */}
-            {selectedPropertyImages.length > 1 && (
-              <>
-                <IconButton
-                  onClick={() => setCurrentImageIndex(prev => (prev - 1 + selectedPropertyImages.length) % selectedPropertyImages.length)}
-                  sx={{
-                    position: 'fixed',
-                    left: 16,
-                    top: '50%',
-                    color: 'white',
-                    bgcolor: 'rgba(0, 0, 0, 0.5)',
-                    '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.8)' },
-                  }}
-                >
-                  <ChevronLeftIcon fontSize="large" />
-                </IconButton>
-                <IconButton
-                  onClick={() => setCurrentImageIndex(prev => (prev + 1) % selectedPropertyImages.length)}
-                  sx={{
-                    position: 'fixed',
-                    right: 16,
-                    top: '50%',
-                    color: 'white',
-                    bgcolor: 'rgba(0, 0, 0, 0.5)',
-                    '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.8)' },
-                  }}
-                >
-                  <ChevronRightIcon fontSize="large" />
-                </IconButton>
-              </>
-            )}
+            <IconButton
+              className="swiper-button-prev"
+              sx={{
+                position: 'fixed',
+                left: 16,
+                top: '50%',
+                color: 'white',
+                bgcolor: 'rgba(0, 0, 0, 0.5)',
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.8)' },
+              }}
+            >
+              <ChevronLeftIcon fontSize="large" />
+            </IconButton>
+
+            <IconButton
+              className="swiper-button-next"
+              sx={{
+                position: 'fixed',
+                right: 16,
+                top: '50%',
+                color: 'white',
+                bgcolor: 'rgba(0, 0, 0, 0.5)',
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.8)' },
+              }}
+            >
+              <ChevronRightIcon fontSize="large" />
+            </IconButton>
 
             {/* Dots Indicator */}
             {selectedPropertyImages.length > 1 && (
