@@ -1,0 +1,361 @@
+// src/pages/dashboards/LandlordDashboard.jsx
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Box, Snackbar, Alert } from '@mui/material';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
+
+import LandlordLayout from '../../components/layout/LandlordLayout';
+import PropertyManagement from '../../pages/landlord/PropertyManagement';
+import PropertyAnalytics from '../../pages/landlord/PropertyAnalytics';
+import SystemSettings from '../../pages/landlord/SystemSettings';
+import ProfileInformation from '../../pages/landlord/ProfileInformation';
+
+import * as userService from '../../services/userService';
+import * as roomService from '../../services/roomService';
+
+const LandlordDashboard = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+  const [mode, setMode] = useState(() => {
+    const savedMode = localStorage.getItem('landlordThemeMode');
+    return savedMode || 'light';
+  });
+
+  const [currentUser, setCurrentUser] = useState({
+    id: '',
+    username: '',
+    email: '',
+    password: '',
+    fullName: '',
+    phoneNumber: '',
+    role: '',
+  });
+
+  const [properties, setProperties] = useState([]);
+  const [propertyStats, setPropertyStats] = useState({
+    totalProperties: 0,
+    availableProperties: 0,
+    unavailableProperties: 0,
+    propertyTypeDistribution: {},
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const theme = useMemo(
+    () => createTheme({
+      palette: {
+        mode: mode === 'system' ? (prefersDarkMode ? 'dark' : 'light') : mode,
+        primary: {
+          main: mode === 'dark' ? '#90caf9' : '#1976d2',
+          light: mode === 'dark' ? '#90caf9' : '#42a5f5',
+          dark: mode === 'dark' ? '#64b5f6' : '#1565c0',
+          contrastText: '#FFFFFF'
+        },
+        secondary: {
+          main: mode === 'dark' ? '#f48fb1' : '#dc004e',
+          light: mode === 'dark' ? '#f48fb1' : '#ff4081',
+          dark: mode === 'dark' ? '#c2185b' : '#c51162',
+          contrastText: '#FFFFFF'
+        },
+        background: {
+          default: mode === 'dark' ? '#121212' : '#f5f5f5',
+          paper: mode === 'dark' ? '#1e1e1e' : '#ffffff',
+          accent: mode === 'dark' ? '#2d3748' : '#edf2f7'
+        },
+        text: {
+          primary: mode === 'dark' ? 'rgba(255, 255, 255, 0.87)' : 'rgba(0, 0, 0, 0.87)',
+          secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'
+        },
+        divider: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
+        action: {
+          hover: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+          selected: mode === 'dark' ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.08)',
+          disabled: mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.26)',
+          focus: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'
+        }
+      },
+      shape: {
+        borderRadius: 8
+      },
+      components: {
+        MuiButton: {
+          styleOverrides: {
+            root: {
+              textTransform: 'none',
+              borderRadius: 8,
+              padding: '8px 16px',
+              fontWeight: 500,
+              fontSize: '0.875rem'
+            },
+            contained: {
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: mode === 'dark' 
+                  ? '0 2px 8px rgba(255, 255, 255, 0.15)'
+                  : '0 2px 8px rgba(0, 0, 0, 0.15)'
+              }
+            }
+          }
+        },
+        MuiPaper: {
+          styleOverrides: {
+            root: {
+              borderRadius: 8,
+              backgroundImage: 'none',
+              boxShadow: mode === 'dark'
+                ? '0 2px 8px rgba(0, 0, 0, 0.3)'
+                : '0 2px 8px rgba(0, 0, 0, 0.1)'
+            }
+          }
+        },
+        MuiCard: {
+          styleOverrides: {
+            root: {
+              backgroundImage: 'none',
+              boxShadow: mode === 'dark'
+                ? '0 2px 8px rgba(0, 0, 0, 0.3)'
+                : '0 2px 8px rgba(0, 0, 0, 0.1)',
+              '&:hover': {
+                boxShadow: mode === 'dark'
+                  ? '0 4px 12px rgba(0, 0, 0, 0.4)'
+                  : '0 4px 12px rgba(0, 0, 0, 0.2)'
+              }
+            }
+          }
+        },
+        MuiIconButton: {
+          styleOverrides: {
+            root: {
+              color: mode === 'dark' ? 'rgba(255, 255, 255, 0.87)' : 'rgba(0, 0, 0, 0.87)'
+            }
+          }
+        }
+      }
+    }),
+    [mode, prefersDarkMode]
+  );
+
+  const toggleColorMode = () => {
+    setMode((prevMode) => {
+      const newMode = prevMode === 'light' ? 'dark' : 'light';
+      localStorage.setItem('landlordThemeMode', newMode);
+      return newMode;
+    });
+  };
+
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await userService.getCurrentUser();
+      
+      if (!response || !response.data) {
+        throw new Error("Invalid user data format");
+      }
+
+      const userData = response.data;
+      if (!userData.id && userData._id) {
+        userData.id = userData._id;
+      }
+
+      // Verify the user is a landlord
+      if (userData.role !== 'LANDLORD') {
+        throw new Error("Unauthorized: User is not a landlord");
+      }
+
+      setCurrentUser(userData);
+    } catch (err) {
+      console.error("Fetch Current User Error:", err.message);
+      setError(err.message);
+      // Clear any invalid tokens
+      localStorage.clear();
+      navigate('/login');
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate]);
+
+  const fetchAndProcessProperties = useCallback(async () => {
+    if (!currentUser?.id) {
+      console.error('Cannot fetch properties without user ID');
+      return;
+    }
+    try {
+      setLoading(true);
+      const fetchedProperties = await roomService.fetchRoomsByLandlord(currentUser.id);
+
+      const processedProperties = fetchedProperties.map((property) => ({
+        id: property.id,
+        landlordId: property.landlordId,
+        title: property.title,
+        description: property.description,
+        price: property.price,
+        address: property.address,
+        city: property.city,
+        size: property.size,
+        postedDate: property.postedDate,
+        available: property.available,
+        images: property.images || [],
+        amenities: property.amenities
+          ? Object.fromEntries(
+            Object.entries(property.amenities).map(([key, value]) => [
+              key,
+              value === "true",
+            ])
+          )
+          : {},
+      }));
+
+      const stats = {
+        totalProperties: processedProperties.length,
+        availableProperties: processedProperties.filter(
+          (property) => property.available === true
+        ).length,
+        unavailableProperties: processedProperties.filter(
+          (property) => property.available === false
+        ).length,
+        propertyTypeDistribution: processedProperties.reduce((acc, property) => {
+          acc[property.type] = (acc[property.type] || 0) + 1;
+          return acc;
+        }, {}),
+      };
+
+      setProperties(processedProperties);
+      setPropertyStats(stats);
+    } catch (err) {
+      const errorMessage =
+        err.response?.data?.message || err.message || 'Failed to fetch properties';
+      setError(errorMessage);
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    fetchCurrentUser();
+  }, [fetchCurrentUser]);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchAndProcessProperties();
+    }
+  }, [currentUser, fetchAndProcessProperties]);
+
+  const handleLogout = async () => {
+    try {
+      await userService.logout();
+      window.location.href = '/login';
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
+
+  const getActiveSection = () => {
+    const path = location.pathname;
+    if (path.includes('property-management')) return 'properties';
+    if (path.includes('property-analytics')) return 'analytics';
+    if (path.includes('system-settings')) return 'settings';
+    if (path.includes('profile-information')) return 'profile';
+    return 'properties';
+  };
+
+  const renderContent = () => {
+    const activeSection = getActiveSection();
+
+    switch (activeSection) {
+      case 'properties':
+        return (
+          <PropertyManagement
+            theme={theme}
+            currentUser={currentUser}
+            setSnackbar={setSnackbar}
+          />
+        );
+      case 'analytics':
+        return (
+          <PropertyAnalytics
+            theme={theme}
+            properties={properties}
+            propertyStats={propertyStats}
+          />
+        );
+      case 'settings':
+        return (
+          <SystemSettings
+            theme={theme}
+            mode={mode}
+            toggleColorMode={toggleColorMode}
+            currentUser={currentUser}
+            handleLogout={handleLogout}
+            setSnackbar={setSnackbar}
+          />
+        );
+      case 'profile':
+        return (
+          <ProfileInformation
+            theme={theme}
+            currentUser={currentUser}
+            setCurrentUser={setCurrentUser}
+            setSnackbar={setSnackbar}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  if (loading) {
+    return null;
+  }
+
+  if (error) {
+    return null;
+  }
+
+  return (
+    <ThemeProvider theme={theme}>
+      <LandlordLayout
+        theme={theme}
+        mode={mode}
+        toggleColorMode={toggleColorMode}
+        handleLogout={handleLogout}
+      >
+        {renderContent()}
+      </LandlordLayout>
+
+      <Snackbar
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+      >
+        <Alert
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          sx={{
+            width: '100%',
+            borderRadius: '12px',
+            boxShadow: theme.shadows[3],
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </ThemeProvider>
+  );
+};
+
+export default LandlordDashboard;
