@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, startTransition } from 'react';
 import {
   Box,
   Typography,
@@ -38,10 +38,10 @@ import {
   AdminPanelSettings as AdminPanelSettingsIcon,
   Storage as StorageIcon,
   PersonOutline as PersonOutlineIcon,
+  GpsFixed as ScopeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as userService from '../../services/userService';
-import Logo from '../../assets/RR.png';
 
 // Lazy load components
 const UserManagement = lazy(() => import('./sections/UserManagement'));
@@ -50,66 +50,213 @@ const SystemSettings = lazy(() => import('./sections/SystemSettings'));
 const CSVOperations = lazy(() => import('./sections/CSVOperations'));
 const ProfileSection = lazy(() => import('./sections/ProfileSection'));
 
-// Create theme based on mode
-const getTheme = (mode) => createTheme({
-  palette: {
-    mode,
-    primary: {
-      main: mode === 'light' ? '#1976d2' : '#90caf9',
+// Color scheme configurations
+const colorSchemes = {
+  blue: {
+    light: {
+      primary: { main: '#1976d2', light: '#42a5f5', dark: '#1565c0' },
+      secondary: { main: '#9c27b0', light: '#ba68c8', dark: '#7b1fa2' }
     },
-    secondary: {
-      main: mode === 'light' ? '#dc004e' : '#f48fb1',
-    },
-    background: {
-      default: mode === 'light' ? '#f5f5f5' : '#121212',
-      paper: mode === 'light' ? '#ffffff' : '#1e1e1e',
-    },
+    dark: {
+      primary: { main: '#90caf9', light: '#e3f2fd', dark: '#42a5f5' },
+      secondary: { main: '#ce93d8', light: '#f3e5f5', dark: '#ab47bc' }
+    }
   },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h1: { fontWeight: 500 },
-    h2: { fontWeight: 500 },
-    h3: { fontWeight: 500 },
-    h4: { fontWeight: 500 },
-    h5: { fontWeight: 500 },
-    h6: { fontWeight: 500 },
+  purple: {
+    light: {
+      primary: { main: '#7e57c2', light: '#9575cd', dark: '#5e35b1' },
+      secondary: { main: '#ec407a', light: '#f06292', dark: '#d81b60' }
+    },
+    dark: {
+      primary: { main: '#b39ddb', light: '#ede7f6', dark: '#7e57c2' },
+      secondary: { main: '#f48fb1', light: '#fce4ec', dark: '#ec407a' }
+    }
+  },
+  green: {
+    light: {
+      primary: { main: '#2e7d32', light: '#4caf50', dark: '#1b5e20' },
+      secondary: { main: '#d32f2f', light: '#ef5350', dark: '#c62828' }
+    },
+    dark: {
+      primary: { main: '#81c784', light: '#e8f5e9', dark: '#4caf50' },
+      secondary: { main: '#ef5350', light: '#ffebee', dark: '#d32f2f' }
+    }
+  },
+  orange: {
+    light: {
+      primary: { main: '#ed6c02', light: '#ff9800', dark: '#e65100' },
+      secondary: { main: '#0288d1', light: '#03a9f4', dark: '#01579b' }
+    },
+    dark: {
+      primary: { main: '#ffb74d', light: '#fff3e0', dark: '#ff9800' },
+      secondary: { main: '#4fc3f7', light: '#e1f5fe', dark: '#03a9f4' }
+    }
+  }
+};
+
+// Border radius configurations
+const borderRadiusConfig = {
+  small: {
+    default: 4,
+    button: 6,
+    card: 8,
+    tooltip: 4
+  },
+  medium: {
+    default: 8,
+    button: 10,
+    card: 12,
+    tooltip: 6
+  },
+  large: {
+    default: 12,
+    button: 16,
+    card: 20,
+    tooltip: 8
+  }
+};
+
+// Create theme based on mode, color scheme, and border radius
+const getTheme = (mode, colorScheme = 'blue', borderRadius = 'medium') => {
+  const radiusConfig = borderRadiusConfig[borderRadius] || borderRadiusConfig.medium;
+  
+  return createTheme({
+    palette: {
+      mode,
+      ...(colorSchemes[colorScheme]?.[mode] || colorSchemes.blue[mode]),
+      background: {
+        default: mode === 'dark' ? '#121212' : '#f5f5f5',
+        paper: mode === 'dark' ? '#1e1e1e' : '#ffffff',
+      },
+      text: {
+        primary: mode === 'dark' ? 'rgba(255, 255, 255, 0.87)' : 'rgba(0, 0, 0, 0.87)',
+        secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'
+    },
+    },
+    shape: {
+      borderRadius: radiusConfig.default
+    },
+    typography: {
+      fontFamily: "'Outfit', sans-serif",
+      h1: { fontWeight: 600, letterSpacing: '0.2px' },
+      h2: { fontWeight: 600, letterSpacing: '0.2px' },
+      h3: { fontWeight: 600, letterSpacing: '0.2px' },
+      h4: { fontWeight: 600, letterSpacing: '0.2px' },
+      h5: { fontWeight: 600, letterSpacing: '0.2px' },
+      h6: { fontWeight: 500, letterSpacing: '0.2px' },
+      subtitle1: { fontWeight: 500, letterSpacing: '0.2px' },
+      subtitle2: { fontWeight: 500, letterSpacing: '0.2px' },
+      body1: { fontWeight: 400, letterSpacing: '0.2px' },
+      body2: { fontWeight: 400, letterSpacing: '0.2px' },
+      button: { fontWeight: 500, letterSpacing: '0.2px', textTransform: 'none' },
+      caption: { fontWeight: 400, letterSpacing: '0.2px' },
+      overline: { fontWeight: 400, letterSpacing: '0.2px' }
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
-        },
+            borderRadius: radiusConfig.button,
+            textTransform: 'none',
+            fontWeight: 500
+          }
+        }
       },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: radiusConfig.card
+          }
+        }
     },
     MuiPaper: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
-        },
+            borderRadius: radiusConfig.card,
+            backgroundImage: 'none'
+          }
+        }
       },
-    },
-    MuiDivider: {
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            borderRadius: radiusConfig.card
+          }
+        }
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: {
+            borderRadius: radiusConfig.tooltip
+          }
+        }
+      },
+      MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 0,
+            borderRadius: radiusConfig.button
+          }
+        }
         },
-      },
+      MuiAlert: {
+      styleOverrides: {
+          root: {
+            borderRadius: radiusConfig.default
+        }
+      }
     },
-  },
+      MuiTextField: {
+            styleOverrides: {
+              root: {
+            '& .MuiOutlinedInput-root': {
+              borderRadius: radiusConfig.button
+            }
+        }
+      }
+    },
+      MuiSelect: {
+            styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              borderRadius: radiusConfig.button
+                }
+              }
+            }
+          },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            borderRadius: radiusConfig.default
+          }
+        }
+      }
+    }
 });
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
 
   // State
-  const [mode, setMode] = useState(() => {
+  const [themePreference, setThemePreference] = useState(() => {
     const savedMode = localStorage.getItem('adminThemeMode');
-    return savedMode || 'light';
+    return savedMode || 'system';
   });
+
+  const [colorScheme, setColorScheme] = useState(() => {
+    const savedScheme = localStorage.getItem('adminColorScheme');
+    return savedScheme || 'blue';
+  });
+
+  const [borderRadius, setBorderRadius] = useState(() => {
+    const savedRadius = localStorage.getItem('adminBorderRadius');
+    return savedRadius || 'medium';
+  });
+
   const [state, setState] = useState({
     activeSection: 'users',
     loading: false,
@@ -135,8 +282,19 @@ const AdminDashboard = () => {
     userMenuAnchor: null,
   });
 
-  // Theme
-  const customTheme = React.useMemo(() => getTheme(mode), [mode]);
+  // Determine actual theme mode based on preference
+  const mode = React.useMemo(() => {
+    if (themePreference === 'system') {
+      return prefersDarkMode ? 'dark' : 'light';
+    }
+    return themePreference;
+  }, [themePreference, prefersDarkMode]);
+
+  // Create theme based on mode, color scheme, and border radius
+  const customTheme = React.useMemo(() => 
+    getTheme(mode, colorScheme, borderRadius), 
+    [mode, colorScheme, borderRadius]
+  );
 
   // Menu items
   const menuItems = [
@@ -257,10 +415,30 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleThemeChange = React.useCallback((newPreference) => {
+    startTransition(() => {
+      setThemePreference(newPreference);
+      localStorage.setItem('adminThemeMode', newPreference);
+    });
+  }, []);
+
+  const handleColorSchemeChange = React.useCallback((newScheme) => {
+    startTransition(() => {
+      setColorScheme(newScheme);
+      localStorage.setItem('adminColorScheme', newScheme);
+    });
+  }, []);
+
+  const handleBorderRadiusChange = React.useCallback((newRadius) => {
+    startTransition(() => {
+      setBorderRadius(newRadius);
+      localStorage.setItem('adminBorderRadius', newRadius);
+    });
+  }, []);
+
   const handleThemeToggle = () => {
-    const newMode = mode === 'light' ? 'dark' : 'light';
-    setMode(newMode);
-    localStorage.setItem('adminThemeMode', newMode);
+    const newPreference = themePreference === 'light' ? 'dark' : 'light';
+    handleThemeChange(newPreference);
   };
 
   const handleSnackbarClose = () => {
@@ -390,8 +568,47 @@ const AdminDashboard = () => {
         );
       case 'settings':
     return (
-          <Suspense fallback={<CircularProgress />}>
-            <SystemSettings />
+          <Suspense fallback={
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100%',
+              width: '100%'
+            }}>
+              <CircularProgress />
+            </Box>
+          }>
+            <Box sx={{ 
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              margin: 0,
+              padding: 0
+            }}>
+              <SystemSettings
+                theme={customTheme}
+                mode={themePreference}
+                colorScheme={colorScheme}
+                borderRadius={borderRadius}
+                onThemeChange={handleThemeChange}
+                onColorSchemeChange={handleColorSchemeChange}
+                onBorderRadiusChange={handleBorderRadiusChange}
+                currentUser={state.currentUser}
+                handleLogout={handleLogout}
+                setSnackbar={(message, severity) => {
+                  setState(prev => ({
+                    ...prev,
+                    snackbar: {
+                      open: true,
+                      message,
+                      severity,
+                    },
+                  }));
+                }}
+              />
+            </Box>
           </Suspense>
         );
       case 'csv':
@@ -419,122 +636,195 @@ const AdminDashboard = () => {
         <Drawer
           variant={isMobile ? 'temporary' : 'permanent'}
           open={uiState.drawerOpen}
-          onClose={handleDrawerToggle}
+          onClose={isMobile ? handleDrawerToggle : undefined}
             sx={{
             width: uiState.drawerOpen ? 240 : 65,
             flexShrink: 0,
             '& .MuiDrawer-paper': {
               width: uiState.drawerOpen ? 240 : 65,
               boxSizing: 'border-box',
-              bgcolor: 'background.paper',
-              boxShadow: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              overflowX: 'hidden',
-              transition: theme.transitions.create(['width'], {
+              background: theme => theme.palette.mode === 'dark' 
+                ? 'linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%)'
+                : 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
+              borderRight: theme => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)'}`,
+              transition: theme => theme.transitions.create(['width', 'background'], {
                 easing: theme.transitions.easing.sharp,
                 duration: theme.transitions.duration.enteringScreen,
               }),
-              position: 'relative',
-                },
-              }}
-            >
-          {/* Expand button - visible only when collapsed */}
-          {!uiState.drawerOpen && !isMobile && (
-            <IconButton
-              onClick={handleDrawerToggle}
-              sx={{
-                position: 'fixed',
-                left: 52,
-                top: 20,
-                width: 24,
-                height: 24,
-                borderRadius: '8px',
-                backgroundColor: 'background.paper',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                zIndex: theme.zIndex.drawer + 2,
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                },
-                '& .MuiSvgIcon-root': {
-                  fontSize: '1.2rem',
-                  color: 'text.secondary',
-                  transform: 'rotate(-90deg)',
-                  transition: theme.transitions.create(['transform'], {
-                    duration: theme.transitions.duration.shorter,
-                  }),
-                },
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: 1,
-                borderColor: 'divider',
-                cursor: 'pointer',
-                transition: theme.transitions.create(['left', 'box-shadow'], {
-                  easing: theme.transitions.easing.sharp,
-                  duration: theme.transitions.duration.enteringScreen,
-                })
-              }}
-            >
-              <ArrowIcon />
-            </IconButton>
-          )}
+              overflowX: 'hidden',
+            },
+          }}
+        >
           <Box 
-            sx={{ 
-              p: 2, 
+              sx={{
+              p: 2,
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'space-between',
               minHeight: 64,
               position: 'relative',
+              borderBottom: theme => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)'}`,
+              background: theme => theme.palette.mode === 'dark'
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)'
+                : 'linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,249,250,0.5) 100%)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
             }}
           >
             <Box
-              component="img"
-              src={Logo}
-              alt="Room Finder Logo"
-              sx={{ 
-                height: 40,
-                opacity: uiState.drawerOpen ? 1 : 0,
-                transition: theme.transitions.create(['opacity'], {
-                  duration: theme.transitions.duration.enteringScreen,
-                }),
-                objectFit: 'contain'
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                justifyContent: uiState.drawerOpen ? 'flex-start' : 'center',
+              width: '100%',
               }}
-            />
-            {/* Collapse button with consistent style */}
-            {uiState.drawerOpen && (
-              <IconButton 
-                onClick={handleDrawerToggle}
+            >
+              <ScopeIcon 
+          sx={{
+                  fontSize: 32,
+                  color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  animation: 'scope 3s infinite',
+                  '@keyframes scope': {
+                    '0%': { transform: 'rotate(0deg) scale(1)' },
+                    '25%': { transform: 'rotate(90deg) scale(1.1)' },
+                    '50%': { transform: 'rotate(180deg) scale(1)' },
+                    '75%': { transform: 'rotate(270deg) scale(1.1)' },
+                    '100%': { transform: 'rotate(360deg) scale(1)' },
+                  },
+                }} 
+              />
+              {uiState.drawerOpen && (
+                <Typography
+                  variant="h6"
                 sx={{
+                                        fontFamily: "'Audiowide', cursive",
+                    fontWeight: 400,
+                    fontSize: '1.3rem',
+                    background: 'linear-gradient(45deg, #ff0000, #cc0000)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    color: 'transparent',
+                    letterSpacing: '0.5px',
+                    // textTransform: 'uppercase',
+                  }}
+                >
+                  RoomRadar
+                            </Typography>
+              )}
+        </Box>
+            {/* Expand/Collapse Button */}
+            {!uiState.drawerOpen ? (
+              <IconButton
+                onClick={handleDrawerToggle}
+                disableRipple
+                sx={{
+                  position: 'fixed',
+                  left: 63,
+                  top: 20,
                   width: 24,
                   height: 24,
-                  borderRadius: '8px',
-                  backgroundColor: 'background.paper',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  border: 1,
-                  borderColor: 'divider',
                   p: 0,
+                  zIndex: theme => theme.zIndex.drawer + 2,
+                  color: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+                  transition: 'all 0.2s ease',
                   '&:hover': {
-                    backgroundColor: 'action.hover',
+                    color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                    transform: 'scale(1.1)',
+                    background: 'transparent'
                   },
-                  '& .MuiSvgIcon-root': {
-                    fontSize: '1.2rem',
-                    color: 'text.secondary',
-                    transform: 'rotate(90deg)',
-                    transition: theme.transitions.create(['transform'], {
-                      duration: theme.transitions.duration.shorter,
-                    }),
+                  '&:focus': {
+                    outline: 'none'
+                  },
+                  '&.MuiIconButton-root': {
+                    background: 'transparent'
+                  },
+                  '&:active': {
+                    background: 'transparent'
                   }
                 }}
               >
-                <ArrowIcon />
-              </IconButton>
+                <ArrowIcon sx={{ 
+                  transform: 'rotate(-90deg)',
+                  fontSize: '1.2rem',
+                }} />
+                        </IconButton>
+            ) : (
+                        <IconButton
+                onClick={handleDrawerToggle}
+                disableRipple
+                          sx={{
+                  width: 24,
+                  height: 24,
+                  p: 0,
+                  color: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+                  transition: 'all 0.2s ease',
+                            '&:hover': {
+                    color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                    transform: 'scale(1.1)',
+                    background: 'transparent'
+                  },
+                  '&:focus': {
+                    outline: 'none'
+                  },
+                  '&.MuiIconButton-root': {
+                    background: 'transparent'
+                  },
+                  '&:active': {
+                    background: 'transparent'
+                  }
+                }}
+              >
+                <ArrowIcon sx={{ 
+                  transform: 'rotate(90deg)',
+                  fontSize: '1.2rem',
+                }} />
+                        </IconButton>
             )}
-          </Box>
-          <Divider />
-          {/* Main menu items */}
-          <List sx={{ flex: 1 }}>
+                </Box>
+          <List sx={{ 
+            flex: 1, 
+            px: 1.5, 
+            py: 2,
+            overflowX: 'hidden',
+            '& .MuiListItemButton-root': {
+              mb: 0.5,
+              borderRadius: '12px',
+              transition: theme => theme.transitions.create(['background-color', 'transform', 'box-shadow'], {
+                duration: '0.2s'
+              }),
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+                    '&:hover': {
+                transform: 'translateX(4px)',
+                backgroundColor: theme => theme.palette.mode === 'dark' 
+                  ? 'rgba(255,255,255,0.05)' 
+                  : 'rgba(0,0,0,0.04)',
+                boxShadow: theme => theme.palette.mode === 'dark'
+                  ? '0 4px 12px rgba(0,0,0,0.3)'
+                  : '0 4px 12px rgba(0,0,0,0.05)',
+              },
+              '&.Mui-selected': {
+                backgroundColor: theme => theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.08)'
+                  : alpha(theme.palette.primary.main, 0.08),
+          '&:hover': {
+                  backgroundColor: theme => theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.12)'
+                    : alpha(theme.palette.primary.main, 0.12),
+                },
+                '& .MuiListItemIcon-root': {
+                  color: 'primary.main',
+                  transform: 'scale(1.1)',
+                },
+                '& .MuiTypography-root': {
+                  fontWeight: 600,
+                  color: 'primary.main',
+                  letterSpacing: '0.3px',
+                },
+              },
+            }
+            }}>
               {menuItems.map((item) => (
                 <ListItemButton
                   key={item.section}
@@ -545,12 +835,6 @@ const AdminDashboard = () => {
                     minHeight: 48,
                     justifyContent: uiState.drawerOpen ? 'initial' : 'center',
                   px: 2.5,
-                    '&.Mui-selected': {
-                    bgcolor: alpha(customTheme.palette.primary.main, 0.1),
-                    '&:hover': {
-                      bgcolor: alpha(customTheme.palette.primary.main, 0.15),
-                    },
-                    },
                   }}
                 >
                 <ListItemIcon 
@@ -558,6 +842,11 @@ const AdminDashboard = () => {
                     minWidth: 0,
                     mr: uiState.drawerOpen ? 2 : 'auto',
                     justifyContent: 'center',
+                    color: state.activeSection === item.section ? 'primary.main' : 'text.secondary',
+                    transition: theme => theme.transitions.create(['color', 'transform'], {
+                      duration: '0.2s'
+                    }),
+                    fontSize: '1.2rem',
                   }}
                 >
                     {item.icon}
@@ -566,41 +855,58 @@ const AdminDashboard = () => {
                       primary={item.label}
                       sx={{
                         opacity: uiState.drawerOpen ? 1 : 0,
-                    transition: theme.transitions.create(['opacity'], {
+                    transition: theme => theme.transitions.create(['opacity', 'color'], {
                       duration: theme.transitions.duration.enteringScreen,
                     }),
                   }}
                   primaryTypographyProps={{
-                    fontSize: '0.875rem',
-                    fontWeight: state.activeSection === item.section ? 600 : 400,
+                    fontFamily: "'Outfit', sans-serif",
+                    fontSize: '0.9rem',
+                    fontWeight: state.activeSection === item.section ? 600 : 500,
+                    color: state.activeSection === item.section ? 'primary.main' : 'text.primary',
                     whiteSpace: 'nowrap',
+                    letterSpacing: '0.3px',
                   }}
                 />
               </ListItemButton>
             ))}
             </List>
-          {/* Logout section at bottom */}
-          <Divider />
-          <List>
-            <ListItemButton
+          <Divider sx={{ 
+            borderColor: theme => theme.palette.mode === 'dark' 
+              ? 'rgba(255,255,255,0.05)' 
+              : 'rgba(0,0,0,0.08)',
+            my: 1 
+          }} />
+          <List sx={{ px: 1.5, pb: 2 }}>
+              <ListItemButton
               onClick={handleLogout}
-              sx={{
+                sx={{
                 py: 1.5,
                   minHeight: 48,
-                justifyContent: uiState.drawerOpen ? 'initial' : 'center',
-                  px: 2.5,
-                  color: 'error.main',
-                '&:hover': {
-                  bgcolor: alpha(theme.palette.error.main, 0.1),
+                borderRadius: '12px',
+                  justifyContent: uiState.drawerOpen ? 'initial' : 'center',
+                px: 2.5,
+                color: 'error.main',
+                transition: theme => theme.transitions.create(['background-color', 'transform', 'box-shadow'], {
+                  duration: '0.2s'
+                }),
+                  '&:hover': {
+                  transform: 'translateX(4px)',
+                  backgroundColor: theme => alpha(theme.palette.error.main, 0.08),
+                  boxShadow: '0 4px 12px rgba(211, 47, 47, 0.1)',
+                  '& .MuiListItemIcon-root': {
+                    transform: 'scale(1.1)',
+                  }
                 },
-                }}
-              >
+              }}
+            >
               <ListItemIcon 
                 sx={{ 
                   minWidth: 0,
                   mr: uiState.drawerOpen ? 2 : 'auto',
                   justifyContent: 'center',
-                  color: 'error.main'
+                  color: 'error.main',
+                  transition: 'transform 0.2s',
                 }}
               >
                 <LogoutIcon />
@@ -609,14 +915,16 @@ const AdminDashboard = () => {
                 primary="Logout"
                     sx={{ 
                   opacity: uiState.drawerOpen ? 1 : 0,
-                  transition: theme.transitions.create(['opacity'], {
+                  transition: theme => theme.transitions.create(['opacity'], {
                     duration: theme.transitions.duration.enteringScreen,
                   }),
                 }}
                 primaryTypographyProps={{
-                  fontSize: '0.875rem',
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: '0.9rem',
                   fontWeight: 500,
                   whiteSpace: 'nowrap',
+                  letterSpacing: '0.3px',
                 }}
               />
             </ListItemButton>
@@ -641,20 +949,72 @@ const AdminDashboard = () => {
               >
                 <MenuIcon />
               </IconButton>
-              <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 500 }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  flexGrow: 1, 
+                  fontFamily: "'Outfit', sans-serif",
+                  fontWeight: 500,
+                  letterSpacing: '0.3px',
+                  fontSize: '1.1rem'
+                }}
+              >
                 {menuItems.find(item => item.section === state.activeSection)?.label}
               </Typography>
-              <IconButton onClick={handleThemeToggle} sx={{ mr: 1 }}>
+              <IconButton
+                onClick={handleThemeToggle}
+                disableRipple
+                sx={{ 
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  backgroundColor: theme => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : theme.palette.background.paper,
+                  boxShadow: theme => theme.palette.mode === 'dark' 
+                    ? '0 2px 8px rgba(255,255,255,0.05)' 
+                    : '0 2px 8px rgba(0,0,0,0.1)',
+                  '&:hover': {
+                    background: theme => theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : theme.palette.background.paper
+                  },
+                  '&:focus': {
+                    outline: 'none'
+                  },
+                  '&.MuiIconButton-root': {
+                    background: theme => theme.palette.mode === 'dark' 
+                      ? 'rgba(255, 255, 255, 0.05)' 
+                      : theme.palette.background.paper
+                  }
+                }}
+              >
                 {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
-              </IconButton>
-              <IconButton onClick={handleUserMenuClick}>
-                <AccountCircle />
               </IconButton>
             </Toolbar>
           </AppBar>
 
           {/* Main Section Content */}
-          <Box sx={{ height: 'calc(100vh - 64px)', overflow: 'auto', p: state.activeSection === 'users' ? 0 : 3 }}>
+          <Box sx={{ 
+            height: 'calc(100vh - 64px)', 
+            overflow: 'auto', 
+            p: 0,
+            '& > *': {
+              height: '100%'
+            },
+            '&::-webkit-scrollbar': {
+              width: '8px',
+              background: 'transparent'
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: (theme) => alpha(theme.palette.primary.main, 0.1),
+              borderRadius: '4px',
+              '&:hover': {
+                background: (theme) => alpha(theme.palette.primary.main, 0.2)
+              }
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'transparent'
+            }
+          }}>
             {state.loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                 <CircularProgress />

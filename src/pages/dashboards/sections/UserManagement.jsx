@@ -438,6 +438,7 @@ const UserManagement = ({
   const isSmallScreen = isMobile || isTablet;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterValue, setFilterValue] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [filteredUsers, setFilteredUsers] = useState(initialUsers || []);
   const [isLoading, setIsLoading] = useState(isLoadingProp || false);
   const [pagination, setPagination] = useState({
@@ -499,24 +500,33 @@ const UserManagement = ({
     setIsLoading(isLoadingProp);
   }, [isLoadingProp]);
 
-  // Load users based on current filter and pagination
+  // Load users based on current filter, status filter, and pagination
   useEffect(() => {
     const loadFilteredUsers = async () => {
       try {
         setIsLoading(true);
         let response;
-        switch (filterValue) {
-          case 'SEEKER':
-            response = await userService.fetchSeekers(pagination.currentPage, pagination.pageSize);
-            break;
-          case 'LANDLORD':
-            response = await userService.fetchLandlords(pagination.currentPage, pagination.pageSize);
-            break;
-          case 'ADMIN':
-            response = await userService.fetchAdmins(pagination.currentPage, pagination.pageSize);
-            break;
-          default:
-            response = await userService.fetchUsers(pagination.currentPage, pagination.pageSize);
+
+        // First check status filter
+        if (statusFilter !== 'all') {
+          response = await (statusFilter === 'active' 
+            ? userService.fetchActiveUsers(pagination.currentPage, pagination.pageSize)
+            : userService.fetchInactiveUsers(pagination.currentPage, pagination.pageSize));
+        } else {
+          // If no status filter, use role filter
+          switch (filterValue) {
+            case 'SEEKER':
+              response = await userService.fetchSeekers(pagination.currentPage, pagination.pageSize);
+              break;
+            case 'LANDLORD':
+              response = await userService.fetchLandlords(pagination.currentPage, pagination.pageSize);
+              break;
+            case 'ADMIN':
+              response = await userService.fetchAdmins(pagination.currentPage, pagination.pageSize);
+              break;
+            default:
+              response = await userService.fetchUsers(pagination.currentPage, pagination.pageSize);
+          }
         }
 
         if (response) {
@@ -549,7 +559,7 @@ const UserManagement = ({
     };
 
     loadFilteredUsers();
-  }, [filterValue, pagination.currentPage, pagination.pageSize]);
+  }, [filterValue, statusFilter, pagination.currentPage, pagination.pageSize]);
 
   // Update the handlePageChange function
   const handlePageChange = async (event, newPage) => {
@@ -580,6 +590,12 @@ const UserManagement = ({
     const value = e.target.value || '';
     setSearchTerm(value);
 
+    // Reset pagination to first page when searching
+    setPagination(prev => ({
+      ...prev,
+      currentPage: 0
+    }));
+
     try {
       if (value.trim()) {
         // If there's a search term, use the appropriate search function based on filter
@@ -596,9 +612,9 @@ const UserManagement = ({
                 user.fullName?.toLowerCase().includes(value.toLowerCase())
               );
 
-              // Now paginate the filtered results
-              const startIndex = pagination.currentPage * pagination.pageSize;
-              const endIndex = startIndex + pagination.pageSize;
+              // Now paginate the filtered results starting from page 0
+              const startIndex = 0; // Always start from first page when searching
+              const endIndex = pagination.pageSize;
               response = {
                 content: filteredSeekers.slice(startIndex, endIndex),
                 totalElements: filteredSeekers.length,
@@ -617,9 +633,9 @@ const UserManagement = ({
                 user.fullName?.toLowerCase().includes(value.toLowerCase())
               );
 
-              // Now paginate the filtered results
-              const startIndex = pagination.currentPage * pagination.pageSize;
-              const endIndex = startIndex + pagination.pageSize;
+              // Now paginate the filtered results starting from page 0
+              const startIndex = 0; // Always start from first page when searching
+              const endIndex = pagination.pageSize;
               response = {
                 content: filteredLandlords.slice(startIndex, endIndex),
                 totalElements: filteredLandlords.length,
@@ -638,9 +654,9 @@ const UserManagement = ({
                 user.fullName?.toLowerCase().includes(value.toLowerCase())
               );
 
-              // Now paginate the filtered results
-              const startIndex = pagination.currentPage * pagination.pageSize;
-              const endIndex = startIndex + pagination.pageSize;
+              // Now paginate the filtered results starting from page 0
+              const startIndex = 0; // Always start from first page when searching
+              const endIndex = pagination.pageSize;
               response = {
                 content: filteredAdmins.slice(startIndex, endIndex),
                 totalElements: filteredAdmins.length,
@@ -649,10 +665,10 @@ const UserManagement = ({
             }
             break;
           default:
-            // For all users, use the general search
+            // For all users, use the general search starting from page 0
             response = await userService.searchUsers(
               value,
-              pagination.currentPage,
+              0, // Always start from first page when searching
               pagination.pageSize
             );
         }
@@ -729,17 +745,34 @@ const UserManagement = ({
     }
   };
 
+  const handleStatusFilterChange = (e) => {
+    if (!e || !e.target) return;
+    const value = e.target.value || 'all';
+    setStatusFilter(value);
+    // Reset role filter when changing status
+    if (value !== 'all') {
+      setFilterValue('all');
+    }
+    // Reset pagination
+    setPagination(prev => ({
+      ...prev,
+      currentPage: 0
+    }));
+  };
+
   const handleFilterChange = async (e) => {
     if (!e || !e.target) return;
     const value = e.target.value || 'all';
     setFilterValue(value);
-
+    // Reset status filter when changing role
+    setStatusFilter('all');
+    
     try {
       if (searchTerm.trim()) {
         // If there's a search term, use searchUsers with the new filter
         const response = await userService.searchUsers(
           searchTerm,
-          pagination.currentPage,
+          0, // Reset to first page
           pagination.pageSize,
           value !== 'all' ? value : undefined
         );
@@ -758,6 +791,7 @@ const UserManagement = ({
           setFilteredUsers(mappedUsers);
           setPagination(prev => ({
             ...prev,
+            currentPage: 0,
             totalElements,
             totalPages
           }));
@@ -771,16 +805,16 @@ const UserManagement = ({
         let response;
         switch (value) {
           case 'SEEKER':
-            response = await userService.fetchSeekers(pagination.currentPage, pagination.pageSize);
+            response = await userService.fetchSeekers(0, pagination.pageSize);
             break;
           case 'LANDLORD':
-            response = await userService.fetchLandlords(pagination.currentPage, pagination.pageSize);
+            response = await userService.fetchLandlords(0, pagination.pageSize);
             break;
           case 'ADMIN':
-            response = await userService.fetchAdmins(pagination.currentPage, pagination.pageSize);
+            response = await userService.fetchAdmins(0, pagination.pageSize);
             break;
           default:
-            response = await userService.fetchUsers(pagination.currentPage, pagination.pageSize);
+            response = await userService.fetchUsers(0, pagination.pageSize);
         }
 
         if (response && typeof response === 'object') {
@@ -797,6 +831,7 @@ const UserManagement = ({
           setFilteredUsers(mappedUsers);
           setPagination(prev => ({
             ...prev,
+            currentPage: 0,
             totalElements,
             totalPages
           }));
@@ -1284,133 +1319,94 @@ const UserManagement = ({
         p: '0 !important',
         boxSizing: 'border-box'
       }}>
-        {/* Header and Controls */}
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 0,
-            borderBottom: 1,
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-            width: '100%',
-            maxWidth: '100%',
-            m: '0 !important',
-            boxSizing: 'border-box'
-          }}
-        >
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
+        {/* Filters and Search Bar */}
+        <Box sx={{ 
+          p: 2, 
+          display: 'flex', 
+          flexDirection: isSmallScreen ? 'column' : 'row',
+          alignItems: 'center', 
+          gap: 2,
+          bgcolor: 'background.paper',
+          borderBottom: 1,
+          borderColor: 'divider'
+        }}>
+          {/* Role Filter */}
+          <FormControl 
+            size="small" 
             sx={{ 
-              py: 2,
-              px: 2,
-              width: '100%',
-              maxWidth: '100%',
-              boxSizing: 'border-box',
-              m: '0 !important'
+              minWidth: 120,
+              flex: isSmallScreen ? 1 : 'initial',
+              width: isSmallScreen ? '100%' : 'auto'
             }}
-            alignItems={{ xs: 'stretch', sm: 'center' }}
           >
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{
-                width: { xs: '100%', sm: 'auto' },
-                flex: { sm: 1 }
-              }}
+            <InputLabel>Role Filter</InputLabel>
+            <Select
+              value={filterValue}
+              label="Role Filter"
+              onChange={handleFilterChange}
+              disabled={statusFilter !== 'all'}
             >
-              <TextField
-                size="small"
-                placeholder="Search by name or email..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  flex: { xs: 1, sm: '0 1 300px' },
-                  minWidth: { sm: '300px' },
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'background.default',
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                    },
-                  }
-                }}
-              />
-              <Select
-                size="small"
-                value={filterValue}
-                onChange={handleFilterChange}
-                displayEmpty
-                sx={{
-                  width: { xs: '100%', sm: '150px' },
-                  flex: { xs: 1, sm: '0 0 auto' },
-                  bgcolor: 'background.default',
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                  },
-                }}
-              >
-                <MenuItem value="all">All Users</MenuItem>
-                <MenuItem value="ADMIN">Admins</MenuItem>
-                <MenuItem value="SEEKER">Seekers</MenuItem>
-                <MenuItem value="LANDLORD">Landlords</MenuItem>
-              </Select>
-            </Stack>
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{
-                width: { xs: '100%', sm: 'auto' },
-                justifyContent: { xs: 'center', sm: 'flex-start' }
-              }}
+              <MenuItem value="all">All Roles</MenuItem>
+              <MenuItem value="SEEKER">Seekers</MenuItem>
+              <MenuItem value="LANDLORD">Landlords</MenuItem>
+              <MenuItem value="ADMIN">Admins</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Status Filter */}
+          <FormControl 
+            size="small" 
+            sx={{ 
+              minWidth: 120,
+              flex: isSmallScreen ? 1 : 'initial',
+              width: isSmallScreen ? '100%' : 'auto'
+            }}
+          >
+            <InputLabel>Status Filter</InputLabel>
+            <Select
+              value={statusFilter}
+              label="Status Filter"
+              onChange={handleStatusFilterChange}
+              disabled={filterValue !== 'all'}
             >
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleAddUser}
-                size="small"
-                sx={{
-                  borderRadius: 1,
-                  textTransform: 'none',
-                  px: 2,
-                  boxShadow: 'none',
-                  '&:hover': {
-                    boxShadow: 'none',
-                  },
-                  '&:focus': {
-                    outline: 'none',
-                  }
-                }}
-              >
-                Add User
-              </Button>
-              <Tooltip title="Refresh">
-                <IconButton
-                  size="small"
-                  onClick={handleRefresh}
-                  sx={{
-                    border: 0,
-                    borderRadius: 1,
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                    },
-                    '&:focus': {
-                      outline: 'none',
-                    }
-                  }}
-                >
-                  <RefreshIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-          </Stack>
-        </Paper>
+              <MenuItem value="all">All Status</MenuItem>
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Search Bar */}
+          <TextField
+            size="small"
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            sx={{ 
+              flex: isSmallScreen ? 1 : 'auto',
+              width: isSmallScreen ? '100%' : '300px'
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {/* Add User Button */}
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddUser}
+            sx={{ 
+              ml: 'auto',
+              width: isSmallScreen ? '100%' : 'auto'
+            }}
+          >
+            Add User
+          </Button>
+        </Box>
 
         {/* Error State */}
         {error && (
@@ -1542,65 +1538,38 @@ const UserManagement = ({
           </Box>
         )}
 
-        {/* Pagination */}
-        {!error && (
-          <Paper
-            elevation={0}
-            sx={{
-              borderTop: 1,
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              width: '100%',
-              m: 0
-            }}
-          >
-            <Box sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              py: 2,
-              px: 2,
-              width: '100%',
-              m: 0
-            }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Typography variant="body2" color="text.secondary">
-                  {`Showing ${pagination.currentPage * pagination.pageSize + 1} to ${Math.min((pagination.currentPage + 1) * pagination.pageSize, pagination.totalElements)} of ${pagination.totalElements} entries`}
-                </Typography>
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                  <Select
-                    value={pagination.pageSize}
-                    onChange={handlePageSizeChange}
-                    displayEmpty
-                  >
-                    <MenuItem value={5}>5 per page</MenuItem>
-                    <MenuItem value={8}>8 per page</MenuItem>
-                    <MenuItem value={10}>10 per page</MenuItem>
-                    <MenuItem value={25}>25 per page</MenuItem>
-                    <MenuItem value={50}>50 per page</MenuItem>
-                    <MenuItem value={100}>100 per page</MenuItem>
-                  </Select>
-                </FormControl>
-              </Stack>
-              <Stack direction="row" spacing={1}>
-                <IconButton
-                  onClick={() => handlePageChange(null, pagination.currentPage - 1)}
-                  disabled={pagination.currentPage === 0}
-                  size="small"
-                >
-                  <ChevronLeftIcon />
-                </IconButton>
-                <IconButton
-                  onClick={() => handlePageChange(null, pagination.currentPage + 1)}
-                  disabled={pagination.currentPage >= pagination.totalPages - 1}
-                  size="small"
-                >
-                  <ChevronRightIcon />
-                </IconButton>
-              </Stack>
-            </Box>
-          </Paper>
-        )}
+        {/* Table Pagination */}
+        <TablePagination
+          component="div"
+          count={pagination.totalElements}
+          page={pagination.currentPage}
+          onPageChange={handlePageChange}
+          rowsPerPage={pagination.pageSize}
+          onRowsPerPageChange={handlePageSizeChange}
+          rowsPerPageOptions={[8, 16, 24, 32]}
+          sx={{
+            mt: 'auto',
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            '& .MuiTablePagination-actions': {
+              '& .MuiIconButton-root': {
+                '&:hover': {
+                  bgcolor: 'transparent',
+                },
+                '&:focus': {
+                  outline: 'none',
+                },
+                '&.Mui-disabled': {
+                  opacity: 0.5,
+                },
+              },
+            },
+            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: '0.875rem',
+            },
+          }}
+        />
 
         {/* Add User Dialog */}
         <Dialog

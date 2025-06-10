@@ -76,7 +76,7 @@ const CSVOperations = () => {
       type: 'users',
       title: 'Users',
       icon: <PeopleIcon />,
-      description: 'Export or import user data including profiles and account information.',
+      description: 'Export or import user data and information.',
       color: theme.palette.primary.main,
       format: [
         { field: 'username', required: true },
@@ -90,7 +90,7 @@ const CSVOperations = () => {
       type: 'rooms',
       title: 'Rooms',
       icon: <RoomIcon />,
-      description: 'Manage room listings data including details and availability.',
+      description: 'Manage room listings, details and availability.',
       color: theme.palette.success.main,
       format: [
         { field: 'title', required: true },

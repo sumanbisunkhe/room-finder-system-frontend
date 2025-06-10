@@ -115,9 +115,56 @@ export const registerUser = async (registerData) => {
 };
 
 // Fetch all users with pagination
-export const fetchUsers = async (page = 0, size = 20) => {
+export const fetchUsers = async (params = {}) => {
   try {
-    const response = await api.get(`/users?page=${page}&size=${size}`);
+    const { page = 0, size = 20, role, status } = params;
+
+    // If both role and status are specified, prioritize role and apply status filter in memory
+    if (role && role !== 'all') {
+      let response;
+      switch (role) {
+        case 'SEEKER':
+          response = await fetchSeekers(page, size);
+          break;
+        case 'LANDLORD':
+          response = await fetchLandlords(page, size);
+          break;
+        case 'ADMIN':
+          response = await fetchAdmins(page, size);
+          break;
+        default:
+          throw new Error('Invalid role specified');
+      }
+
+      // If status is specified, filter the results
+      if (status !== undefined && status !== 'all') {
+        const filteredContent = response.content.filter(user => 
+          status === 'active' ? user.active !== false : user.active === false
+        );
+        return {
+          ...response,
+          content: filteredContent,
+          totalElements: filteredContent.length,
+          totalPages: Math.ceil(filteredContent.length / size)
+        };
+      }
+      return response;
+    }
+
+    // If only status is specified, use the appropriate endpoint
+    if (status !== undefined && status !== 'all') {
+      return status === 'active' 
+        ? await fetchActiveUsers(page, size)
+        : await fetchInactiveUsers(page, size);
+    }
+
+    // If no filters or all filters, use the default endpoint
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString()
+    });
+
+    const response = await api.get(`/users?${queryParams}`);
     return response.data;
   } catch (error) {
     console.error('Fetch Users Service Error:', {
@@ -593,25 +640,53 @@ export const importBookingsToCSV = async (file) => {
 };
 
 // Search users by username or email with pagination
-export const searchUsers = async (keyword, page = 0, size = 20, role = null) => {
+export const searchUsers = async (keyword, params = {}) => {
   try {
-    const params = {
+    const { page = 0, size = 20, role, status } = params;
+
+    // First get all matching users for the search term
+    const queryParams = new URLSearchParams({
       keyword,
-      page,
-      size
-    };
+      page: page.toString(),
+      size: size.toString()
+    });
 
-    // Add role parameter if specified
-    if (role) {
-      params.role = role;
-    }
-
-    const response = await api.get(`/users/search`, { params });
+    const response = await api.get(`/users/search?${queryParams}`);
     
-    if (response.data && response.data.success) {
-      return response.data.data;
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.message || 'Failed to search users');
     }
-    throw new Error(response.data?.message || 'Failed to search users');
+
+    let results = response.data.data;
+
+    // Apply role filter if specified
+    if (role && role !== 'all') {
+      results = {
+        ...results,
+        content: results.content.filter(user => user.role === role)
+      };
+    }
+
+    // Apply status filter if specified
+    if (status !== undefined && status !== 'all') {
+      results = {
+        ...results,
+        content: results.content.filter(user => 
+          status === 'active' ? user.active !== false : user.active === false
+        )
+      };
+    }
+
+    // Update pagination info if filters were applied
+    if ((role && role !== 'all') || (status !== undefined && status !== 'all')) {
+      results = {
+        ...results,
+        totalElements: results.content.length,
+        totalPages: Math.ceil(results.content.length / size)
+      };
+    }
+
+    return results;
   } catch (error) {
     console.error('Search Users Service Error:', {
       message: error.message,
@@ -706,6 +781,24 @@ export const getGrowthTrends = async (interval = 'monthly') => {
   }
 };
 
+export const fetchActiveUsers = async (page = 0, size = 10) => {
+  try {
+    const response = await api.get(`/users/active?page=${page}&size=${size}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Error fetching active users');
+  }
+};
+
+export const fetchInactiveUsers = async (page = 0, size = 10) => {
+  try {
+    const response = await api.get(`/users/inactive?page=${page}&size=${size}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Error fetching inactive users');
+  }
+};
+
 /* ==================== Export All Methods ==================== */
 
 export default {
@@ -741,4 +834,6 @@ export default {
   fetchLandlords,
   fetchAdmins,
   getGrowthTrends,
+  fetchActiveUsers,
+  fetchInactiveUsers,
 };
