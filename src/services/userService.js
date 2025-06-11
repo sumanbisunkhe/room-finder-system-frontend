@@ -118,10 +118,17 @@ export const registerUser = async (registerData) => {
 export const fetchUsers = async (params = {}) => {
   try {
     const { page = 0, size = 20, role, status } = params;
+    let response;
 
-    // If both role and status are specified, prioritize role and apply status filter in memory
+    // Base query parameters
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString()
+    });
+
+    // Handle different filter combinations
     if (role && role !== 'all') {
-      let response;
+      // Get users by role first
       switch (role) {
         case 'SEEKER':
           response = await fetchSeekers(page, size);
@@ -135,37 +142,32 @@ export const fetchUsers = async (params = {}) => {
         default:
           throw new Error('Invalid role specified');
       }
-
-      // If status is specified, filter the results
-      if (status !== undefined && status !== 'all') {
-        const filteredContent = response.content.filter(user => 
-          status === 'active' ? user.active !== false : user.active === false
-        );
-        return {
-          ...response,
-          content: filteredContent,
-          totalElements: filteredContent.length,
-          totalPages: Math.ceil(filteredContent.length / size)
-        };
-      }
-      return response;
-    }
-
-    // If only status is specified, use the appropriate endpoint
-    if (status !== undefined && status !== 'all') {
-      return status === 'active' 
+    } else if (status !== undefined && status !== 'all') {
+      // If only status filter is active
+      response = status === 'active' 
         ? await fetchActiveUsers(page, size)
         : await fetchInactiveUsers(page, size);
+    } else {
+      // No filters or all filters
+      response = await api.get(`/users?${queryParams}`);
+      response = response.data;
     }
 
-    // If no filters or all filters, use the default endpoint
-    const queryParams = new URLSearchParams({
-      page: page.toString(),
-      size: size.toString()
-    });
+    // Apply status filter to role-filtered results if needed
+    if (role && role !== 'all' && status !== undefined && status !== 'all') {
+      const filteredContent = response.content.filter(user => 
+        status === 'active' ? user.active !== false : user.active === false
+      );
+      
+      return {
+        ...response,
+        content: filteredContent,
+        totalElements: filteredContent.length,
+        totalPages: Math.ceil(filteredContent.length / size)
+      };
+    }
 
-    const response = await api.get(`/users?${queryParams}`);
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Fetch Users Service Error:', {
       message: error.message,

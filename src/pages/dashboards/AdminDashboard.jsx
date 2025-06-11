@@ -22,6 +22,11 @@ import {
   alpha,
   Snackbar,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -40,7 +45,7 @@ import {
   PersonOutline as PersonOutlineIcon,
   GpsFixed as ScopeIcon,
 } from '@mui/icons-material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import * as userService from '../../services/userService';
 
 // Lazy load components
@@ -97,28 +102,47 @@ const colorSchemes = {
 // Border radius configurations
 const borderRadiusConfig = {
   small: {
-    default: 4,
-    button: 6,
-    card: 8,
-    tooltip: 4
+    default: 0,
+    button: 0,
+    card: 0,
+    tooltip: 0
   },
   medium: {
-    default: 8,
-    button: 10,
-    card: 12,
-    tooltip: 6
+    default: 0,
+    button: 0,
+    card: 0,
+    tooltip: 0
   },
   large: {
-    default: 12,
-    button: 16,
-    card: 20,
-    tooltip: 8
+    default: 0,
+    button: 0,
+    card: 0,
+    tooltip: 0
   }
 };
 
 // Create theme based on mode, color scheme, and border radius
 const getTheme = (mode, colorScheme = 'blue', borderRadius = 'medium') => {
-  const radiusConfig = borderRadiusConfig[borderRadius] || borderRadiusConfig.medium;
+  const radiusConfig = {
+    small: {
+      default: 8,
+      button: 8,
+      card: 12,
+      tooltip: 4
+    },
+    medium: {
+      default: 12,
+      button: 12,
+      card: 16,
+      tooltip: 8
+    },
+    large: {
+      default: 16,
+      button: 16,
+      card: 24,
+      tooltip: 12
+    }
+  }[borderRadius] || borderRadiusConfig.medium;
   
   return createTheme({
     palette: {
@@ -131,34 +155,85 @@ const getTheme = (mode, colorScheme = 'blue', borderRadius = 'medium') => {
       text: {
         primary: mode === 'dark' ? 'rgba(255, 255, 255, 0.87)' : 'rgba(0, 0, 0, 0.87)',
         secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'
-    },
+      },
     },
     shape: {
       borderRadius: radiusConfig.default
     },
-    typography: {
-      fontFamily: "'Outfit', sans-serif",
-      h1: { fontWeight: 600, letterSpacing: '0.2px' },
-      h2: { fontWeight: 600, letterSpacing: '0.2px' },
-      h3: { fontWeight: 600, letterSpacing: '0.2px' },
-      h4: { fontWeight: 600, letterSpacing: '0.2px' },
-      h5: { fontWeight: 600, letterSpacing: '0.2px' },
-      h6: { fontWeight: 500, letterSpacing: '0.2px' },
-      subtitle1: { fontWeight: 500, letterSpacing: '0.2px' },
-      subtitle2: { fontWeight: 500, letterSpacing: '0.2px' },
-      body1: { fontWeight: 400, letterSpacing: '0.2px' },
-      body2: { fontWeight: 400, letterSpacing: '0.2px' },
-      button: { fontWeight: 500, letterSpacing: '0.2px', textTransform: 'none' },
-      caption: { fontWeight: 400, letterSpacing: '0.2px' },
-      overline: { fontWeight: 400, letterSpacing: '0.2px' }
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
+    components: {
+      MuiButton: {
+        styleOverrides: {
+          root: {
             borderRadius: radiusConfig.button,
             textTransform: 'none',
-            fontWeight: 500
+            fontWeight: 500,
+            '&:focus': {
+              outline: 'none',
+              boxShadow: 'none'
+            }
+          }
+        }
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            '&:focus': {
+              outline: 'none',
+              boxShadow: 'none'
+            }
+          }
+        }
+      },
+      MuiTextField: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              borderRadius: radiusConfig.button,
+              '&:focus-within': {
+                outline: 'none',
+                boxShadow: 'none'
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: mode === 'dark' ? '#1976d2' : '#1976d2',
+                borderWidth: '1px'
+              }
+            }
+          }
+        }
+      },
+      MuiSelect: {
+        styleOverrides: {
+          root: {
+            '&:focus': {
+              outline: 'none',
+              boxShadow: 'none'
+            }
+          }
+        }
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            '&:focus': {
+              outline: 'none',
+              backgroundColor: 'transparent'
+            },
+            '&.Mui-selected': {
+              '&:focus': {
+                outline: 'none',
+                backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'
+              }
+            }
+          }
+        }
+      },
+      MuiListItemButton: {
+        styleOverrides: {
+          root: {
+            '&:focus': {
+              outline: 'none',
+              boxShadow: 'none'
+            }
           }
         }
       },
@@ -168,10 +243,10 @@ const getTheme = (mode, colorScheme = 'blue', borderRadius = 'medium') => {
             borderRadius: radiusConfig.card
           }
         }
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
             borderRadius: radiusConfig.card,
             backgroundImage: 'none'
           }
@@ -192,46 +267,59 @@ const getTheme = (mode, colorScheme = 'blue', borderRadius = 'medium') => {
         }
       },
       MuiChip: {
-      styleOverrides: {
-        root: {
-            borderRadius: radiusConfig.button
+        styleOverrides: {
+          root: {
+            borderRadius: radiusConfig.button,
+            '&:focus': {
+              outline: 'none',
+              boxShadow: 'none'
+            }
           }
         }
-        },
+      },
       MuiAlert: {
-      styleOverrides: {
-          root: {
-            borderRadius: radiusConfig.default
-        }
-      }
-    },
-      MuiTextField: {
-            styleOverrides: {
-              root: {
-            '& .MuiOutlinedInput-root': {
-              borderRadius: radiusConfig.button
-            }
-        }
-      }
-    },
-      MuiSelect: {
-            styleOverrides: {
-          root: {
-            '& .MuiOutlinedInput-root': {
-              borderRadius: radiusConfig.button
-                }
-              }
-            }
-          },
-      MuiMenuItem: {
         styleOverrides: {
           root: {
             borderRadius: radiusConfig.default
           }
         }
+      },
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiDrawer: {
+        styleOverrides: {
+          paper: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiLink: {
+        styleOverrides: {
+          root: {
+            '&:focus': {
+              outline: 'none',
+              boxShadow: 'none'
+            }
+          }
+        }
+      },
+      MuiSwitch: {
+        styleOverrides: {
+          root: {
+            '&:focus': {
+              outline: 'none',
+              boxShadow: 'none'
+            }
+          }
+        }
       }
     }
-});
+  });
 };
 
 const AdminDashboard = () => {
@@ -259,12 +347,12 @@ const AdminDashboard = () => {
 
   const [state, setState] = useState({
     activeSection: 'users',
-    loading: false,
+    loading: true,
     error: null,
     snackbar: {
       open: false,
       message: '',
-      severity: 'success',
+      severity: 'info',
     },
     users: [],
     currentUser: null,
@@ -281,6 +369,7 @@ const AdminDashboard = () => {
     drawerOpen: !isMobile,
     userMenuAnchor: null,
   });
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
   // Determine actual theme mode based on preference
   const mode = React.useMemo(() => {
@@ -397,21 +486,31 @@ const AdminDashboard = () => {
     setUiState(prev => ({ ...prev, userMenuAnchor: null }));
   };
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true);
+  };
+
+  const handleLogoutCancel = () => {
+    setLogoutDialogOpen(false);
+  };
+
+  const handleLogoutConfirm = async () => {
     try {
       await userService.logout();
       handleUserMenuClose();
       navigate('/login');
     } catch (error) {
       console.error('Error logging out:', error);
-        setState(prev => ({
-          ...prev,
-          snackbar: {
-            open: true,
+      setState(prev => ({
+        ...prev,
+        snackbar: {
+          open: true,
           message: 'Failed to logout',
-            severity: 'error',
+          severity: 'error',
         },
       }));
+    } finally {
+      setLogoutDialogOpen(false);
     }
   };
 
@@ -596,7 +695,7 @@ const AdminDashboard = () => {
                 onColorSchemeChange={handleColorSchemeChange}
                 onBorderRadiusChange={handleBorderRadiusChange}
                 currentUser={state.currentUser}
-                handleLogout={handleLogout}
+                handleLogout={handleLogoutClick}
                 setSnackbar={(message, severity) => {
                   setState(prev => ({
                     ...prev,
@@ -637,7 +736,7 @@ const AdminDashboard = () => {
           variant={isMobile ? 'temporary' : 'permanent'}
           open={uiState.drawerOpen}
           onClose={isMobile ? handleDrawerToggle : undefined}
-            sx={{
+          sx={{
             width: uiState.drawerOpen ? 240 : 65,
             flexShrink: 0,
             '& .MuiDrawer-paper': {
@@ -652,11 +751,21 @@ const AdminDashboard = () => {
                 duration: theme.transitions.duration.enteringScreen,
               }),
               overflowX: 'hidden',
-            },
+              borderRadius: 0,
+              '& .MuiListItemButton-root': {
+                borderRadius: 0
+              },
+              '& .MuiMenuItem-root': {
+                borderRadius: 0
+              },
+              '& .MuiButton-root': {
+                borderRadius: 0
+              }
+            }
           }}
         >
           <Box 
-              sx={{
+            sx={{
               p: 2,
               display: 'flex', 
               alignItems: 'center', 
@@ -669,50 +778,73 @@ const AdminDashboard = () => {
                 : 'linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,249,250,0.5) 100%)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
+              borderRadius: 0
             }}
           >
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                justifyContent: uiState.drawerOpen ? 'flex-start' : 'center',
-              width: '100%',
+            <Link 
+              to="/dashboard/admin/user-management"
+              style={{ 
+                textDecoration: 'none',
+                display: 'block',
+                width: '100%'
               }}
             >
-              <ScopeIcon 
-          sx={{
-                  fontSize: 32,
-                  color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                  animation: 'scope 3s infinite',
-                  '@keyframes scope': {
-                    '0%': { transform: 'rotate(0deg) scale(1)' },
-                    '25%': { transform: 'rotate(90deg) scale(1.1)' },
-                    '50%': { transform: 'rotate(180deg) scale(1)' },
-                    '75%': { transform: 'rotate(270deg) scale(1.1)' },
-                    '100%': { transform: 'rotate(360deg) scale(1)' },
-                  },
-                }} 
-              />
-              {uiState.drawerOpen && (
-                <Typography
-                  variant="h6"
+              <Box
                 sx={{
-                                        fontFamily: "'Audiowide', cursive",
-                    fontWeight: 400,
-                    fontSize: '1.3rem',
-                    background: 'linear-gradient(45deg, #ff0000, #cc0000)',
-                    backgroundClip: 'text',
-                    WebkitBackgroundClip: 'text',
-                    color: 'transparent',
-                    letterSpacing: '0.5px',
-                    // textTransform: 'uppercase',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 1,
+                  justifyContent: 'center',
+                  width: '100%',
+                  '&:hover': {
+                    '& .logo-icon': {
+                      transform: 'scale(1.1)',
+                    },
+                    '& .logo-text': {
+                      opacity: 0.8
+                    }
+                  }
+                }}
+              >
+                <ScopeIcon 
+                  className="logo-icon"
+                  sx={{
+                    fontSize: 32,
+                    color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                    animation: 'scope 3s infinite',
+                    transition: 'transform 0.2s ease-in-out',
+                    '@keyframes scope': {
+                      '0%': { transform: 'rotate(0deg) scale(1)' },
+                      '25%': { transform: 'rotate(90deg) scale(1.1)' },
+                      '50%': { transform: 'rotate(180deg) scale(1)' },
+                      '75%': { transform: 'rotate(270deg) scale(1.1)' },
+                      '100%': { transform: 'rotate(360deg) scale(1)' },
+                    },
                   }}
-                >
-                  RoomRadar
-                            </Typography>
-              )}
-        </Box>
+                />
+                {uiState.drawerOpen && (
+                  <Typography
+                    variant="h6"
+                    className="logo-text"
+                    sx={{
+                      fontFamily: "'Audiowide', cursive",
+                      fontWeight: 400,
+                      fontSize: '1.3rem',
+                      background: 'linear-gradient(45deg, #ff0000, #cc0000)',
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      letterSpacing: '0.5px',
+                      textAlign: 'center',
+                      transition: 'opacity 0.2s ease-in-out'
+                    }}
+                  >
+                    RoomRadar
+                  </Typography>
+                )}
+              </Box>
+            </Link>
             {/* Expand/Collapse Button */}
             {!uiState.drawerOpen ? (
               <IconButton
@@ -748,18 +880,18 @@ const AdminDashboard = () => {
                   transform: 'rotate(-90deg)',
                   fontSize: '1.2rem',
                 }} />
-                        </IconButton>
+              </IconButton>
             ) : (
-                        <IconButton
+              <IconButton
                 onClick={handleDrawerToggle}
                 disableRipple
-                          sx={{
+                sx={{
                   width: 24,
                   height: 24,
                   p: 0,
                   color: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
                   transition: 'all 0.2s ease',
-                            '&:hover': {
+                  '&:hover': {
                     color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
                     transform: 'scale(1.1)',
                     background: 'transparent'
@@ -779,9 +911,9 @@ const AdminDashboard = () => {
                   transform: 'rotate(90deg)',
                   fontSize: '1.2rem',
                 }} />
-                        </IconButton>
+              </IconButton>
             )}
-                </Box>
+          </Box>
           <List sx={{ 
             flex: 1, 
             px: 1.5, 
@@ -789,26 +921,24 @@ const AdminDashboard = () => {
             overflowX: 'hidden',
             '& .MuiListItemButton-root': {
               mb: 0.5,
-              borderRadius: '12px',
+              borderRadius: 0,
               transition: theme => theme.transitions.create(['background-color', 'transform', 'box-shadow'], {
                 duration: '0.2s'
               }),
               whiteSpace: 'nowrap',
               overflow: 'hidden',
-                    '&:hover': {
+              '&:hover': {
                 transform: 'translateX(4px)',
                 backgroundColor: theme => theme.palette.mode === 'dark' 
                   ? 'rgba(255,255,255,0.05)' 
                   : 'rgba(0,0,0,0.04)',
-                boxShadow: theme => theme.palette.mode === 'dark'
-                  ? '0 4px 12px rgba(0,0,0,0.3)'
-                  : '0 4px 12px rgba(0,0,0,0.05)',
+                boxShadow: 'none'
               },
               '&.Mui-selected': {
                 backgroundColor: theme => theme.palette.mode === 'dark'
                   ? 'rgba(255,255,255,0.08)'
                   : alpha(theme.palette.primary.main, 0.08),
-          '&:hover': {
+                '&:hover': {
                   backgroundColor: theme => theme.palette.mode === 'dark'
                     ? 'rgba(255,255,255,0.12)'
                     : alpha(theme.palette.primary.main, 0.12),
@@ -821,10 +951,10 @@ const AdminDashboard = () => {
                   fontWeight: 600,
                   color: 'primary.main',
                   letterSpacing: '0.3px',
-                },
-              },
+                }
+              }
             }
-            }}>
+          }}>
               {menuItems.map((item) => (
                 <ListItemButton
                   key={item.section}
@@ -877,13 +1007,25 @@ const AdminDashboard = () => {
               : 'rgba(0,0,0,0.08)',
             my: 1 
           }} />
-          <List sx={{ px: 1.5, pb: 2 }}>
+          <List sx={{ 
+            px: 1.5, 
+            pb: 2,
+            '& .MuiListItemButton-root': {
+              borderRadius: 0,
+              '&:hover': {
+                backgroundColor: theme => theme.palette.mode === 'dark'
+                  ? 'rgba(255,255,255,0.05)'
+                  : 'rgba(0,0,0,0.04)',
+                boxShadow: 'none'
+              }
+            }
+          }}>
               <ListItemButton
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
                 sx={{
                 py: 1.5,
                   minHeight: 48,
-                borderRadius: '12px',
+                borderRadius: 0,
                   justifyContent: uiState.drawerOpen ? 'initial' : 'center',
                 px: 2.5,
                 color: 'error.main',
@@ -1056,7 +1198,7 @@ const AdminDashboard = () => {
             Settings
                 </MenuItem>
           <Divider />
-          <MenuItem onClick={handleLogout}>
+          <MenuItem onClick={handleLogoutClick}>
                   <ListItemIcon>
               <LogoutIcon fontSize="small" />
                   </ListItemIcon>
@@ -1079,6 +1221,111 @@ const AdminDashboard = () => {
             {state.snackbar.message}
           </Alert>
         </Snackbar>
+
+        {/* Logout Confirmation Dialog */}
+        <Dialog
+          open={logoutDialogOpen}
+          onClose={handleLogoutCancel}
+          PaperProps={{
+            sx: {
+              borderRadius: 1,
+              minWidth: { xs: '90%', sm: '360px' },
+              maxWidth: '400px',
+              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)'
+            }
+          }}
+        >
+          <DialogContent sx={{ p: 3, textAlign: 'center' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2
+              }}
+            >
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mb: 1
+                }}
+              >
+                <LogoutIcon
+                  sx={{
+                    fontSize: 24,
+                    color: 'error.main'
+                  }}
+                />
+              </Box>
+              <Typography
+                variant="h6"
+                sx={{
+                  color: 'text.primary',
+                  fontWeight: 600,
+                  mb: 0.5
+                }}
+              >
+                Confirm Logout
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 2 }}
+              >
+                Are you sure you want to logout? You will need to login again to access your account.
+              </Typography>
+            </Box>
+          </DialogContent>
+          <DialogActions
+            sx={{
+              p: 2,
+              gap: 1,
+              borderTop: 1,
+              borderColor: 'divider'
+            }}
+          >
+            <Button
+              onClick={handleLogoutCancel}
+              variant="text"
+              sx={{
+                flex: 1,
+                py: 1,
+                textTransform: 'none',
+                fontSize: '0.9rem',
+                color: 'text.secondary',
+                '&:hover': {
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04)
+                }
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleLogoutConfirm}
+              variant="contained"
+              color="error"
+              sx={{
+                flex: 1,
+                py: 1,
+                textTransform: 'none',
+                fontSize: '0.9rem',
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: 'none',
+                  bgcolor: 'error.dark'
+                }
+              }}
+            >
+              Logout
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </ThemeProvider>
   );

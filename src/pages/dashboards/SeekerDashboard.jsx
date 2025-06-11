@@ -18,7 +18,12 @@ import {
   useTheme,
   useMediaQuery,
   Stack,
-  Switch
+  Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -36,6 +41,7 @@ import {
 import AllInclusiveIcon from '@mui/icons-material/AllInclusive';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import SquareFootIcon from '@mui/icons-material/SquareFoot';
+import { alpha } from '@mui/material/styles';
 
 import Bookings from '../../components/dashboard/seeker/Bookings';
 import PropertyAnalytics from '../../components/dashboard/seeker/PropertyAnalytics';
@@ -61,6 +67,7 @@ const SeekerDashboard = () => {
   const [activeSection, setActiveSection] = useState('bookings');
   const [properties, setProperties] = useState([]);
   const [user, setUser] = useState(null);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -71,7 +78,7 @@ const SeekerDashboard = () => {
     try {
       const response = await userService.getCurrentUser();
       setUser(response.data);
-          } catch (error) {
+    } catch (error) {
       console.error('Error fetching user data:', error);
     }
   };
@@ -89,12 +96,22 @@ const SeekerDashboard = () => {
     setDrawerOpen(!drawerOpen);
   };
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true);
+  };
+
+  const handleLogoutCancel = () => {
+    setLogoutDialogOpen(false);
+  };
+
+  const handleLogoutConfirm = async () => {
     try {
       await userService.logout();
       navigate('/login');
     } catch (error) {
       console.error('Error logging out:', error);
+    } finally {
+      setLogoutDialogOpen(false);
     }
   };
 
@@ -130,7 +147,7 @@ const SeekerDashboard = () => {
       case 'messages':
         return <Messages />;
       case 'settings':
-      return (
+        return (
           <SystemSettings
             onExport={async () => {
               const data = await userService.exportData();
@@ -169,14 +186,14 @@ const SeekerDashboard = () => {
     return null;
   }
 
-                          return (
+  return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
       
       {/* App Bar */}
       <AppBar
         position="fixed"
-                    sx={{
+        sx={{
           width: { sm: `calc(100% - ${drawerOpen ? drawerWidth : 0}px)` },
           ml: { sm: `${drawerOpen ? drawerWidth : 0}px` },
           transition: theme.transitions.create(['margin', 'width'], {
@@ -186,46 +203,46 @@ const SeekerDashboard = () => {
         }}
       >
         <Toolbar>
-                  <IconButton
+          <IconButton
             color="inherit"
             edge="start"
             onClick={handleDrawerToggle}
             sx={{ mr: 2 }}
           >
             <MenuIcon />
-                  </IconButton>
+          </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             {menuItems.find(item => item.section === activeSection)?.text || 'Dashboard'}
-                  </Typography>
+          </Typography>
           <Stack direction="row" spacing={2} alignItems="center">
-                  <Switch
-                    checked={mode === 'dark'}
-                    onChange={toggleColorMode}
+            <Switch
+              checked={mode === 'dark'}
+              onChange={toggleColorMode}
               icon={<LightModeIcon />}
               checkedIcon={<DarkModeIcon />}
             />
             <Avatar src={user.avatar}>
               {user.name ? user.name[0].toUpperCase() : 'U'}
             </Avatar>
-                </Stack>
+          </Stack>
         </Toolbar>
       </AppBar>
 
       {/* Drawer */}
-        <Drawer
+      <Drawer
         variant={isMobile ? 'temporary' : 'persistent'}
         anchor="left"
         open={drawerOpen}
         onClose={handleDrawerToggle}
-          sx={{
+        sx={{
           width: drawerWidth,
-            flexShrink: 0,
-            '& .MuiDrawer-paper': {
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
             width: drawerWidth,
-              boxSizing: 'border-box',
-            },
-          }}
-        >
+            boxSizing: 'border-box',
+          },
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
           <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
             Room Finder
@@ -233,8 +250,8 @@ const SeekerDashboard = () => {
           <IconButton onClick={handleDrawerToggle}>
             {theme.direction === 'ltr' ? <ChevronLeftIcon /> : <ChevronRightIcon />}
           </IconButton>
-          </Box>
-          <Divider />
+        </Box>
+        <Divider />
         <List>
           {menuItems.map(({ text, icon: Icon, section }) => (
             <ListItem key={text} disablePadding>
@@ -253,20 +270,20 @@ const SeekerDashboard = () => {
         <Divider />
         <List>
           <ListItem disablePadding>
-            <ListItemButton onClick={handleLogout}>
+            <ListItemButton onClick={handleLogoutClick}>
               <ListItemIcon>
                 <LogoutIcon />
               </ListItemIcon>
               <ListItemText primary="Logout" />
             </ListItemButton>
           </ListItem>
-          </List>
-        </Drawer>
+        </List>
+      </Drawer>
 
       {/* Main Content */}
-        <Box
-          component="main"
-          sx={{
+      <Box
+        component="main"
+        sx={{
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
@@ -275,8 +292,113 @@ const SeekerDashboard = () => {
         }}
       >
         {renderContent()}
-                </Box>
-                        </Box>
+      </Box>
+
+      {/* Logout Confirmation Dialog */}
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={handleLogoutCancel}
+        PaperProps={{
+          sx: {
+            borderRadius: 1,
+            minWidth: { xs: '90%', sm: '360px' },
+            maxWidth: '400px',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)'
+          }
+        }}
+      >
+        <DialogContent sx={{ p: 3, textAlign: 'center' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2
+            }}
+          >
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 1
+              }}
+            >
+              <LogoutIcon
+                sx={{
+                  fontSize: 24,
+                  color: 'error.main'
+                }}
+              />
+            </Box>
+            <Typography
+              variant="h6"
+              sx={{
+                color: 'text.primary',
+                fontWeight: 600,
+                mb: 0.5
+              }}
+            >
+              Confirm Logout
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 2 }}
+            >
+              Are you sure you want to logout? You will need to login again to access your account.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            p: 2,
+            gap: 1,
+            borderTop: 1,
+            borderColor: 'divider'
+          }}
+        >
+          <Button
+            onClick={handleLogoutCancel}
+            variant="text"
+            sx={{
+              flex: 1,
+              py: 1,
+              textTransform: 'none',
+              fontSize: '0.9rem',
+              color: 'text.secondary',
+              '&:hover': {
+                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04)
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleLogoutConfirm}
+            variant="contained"
+            color="error"
+            sx={{
+              flex: 1,
+              py: 1,
+              textTransform: 'none',
+              fontSize: '0.9rem',
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: 'none',
+                bgcolor: 'error.dark'
+              }
+            }}
+          >
+            Logout
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

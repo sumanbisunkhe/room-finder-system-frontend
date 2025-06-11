@@ -85,7 +85,14 @@ const PropertyModal = ({
       onClose={onClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{ sx: { borderRadius: '16px' } }}
+      PaperProps={{ 
+        sx: { 
+          borderRadius: '16px',
+          '& .MuiDialogContent-root': {
+            borderRadius: '16px'
+          }
+        } 
+      }}
     >
       <DialogTitle sx={{
         bgcolor: 'background.paper',

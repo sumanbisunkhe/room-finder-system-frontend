@@ -505,29 +505,14 @@ const UserManagement = ({
     const loadFilteredUsers = async () => {
       try {
         setIsLoading(true);
-        let response;
+        setError(null);
 
-        // First check status filter
-        if (statusFilter !== 'all') {
-          response = await (statusFilter === 'active' 
-            ? userService.fetchActiveUsers(pagination.currentPage, pagination.pageSize)
-            : userService.fetchInactiveUsers(pagination.currentPage, pagination.pageSize));
-        } else {
-          // If no status filter, use role filter
-          switch (filterValue) {
-            case 'SEEKER':
-              response = await userService.fetchSeekers(pagination.currentPage, pagination.pageSize);
-              break;
-            case 'LANDLORD':
-              response = await userService.fetchLandlords(pagination.currentPage, pagination.pageSize);
-              break;
-            case 'ADMIN':
-              response = await userService.fetchAdmins(pagination.currentPage, pagination.pageSize);
-              break;
-            default:
-              response = await userService.fetchUsers(pagination.currentPage, pagination.pageSize);
-          }
-        }
+        const response = await userService.fetchUsers({
+          page: pagination.currentPage,
+          size: pagination.pageSize,
+          role: filterValue !== 'all' ? filterValue : undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined
+        });
 
         if (response) {
           const mappedUsers = (response.content || []).map(user => ({
@@ -548,9 +533,10 @@ const UserManagement = ({
         }
       } catch (error) {
         console.error('Error loading filtered users:', error);
+        setError(error.message || 'Error loading users');
         setSnackbar({
           open: true,
-          message: 'Error loading users',
+          message: error.message || 'Error loading users',
           severity: 'error'
         });
       } finally {
@@ -598,88 +584,16 @@ const UserManagement = ({
 
     try {
       if (value.trim()) {
-        // If there's a search term, use the appropriate search function based on filter
-        let response;
-        switch (filterValue) {
-          case 'SEEKER':
-            // First fetch ALL seekers without pagination
-            const allSeekers = await userService.fetchSeekers(0, 1000); // Use a large size to get all seekers
-            if (allSeekers && allSeekers.content) {
-              // Filter all seekers based on search term
-              const filteredSeekers = allSeekers.content.filter(user =>
-                user.username.toLowerCase().includes(value.toLowerCase()) ||
-                user.email.toLowerCase().includes(value.toLowerCase()) ||
-                user.fullName?.toLowerCase().includes(value.toLowerCase())
-              );
+        // Use searchUsers with current filters
+        const response = await userService.searchUsers(value, {
+          page: 0,
+          size: pagination.pageSize,
+          role: filterValue !== 'all' ? filterValue : undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined
+        });
 
-              // Now paginate the filtered results starting from page 0
-              const startIndex = 0; // Always start from first page when searching
-              const endIndex = pagination.pageSize;
-              response = {
-                content: filteredSeekers.slice(startIndex, endIndex),
-                totalElements: filteredSeekers.length,
-                totalPages: Math.ceil(filteredSeekers.length / pagination.pageSize)
-              };
-            }
-            break;
-          case 'LANDLORD':
-            // First fetch ALL landlords without pagination
-            const allLandlords = await userService.fetchLandlords(0, 1000); // Use a large size to get all landlords
-            if (allLandlords && allLandlords.content) {
-              // Filter all landlords based on search term
-              const filteredLandlords = allLandlords.content.filter(user =>
-                user.username.toLowerCase().includes(value.toLowerCase()) ||
-                user.email.toLowerCase().includes(value.toLowerCase()) ||
-                user.fullName?.toLowerCase().includes(value.toLowerCase())
-              );
-
-              // Now paginate the filtered results starting from page 0
-              const startIndex = 0; // Always start from first page when searching
-              const endIndex = pagination.pageSize;
-              response = {
-                content: filteredLandlords.slice(startIndex, endIndex),
-                totalElements: filteredLandlords.length,
-                totalPages: Math.ceil(filteredLandlords.length / pagination.pageSize)
-              };
-            }
-            break;
-          case 'ADMIN':
-            // First fetch ALL admins without pagination
-            const allAdmins = await userService.fetchAdmins(0, 1000); // Use a large size to get all admins
-            if (allAdmins && allAdmins.content) {
-              // Filter all admins based on search term
-              const filteredAdmins = allAdmins.content.filter(user =>
-                user.username.toLowerCase().includes(value.toLowerCase()) ||
-                user.email.toLowerCase().includes(value.toLowerCase()) ||
-                user.fullName?.toLowerCase().includes(value.toLowerCase())
-              );
-
-              // Now paginate the filtered results starting from page 0
-              const startIndex = 0; // Always start from first page when searching
-              const endIndex = pagination.pageSize;
-              response = {
-                content: filteredAdmins.slice(startIndex, endIndex),
-                totalElements: filteredAdmins.length,
-                totalPages: Math.ceil(filteredAdmins.length / pagination.pageSize)
-              };
-            }
-            break;
-          default:
-            // For all users, use the general search starting from page 0
-            response = await userService.searchUsers(
-              value,
-              0, // Always start from first page when searching
-              pagination.pageSize
-            );
-        }
-
-        if (response && typeof response === 'object') {
-          const content = Array.isArray(response.content) ? response.content : [];
-          const totalElements = typeof response.totalElements === 'number' ? response.totalElements : 0;
-          const totalPages = typeof response.totalPages === 'number' ? response.totalPages : 0;
-
-          // Map the response data to ensure isActive is properly set
-          const mappedUsers = content.map(user => ({
+        if (response) {
+          const mappedUsers = (response.content || []).map(user => ({
             ...user,
             isActive: user.active !== false
           }));
@@ -687,8 +601,8 @@ const UserManagement = ({
           setFilteredUsers(mappedUsers);
           setPagination(prev => ({
             ...prev,
-            totalElements,
-            totalPages
+            totalElements: response.totalElements || 0,
+            totalPages: response.totalPages || 0
           }));
 
           if (typeof onUserAction === 'function') {
@@ -696,29 +610,16 @@ const UserManagement = ({
           }
         }
       } else {
-        // If search term is empty, reload the current filter
-        let response;
-        switch (filterValue) {
-          case 'SEEKER':
-            response = await userService.fetchSeekers(pagination.currentPage, pagination.pageSize);
-            break;
-          case 'LANDLORD':
-            response = await userService.fetchLandlords(pagination.currentPage, pagination.pageSize);
-            break;
-          case 'ADMIN':
-            response = await userService.fetchAdmins(pagination.currentPage, pagination.pageSize);
-            break;
-          default:
-            response = await userService.fetchUsers(pagination.currentPage, pagination.pageSize);
-        }
+        // If search is cleared, reload with current filters
+        const response = await userService.fetchUsers({
+          page: 0,
+          size: pagination.pageSize,
+          role: filterValue !== 'all' ? filterValue : undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined
+        });
 
-        if (response && typeof response === 'object') {
-          const content = Array.isArray(response.content) ? response.content : [];
-          const totalElements = typeof response.totalElements === 'number' ? response.totalElements : 0;
-          const totalPages = typeof response.totalPages === 'number' ? response.totalPages : 0;
-
-          // Map the response data to ensure isActive is properly set
-          const mappedUsers = content.map(user => ({
+        if (response) {
+          const mappedUsers = (response.content || []).map(user => ({
             ...user,
             isActive: user.active !== false
           }));
@@ -726,8 +627,8 @@ const UserManagement = ({
           setFilteredUsers(mappedUsers);
           setPagination(prev => ({
             ...prev,
-            totalElements,
-            totalPages
+            totalElements: response.totalElements || 0,
+            totalPages: response.totalPages || 0
           }));
 
           if (typeof onUserAction === 'function') {
@@ -737,6 +638,7 @@ const UserManagement = ({
       }
     } catch (error) {
       console.error('Error searching users:', error);
+      setError(error.message || 'Error searching users');
       setSnackbar({
         open: true,
         message: error.message || 'Error searching users',
@@ -749,111 +651,84 @@ const UserManagement = ({
     if (!e || !e.target) return;
     const value = e.target.value || 'all';
     setStatusFilter(value);
-    // Reset role filter when changing status
-    if (value !== 'all') {
-      setFilterValue('all');
-    }
-    // Reset pagination
+    // Reset pagination when changing filter
     setPagination(prev => ({
       ...prev,
       currentPage: 0
     }));
+    // Refresh with both filters
+    userService.fetchUsers({
+      page: 0,
+      size: pagination.pageSize,
+      role: filterValue !== 'all' ? filterValue : undefined,
+      status: value !== 'all' ? value : undefined
+    }).then(response => {
+      if (response && response.content) {
+        const updatedUsers = response.content.map(user => ({
+          ...user,
+          isActive: user.active !== false
+        }));
+        setFilteredUsers(updatedUsers);
+        setPagination(prev => ({
+          ...prev,
+          totalElements: response.totalElements || 0,
+          totalPages: response.totalPages || 0
+        }));
+        if (typeof onUserAction === 'function') {
+          onUserAction(updatedUsers);
+        }
+      }
+    }).catch(error => {
+      console.error('Error applying filters:', error);
+      setError(error.message);
+      setSnackbar({
+        open: true,
+        message: error.message || 'Error applying filters',
+        severity: 'error'
+      });
+    });
   };
 
-  const handleFilterChange = async (e) => {
+  const handleFilterChange = (e) => {
     if (!e || !e.target) return;
     const value = e.target.value || 'all';
     setFilterValue(value);
-    // Reset status filter when changing role
-    setStatusFilter('all');
-    
-    try {
-      if (searchTerm.trim()) {
-        // If there's a search term, use searchUsers with the new filter
-        const response = await userService.searchUsers(
-          searchTerm,
-          0, // Reset to first page
-          pagination.pageSize,
-          value !== 'all' ? value : undefined
-        );
-
-        if (response && typeof response === 'object') {
-          const content = Array.isArray(response.content) ? response.content : [];
-          const totalElements = typeof response.totalElements === 'number' ? response.totalElements : 0;
-          const totalPages = typeof response.totalPages === 'number' ? response.totalPages : 0;
-
-          // Map the response data to ensure isActive is properly set
-          const mappedUsers = content.map(user => ({
-            ...user,
-            isActive: user.active !== false
-          }));
-
-          setFilteredUsers(mappedUsers);
-          setPagination(prev => ({
-            ...prev,
-            currentPage: 0,
-            totalElements,
-            totalPages
-          }));
-
-          if (typeof onUserAction === 'function') {
-            onUserAction(mappedUsers);
-          }
-        }
-      } else {
-        // If no search term, use the appropriate fetch function
-        let response;
-        switch (value) {
-          case 'SEEKER':
-            response = await userService.fetchSeekers(0, pagination.pageSize);
-            break;
-          case 'LANDLORD':
-            response = await userService.fetchLandlords(0, pagination.pageSize);
-            break;
-          case 'ADMIN':
-            response = await userService.fetchAdmins(0, pagination.pageSize);
-            break;
-          default:
-            response = await userService.fetchUsers(0, pagination.pageSize);
-        }
-
-        if (response && typeof response === 'object') {
-          const content = Array.isArray(response.content) ? response.content : [];
-          const totalElements = typeof response.totalElements === 'number' ? response.totalElements : 0;
-          const totalPages = typeof response.totalPages === 'number' ? response.totalPages : 0;
-
-          // Map the response data to ensure isActive is properly set
-          const mappedUsers = content.map(user => ({
-            ...user,
-            isActive: user.active !== false
-          }));
-
-          setFilteredUsers(mappedUsers);
-          setPagination(prev => ({
-            ...prev,
-            currentPage: 0,
-            totalElements,
-            totalPages
-          }));
-
-          if (typeof onUserAction === 'function') {
-            onUserAction(mappedUsers);
-          }
+    // Reset pagination when changing filter
+    setPagination(prev => ({
+      ...prev,
+      currentPage: 0
+    }));
+    // Refresh with both filters
+    userService.fetchUsers({
+      page: 0,
+      size: pagination.pageSize,
+      role: value !== 'all' ? value : undefined,
+      status: statusFilter !== 'all' ? statusFilter : undefined
+    }).then(response => {
+      if (response && response.content) {
+        const updatedUsers = response.content.map(user => ({
+          ...user,
+          isActive: user.active !== false
+        }));
+        setFilteredUsers(updatedUsers);
+        setPagination(prev => ({
+          ...prev,
+          totalElements: response.totalElements || 0,
+          totalPages: response.totalPages || 0
+        }));
+        if (typeof onUserAction === 'function') {
+          onUserAction(updatedUsers);
         }
       }
-
-      // Reset to first page when changing filter
-      if (typeof onPageChangeParent === 'function') {
-        onPageChangeParent(null, 0);
-      }
-    } catch (error) {
-      console.error('Error changing filter:', error);
+    }).catch(error => {
+      console.error('Error applying filters:', error);
+      setError(error.message);
       setSnackbar({
         open: true,
-        message: error.message || 'Error changing filter',
+        message: error.message || 'Error applying filters',
         severity: 'error'
       });
-    }
+    });
   };
 
   const handleRefresh = async () => {
@@ -861,20 +736,12 @@ const UserManagement = ({
       setError(null);
       setSearchTerm('');
 
-      let response;
-      switch (filterValue) {
-        case 'SEEKER':
-          response = await userService.fetchSeekers(0, pagination.pageSize);
-          break;
-        case 'LANDLORD':
-          response = await userService.fetchLandlords(0, pagination.pageSize);
-          break;
-        case 'ADMIN':
-          response = await userService.fetchAdmins(0, pagination.pageSize);
-          break;
-        default:
-          response = await userService.fetchUsers(0, pagination.pageSize);
-      }
+      const response = await userService.fetchUsers({
+        page: 0,
+        size: pagination.pageSize,
+        role: filterValue !== 'all' ? filterValue : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined
+      });
 
       if (response && response.content) {
         // Ensure isActive is properly set for each user
@@ -1330,6 +1197,25 @@ const UserManagement = ({
           borderBottom: 1,
           borderColor: 'divider'
         }}>
+          {/* Search Bar */}
+          <TextField
+            size="small"
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            sx={{ 
+              flex: isSmallScreen ? 1 : 'auto',
+              width: isSmallScreen ? '100%' : '300px'
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+
           {/* Role Filter */}
           <FormControl 
             size="small" 
@@ -1344,7 +1230,6 @@ const UserManagement = ({
               value={filterValue}
               label="Role Filter"
               onChange={handleFilterChange}
-              disabled={statusFilter !== 'all'}
             >
               <MenuItem value="all">All Roles</MenuItem>
               <MenuItem value="SEEKER">Seekers</MenuItem>
@@ -1367,32 +1252,12 @@ const UserManagement = ({
               value={statusFilter}
               label="Status Filter"
               onChange={handleStatusFilterChange}
-              disabled={filterValue !== 'all'}
             >
               <MenuItem value="all">All Status</MenuItem>
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="inactive">Inactive</MenuItem>
             </Select>
           </FormControl>
-
-          {/* Search Bar */}
-          <TextField
-            size="small"
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            sx={{ 
-              flex: isSmallScreen ? 1 : 'auto',
-              width: isSmallScreen ? '100%' : '300px'
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
 
           {/* Add User Button */}
           <Button

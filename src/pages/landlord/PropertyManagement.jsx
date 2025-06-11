@@ -585,9 +585,9 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
           {/* Property List - Desktop */}
         <Box sx={{ display: { xs: 'none', md: 'block' } }}>
           <Paper sx={{
-              borderRadius: '0px',
+            borderRadius: '16px',
             border: '1px solid',
-              borderColor: 'divider'
+            borderColor: 'divider'
           }}>
               <CustomScrollbar>
                 <TableContainer>

@@ -1,10 +1,12 @@
 // src/pages/dashboards/LandlordDashboard.jsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Box, Snackbar, Alert } from '@mui/material';
+import { Box, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { alpha } from '@mui/material/styles';
 
 import LandlordLayout from '../../components/layout/LandlordLayout';
 import PropertyManagement from '../../pages/landlord/PropertyManagement';
@@ -21,7 +23,7 @@ const LandlordDashboard = () => {
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
   const [mode, setMode] = useState(() => {
     const savedMode = localStorage.getItem('landlordThemeMode');
-    return savedMode || 'light';
+    return savedMode || (prefersDarkMode ? 'dark' : 'light');
   });
 
   const [currentUser, setCurrentUser] = useState({
@@ -49,6 +51,8 @@ const LandlordDashboard = () => {
     message: '',
     severity: 'success',
   });
+
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
   const theme = useMemo(
     () => createTheme({
@@ -254,12 +258,27 @@ const LandlordDashboard = () => {
     }
   }, [currentUser, fetchAndProcessProperties]);
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true);
+  };
+
+  const handleLogoutCancel = () => {
+    setLogoutDialogOpen(false);
+  };
+
+  const handleLogoutConfirm = async () => {
     try {
       await userService.logout();
       window.location.href = '/login';
     } catch (err) {
       console.error('Logout failed:', err);
+      setSnackbar({
+        open: true,
+        message: 'Failed to logout. Please try again.',
+        severity: 'error'
+      });
+    } finally {
+      setLogoutDialogOpen(false);
     }
   };
 
@@ -299,7 +318,7 @@ const LandlordDashboard = () => {
             mode={mode}
             toggleColorMode={toggleColorMode}
             currentUser={currentUser}
-            handleLogout={handleLogout}
+            handleLogout={handleLogoutClick}
             setSnackbar={setSnackbar}
           />
         );
@@ -331,7 +350,7 @@ const LandlordDashboard = () => {
         theme={theme}
         mode={mode}
         toggleColorMode={toggleColorMode}
-        handleLogout={handleLogout}
+        handleLogout={handleLogoutClick}
       >
         {renderContent()}
       </LandlordLayout>
@@ -354,6 +373,111 @@ const LandlordDashboard = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Logout Confirmation Dialog */}
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={handleLogoutCancel}
+        PaperProps={{
+          sx: {
+            borderRadius: 1,
+            minWidth: { xs: '90%', sm: '360px' },
+            maxWidth: '400px',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)'
+          }
+        }}
+      >
+        <DialogContent sx={{ p: 3, textAlign: 'center' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2
+            }}
+          >
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 1
+              }}
+            >
+              <LogoutIcon
+                sx={{
+                  fontSize: 24,
+                  color: 'error.main'
+                }}
+              />
+            </Box>
+            <Typography
+              variant="h6"
+              sx={{
+                color: 'text.primary',
+                fontWeight: 600,
+                mb: 0.5
+              }}
+            >
+              Confirm Logout
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 2 }}
+            >
+              Are you sure you want to logout? You will need to login again to access your account.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            p: 2,
+            gap: 1,
+            borderTop: 1,
+            borderColor: 'divider'
+          }}
+        >
+          <Button
+            onClick={handleLogoutCancel}
+            variant="text"
+            sx={{
+              flex: 1,
+              py: 1,
+              textTransform: 'none',
+              fontSize: '0.9rem',
+              color: 'text.secondary',
+              '&:hover': {
+                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04)
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleLogoutConfirm}
+            variant="contained"
+            color="error"
+            sx={{
+              flex: 1,
+              py: 1,
+              textTransform: 'none',
+              fontSize: '0.9rem',
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: 'none',
+                bgcolor: 'error.dark'
+              }
+            }}
+          >
+            Logout
+          </Button>
+        </DialogActions>
+      </Dialog>
     </ThemeProvider>
   );
 };
