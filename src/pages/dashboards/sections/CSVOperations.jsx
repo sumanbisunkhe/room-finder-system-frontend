@@ -275,13 +275,15 @@ const CSVOperations = () => {
       key={type} 
       item 
       xs={12} 
-      md={6} 
-      sx={{ height: { xs: 'auto', md: '50%' }, minHeight: { xs: '300px', md: 'auto' } }}
+      sm={6}
+      sx={{ 
+        display: 'flex',
+      }}
     >
       <Paper 
         elevation={0}
         sx={{ 
-          height: '100%', 
+          width: '100%',
           display: 'flex', 
           flexDirection: 'column',
           border: 1,
@@ -299,7 +301,7 @@ const CSVOperations = () => {
         {/* Header */}
         <Box 
           sx={{ 
-            p: 2,
+            p: { xs: 1.5, sm: 2 },
             display: 'flex',
             alignItems: 'center',
             gap: 1,
@@ -310,8 +312,8 @@ const CSVOperations = () => {
         >
           <Box
             sx={{
-              width: 40,
-              height: 40,
+              width: { xs: 36, sm: 40 },
+              height: { xs: 36, sm: 40 },
               borderRadius: 1,
               display: 'flex',
               alignItems: 'center',
@@ -322,11 +324,28 @@ const CSVOperations = () => {
           >
             {icon}
           </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" color="text.primary" sx={{ fontWeight: 600 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography 
+              variant="h6" 
+              color="text.primary" 
+              sx={{ 
+                fontWeight: 600,
+                fontSize: { xs: '1rem', sm: '1.25rem' }
+              }}
+            >
               {title}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
+              }}
+            >
               {description}
             </Typography>
           </Box>
@@ -337,7 +356,10 @@ const CSVOperations = () => {
                 setSelectedType(type);
                 setOpenHelp(true);
               }}
-              sx={{ color: 'action.active' }}
+              sx={{ 
+                color: 'action.active',
+                ml: 1
+              }}
             >
               <HelpIcon fontSize="small" />
             </IconButton>
@@ -349,7 +371,12 @@ const CSVOperations = () => {
           <Alert 
             severity="error" 
             onClose={() => setErrors(prev => ({ ...prev, [type]: null }))}
-            sx={{ borderRadius: 0 }}
+            sx={{ 
+              borderRadius: 0,
+              '& .MuiAlert-message': {
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }
+            }}
           >
             {errors[type]}
           </Alert>
@@ -371,24 +398,42 @@ const CSVOperations = () => {
         )}
 
         {/* Content */}
-        <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ 
+          p: { xs: 2, sm: 3 }, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: { xs: 1.5, sm: 2 }
+        }}>
           {/* Stats */}
-          <Box sx={{ mb: 2 }}>
-            <Stack direction="row" spacing={1}>
+          <Box sx={{ mb: { xs: 1, sm: 2 } }}>
+            <Stack 
+              direction="row" 
+              spacing={1}
+              flexWrap="wrap"
+              gap={1}
+            >
               {stats[type].lastUpdate && (
                 <Chip 
                   size="small"
                   icon={<RefreshIcon />}
-                  label={`Last updated: ${new Date(stats[type].lastUpdate).toLocaleString()}`}
-                  sx={{ bgcolor: alpha(color, 0.1), color: color }}
+                  label={`Last: ${new Date(stats[type].lastUpdate).toLocaleString()}`}
+                  sx={{ 
+                    bgcolor: alpha(color, 0.1), 
+                    color: color,
+                    fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                  }}
                 />
               )}
               {stats[type].total > 0 && (
                 <Chip 
                   size="small"
                   icon={<FileIcon />}
-                  label={`Total operations: ${stats[type].total}`}
-                  sx={{ bgcolor: alpha(color, 0.1), color: color }}
+                  label={`Total: ${stats[type].total}`}
+                  sx={{ 
+                    bgcolor: alpha(color, 0.1), 
+                    color: color,
+                    fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                  }}
                 />
               )}
             </Stack>
@@ -406,7 +451,8 @@ const CSVOperations = () => {
               '&:hover': {
                 bgcolor: alpha(color, 0.8),
               },
-              height: 48,
+              height: { xs: 40, sm: 48 },
+              fontSize: { xs: '0.875rem', sm: '1rem' }
             }}
           >
             {loading[type] ? `Exporting ${title}...` : `Export ${title}`}
@@ -425,7 +471,8 @@ const CSVOperations = () => {
                 borderColor: color,
                 bgcolor: alpha(color, 0.05),
               },
-              height: 48,
+              height: { xs: 40, sm: 48 },
+              fontSize: { xs: '0.875rem', sm: '1rem' }
             }}
           >
             {loading[type] ? `Importing ${title}...` : `Import ${title}`}
@@ -448,8 +495,8 @@ const CSVOperations = () => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        overflow: { xs: 'auto', md: 'hidden' },
-        p: { xs: 2, sm: 3 },
+        overflow: 'auto',
+        p: { xs: 1.5, sm: 2, md: 3 },
         '&::-webkit-scrollbar': {
           width: 8,
         },
@@ -466,25 +513,18 @@ const CSVOperations = () => {
       <Box
         sx={{
           flexGrow: 1,
-          overflow: { xs: 'visible', md: 'hidden' },
-          minHeight: { xs: 'min-content', md: '100%' },
-          display: 'flex',
-          flexDirection: 'column',
+          width: '100%',
+          maxWidth: '1400px',
+          mx: 'auto',
         }}
       >
         {/* CSV Operations Grid */}
         <Grid 
           container 
-          spacing={3} 
+          spacing={{ xs: 2, sm: 3 }}
           sx={{ 
             width: '100%',
             m: 0,
-            p: { xs: 0, sm: 1 },
-            height: { xs: 'auto', md: '100%' },
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignContent: 'flex-start',
-            flex: { xs: '0 0 auto', md: '1 1 auto' },
           }}
         >
           {sections.map(section => renderCSVSection(section))}
@@ -497,11 +537,23 @@ const CSVOperations = () => {
         onClose={() => setOpenHelp(false)}
         maxWidth="sm"
         fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            m: { xs: 2, sm: 3 },
+            maxHeight: { xs: 'calc(100% - 32px)', sm: 'calc(100% - 48px)' }
+          }
+        }}
       >
         <DialogTitle>
-          CSV Format Requirements
+          <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' } }}>
+            CSV Format Requirements
+          </Typography>
           {selectedType && (
-            <Typography variant="subtitle2" color="text.secondary">
+            <Typography 
+              variant="subtitle2" 
+              color="text.secondary"
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+            >
               For {selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Data
             </Typography>
           )}
@@ -509,7 +561,11 @@ const CSVOperations = () => {
         <DialogContent>
           {selectedType && (
             <>
-              <Typography variant="body2" paragraph>
+              <Typography 
+                variant="body2" 
+                paragraph
+                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+              >
                 Please ensure your CSV file follows these requirements:
               </Typography>
               <List>
@@ -521,18 +577,36 @@ const CSVOperations = () => {
                     <ListItemText
                       primary={field.field}
                       secondary={field.required ? 'Required' : 'Optional'}
+                      primaryTypographyProps={{
+                        fontSize: { xs: '0.875rem', sm: '1rem' }
+                      }}
+                      secondaryTypographyProps={{
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                      }}
                     />
                   </ListItem>
                 ))}
               </List>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  mt: 2,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                }}
+              >
                 Note: The first row of your CSV file should contain these column headers.
               </Typography>
             </>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenHelp(false)}>Close</Button>
+          <Button 
+            onClick={() => setOpenHelp(false)}
+            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

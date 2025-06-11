@@ -39,6 +39,8 @@ import {
   CircularProgress,
   Fade,
   DialogContentText,
+  Pagination,
+  PaginationItem,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -1404,37 +1406,66 @@ const UserManagement = ({
         )}
 
         {/* Table Pagination */}
-        <TablePagination
-          component="div"
-          count={pagination.totalElements}
-          page={pagination.currentPage}
-          onPageChange={handlePageChange}
-          rowsPerPage={pagination.pageSize}
-          onRowsPerPageChange={handlePageSizeChange}
-          rowsPerPageOptions={[8, 16, 24, 32]}
+        <Box
           sx={{
             mt: 'auto',
+            py: 2,
+            px: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             borderTop: '1px solid',
             borderColor: 'divider',
-            '& .MuiTablePagination-actions': {
-              '& .MuiIconButton-root': {
-                '&:hover': {
-                  bgcolor: 'transparent',
-                },
-                '&:focus': {
-                  outline: 'none',
-                },
-                '&.Mui-disabled': {
-                  opacity: 0.5,
-                },
-              },
-            },
-            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: '0.875rem',
-            },
           }}
-        />
+        >
+          <Pagination
+            count={pagination.totalPages}
+            page={pagination.currentPage + 1}
+            onChange={(event, page) => handlePageChange(event, page - 1)}
+            shape="rounded"
+            renderItem={(item) => {
+              if (item.type === 'previous' || item.type === 'next') {
+                return (
+                  <PaginationItem
+                    {...item}
+                    sx={{
+                      bgcolor: 'transparent',
+                      border: 'none',
+                      '&:hover': {
+                        bgcolor: 'transparent',
+                      },
+                      '&.Mui-disabled': {
+                        opacity: 0.5,
+                        bgcolor: 'transparent',
+                      },
+                    }}
+                  />
+                );
+              }
+              return (
+                <PaginationItem
+                  {...item}
+                  sx={{
+                    mx: 0.5,
+                    border: 'none',
+                    bgcolor: 'transparent',
+                    color: 'text.primary',
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      '&:hover': {
+                        bgcolor: 'primary.main',
+                      },
+                    },
+                    '&:hover': {
+                      bgcolor: 'transparent',
+                    },
+                  }}
+                />
+              );
+            }}
+          />
+        </Box>
 
         {/* Add User Dialog */}
         <Dialog

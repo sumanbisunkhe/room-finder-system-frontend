@@ -44,6 +44,7 @@ import {
   Storage as StorageIcon,
   PersonOutline as PersonOutlineIcon,
   GpsFixed as ScopeIcon,
+  ViewSidebar as LeftPanelIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import * as userService from '../../services/userService';
@@ -646,38 +647,70 @@ const AdminDashboard = () => {
     switch (state.activeSection) {
       case 'users':
         return (
-          <Suspense fallback={<CircularProgress />}>
-          <UserManagement 
-            users={state.users}
-            onSearch={handleSearchChange}
-              onFilter={handleFilterChange}
-            onUserAction={handleUserAction}
-            paginationData={state.paginationData}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
-              isLoading={state.loading}
-          />
-          </Suspense>
-        );
-      case 'analytics':
-    return (
-          <Suspense fallback={<CircularProgress />}>
-            <UserAnalytics />
-          </Suspense>
-        );
-      case 'settings':
-    return (
-          <Suspense fallback={
-            <Box sx={{ 
+          <Suspense fallback={<Box 
+            sx={{ 
               display: 'flex', 
               justifyContent: 'center', 
               alignItems: 'center', 
               height: '100%',
-              width: '100%'
-            }}>
-              <CircularProgress />
-            </Box>
-          }>
+              width: '100%',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              bgcolor: 'background.default'
+            }}
+          >
+            <CircularProgress size={48} />
+          </Box>}>
+            <UserManagement 
+              users={state.users}
+              onSearch={handleSearchChange}
+              onFilter={handleFilterChange}
+              onUserAction={handleUserAction}
+              paginationData={state.paginationData}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+              isLoading={state.loading}
+            />
+          </Suspense>
+        );
+      case 'analytics':
+        return (
+          <Suspense fallback={<Box 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100%',
+              width: '100%',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              bgcolor: 'background.default'
+            }}
+          >
+            <CircularProgress size={48} />
+          </Box>}>
+            <UserAnalytics />
+          </Suspense>
+        );
+      case 'settings':
+        return (
+          <Suspense fallback={<Box 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100%',
+              width: '100%',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              bgcolor: 'background.default'
+            }}
+          >
+            <CircularProgress size={48} />
+          </Box>}>
             <Box sx={{ 
               height: '100%',
               display: 'flex',
@@ -711,23 +744,51 @@ const AdminDashboard = () => {
           </Suspense>
         );
       case 'csv':
-    return (
-          <Suspense fallback={<CircularProgress />}>
+        return (
+          <Suspense fallback={<Box 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100%',
+              width: '100%',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              bgcolor: 'background.default'
+            }}
+          >
+            <CircularProgress size={48} />
+          </Box>}>
             <CSVOperations />
           </Suspense>
         );
       case 'profile':
-    return (
-          <Suspense fallback={<CircularProgress />}>
+        return (
+          <Suspense fallback={<Box 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100%',
+              width: '100%',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              bgcolor: 'background.default'
+            }}
+          >
+            <CircularProgress size={48} />
+          </Box>}>
             <ProfileSection />
           </Suspense>
         );
       default:
         return null;
-      }
-    };
+    }
+  };
 
-    return (
+  return (
     <ThemeProvider theme={customTheme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', height: '100vh' }}>
@@ -1082,14 +1143,14 @@ const AdminDashboard = () => {
             elevation={0}
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
-            <Toolbar>
+            <Toolbar sx={{ position: 'relative' }}>
               <IconButton
                 edge="start"
                 color="inherit"
                 onClick={handleDrawerToggle}
                 sx={{ mr: 2, display: { md: 'none' } }}
               >
-                <MenuIcon />
+                <LeftPanelIcon />
               </IconButton>
               <Typography 
                 variant="h6" 
@@ -1098,39 +1159,36 @@ const AdminDashboard = () => {
                   fontFamily: "'Outfit', sans-serif",
                   fontWeight: 500,
                   letterSpacing: '0.3px',
-                  fontSize: '1.1rem'
+                  fontSize: '1.1rem',
+                  textAlign: { xs: 'center', md: 'left' },
+                  position: { xs: 'absolute', md: 'static' },
+                  left: { xs: '50%', md: 'auto' },
+                  transform: { xs: 'translateX(-50%)', md: 'none' },
+                  width: { xs: 'auto', md: 'auto' }
                 }}
               >
                 {menuItems.find(item => item.section === state.activeSection)?.label}
               </Typography>
-              <IconButton
-                onClick={handleThemeToggle}
-                disableRipple
-                sx={{ 
-                  width: 40,
-                  height: 40,
-                  borderRadius: '50%',
-                  backgroundColor: theme => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : theme.palette.background.paper,
-                  boxShadow: theme => theme.palette.mode === 'dark' 
-                    ? '0 2px 8px rgba(255,255,255,0.05)' 
-                    : '0 2px 8px rgba(0,0,0,0.1)',
-                  '&:hover': {
-                    background: theme => theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 255, 255, 0.05)' 
-                      : theme.palette.background.paper
-                  },
-                  '&:focus': {
-                    outline: 'none'
-                  },
-                  '&.MuiIconButton-root': {
-                    background: theme => theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 255, 255, 0.05)' 
-                      : theme.palette.background.paper
-                  }
-                }}
-              >
-                {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
-              </IconButton>
+              <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton
+                  onClick={handleThemeToggle}
+                  disableRipple
+                  sx={{ 
+                    width: 40,
+                    height: 40,
+                    color: theme => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+                    '&:hover': {
+                      color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                      background: 'transparent'
+                    },
+                    '&:focus': {
+                      outline: 'none'
+                    }
+                  }}
+                >
+                  {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+                </IconButton>
+              </Box>
             </Toolbar>
           </AppBar>
 
@@ -1139,6 +1197,7 @@ const AdminDashboard = () => {
             height: 'calc(100vh - 64px)', 
             overflow: 'auto', 
             p: 0,
+            position: 'relative',
             '& > *': {
               height: '100%'
             },
@@ -1158,8 +1217,20 @@ const AdminDashboard = () => {
             }
           }}>
             {state.loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                <CircularProgress />
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  height: '100%',
+                  width: '100%',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  bgcolor: 'background.default'
+                }}
+              >
+                <CircularProgress size={48} />
               </Box>
             ) : state.error ? (
               <Box sx={{ p: 3 }}>
@@ -1172,7 +1243,7 @@ const AdminDashboard = () => {
         </Box>
 
         {/* User Menu */}
-              <Menu
+        <Menu
           anchorEl={uiState.userMenuAnchor}
           open={Boolean(uiState.userMenuAnchor)}
           onClose={handleUserMenuClose}
@@ -1185,26 +1256,26 @@ const AdminDashboard = () => {
           }}>
             <ListItemIcon>
               <PersonIcon fontSize="small" />
-                    </ListItemIcon>
+            </ListItemIcon>
             Profile
-                  </MenuItem>
+          </MenuItem>
           <MenuItem onClick={() => {
             handleUserMenuClose();
             handleMenuItemClick('settings', '/dashboard/admin/system-settings');
           }}>
-                  <ListItemIcon>
+            <ListItemIcon>
               <SettingsIcon fontSize="small" />
-                  </ListItemIcon>
+            </ListItemIcon>
             Settings
-                </MenuItem>
+          </MenuItem>
           <Divider />
           <MenuItem onClick={handleLogoutClick}>
-                  <ListItemIcon>
+            <ListItemIcon>
               <LogoutIcon fontSize="small" />
-                  </ListItemIcon>
+            </ListItemIcon>
             Logout
-                </MenuItem>
-              </Menu>
+          </MenuItem>
+        </Menu>
 
         {/* Snackbar for notifications */}
         <Snackbar
@@ -1244,84 +1315,18 @@ const AdminDashboard = () => {
                 gap: 2
               }}
             >
-              <Box
-                sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
-                  bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  mb: 1
-                }}
-              >
-                <LogoutIcon
-                  sx={{
-                    fontSize: 24,
-                    color: 'error.main'
-                  }}
-                />
-              </Box>
-              <Typography
-                variant="h6"
-                sx={{
-                  color: 'text.primary',
-                  fontWeight: 600,
-                  mb: 0.5
-                }}
-              >
-                Confirm Logout
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mb: 2 }}
-              >
-                Are you sure you want to logout? You will need to login again to access your account.
+              <LogoutIcon sx={{ fontSize: 48, color: 'error.main' }} />
+              <Typography variant="h6">Confirm Logout</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Are you sure you want to logout? You will need to login again to access the dashboard.
               </Typography>
             </Box>
           </DialogContent>
-          <DialogActions
-            sx={{
-              p: 2,
-              gap: 1,
-              borderTop: 1,
-              borderColor: 'divider'
-            }}
-          >
-            <Button
-              onClick={handleLogoutCancel}
-              variant="text"
-              sx={{
-                flex: 1,
-                py: 1,
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                color: 'text.secondary',
-                '&:hover': {
-                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04)
-                }
-              }}
-            >
+          <DialogActions sx={{ p: 2, justifyContent: 'center' }}>
+            <Button onClick={handleLogoutCancel} variant="outlined">
               Cancel
             </Button>
-            <Button
-              onClick={handleLogoutConfirm}
-              variant="contained"
-              color="error"
-              sx={{
-                flex: 1,
-                py: 1,
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                boxShadow: 'none',
-                '&:hover': {
-                  boxShadow: 'none',
-                  bgcolor: 'error.dark'
-                }
-              }}
-            >
+            <Button onClick={handleLogoutConfirm} variant="contained" color="error">
               Logout
             </Button>
           </DialogActions>
