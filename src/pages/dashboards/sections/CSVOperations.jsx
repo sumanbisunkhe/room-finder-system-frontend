@@ -2,14 +2,12 @@ import React, { useState } from 'react';
 import {
   Box,
   Paper,
-  Typography,
   Button,
   Grid,
   Stack,
   CircularProgress,
   useTheme,
   alpha,
-  Divider,
   IconButton,
   Tooltip,
   LinearProgress,
@@ -45,6 +43,7 @@ import {
 } from '@mui/icons-material';
 import * as userService from '../../../services/userService';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
+import StyledTypography from '../../../components/common/StyledTypography';
 
 const CSVOperations = () => {
   const theme = useTheme();
@@ -325,7 +324,7 @@ const CSVOperations = () => {
             {icon}
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography 
+            <StyledTypography 
               variant="h6" 
               color="text.primary" 
               sx={{ 
@@ -334,8 +333,8 @@ const CSVOperations = () => {
               }}
             >
               {title}
-            </Typography>
-            <Typography 
+            </StyledTypography>
+            <StyledTypography 
               variant="body2" 
               color="text.secondary"
               sx={{
@@ -347,7 +346,7 @@ const CSVOperations = () => {
               }}
             >
               {description}
-            </Typography>
+            </StyledTypography>
           </Box>
           <Tooltip title="View format requirements" arrow>
             <IconButton 
@@ -490,25 +489,15 @@ const CSVOperations = () => {
   );
 
   return (
-    <Box 
-      sx={{ 
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'auto',
-        p: { xs: 1.5, sm: 2, md: 3 },
-        '&::-webkit-scrollbar': {
-          width: 8,
-        },
-        '&::-webkit-scrollbar-thumb': {
-          backgroundColor: 'rgba(0,0,0,0.1)',
-          borderRadius: 4,
-        },
-        '&::-webkit-scrollbar-track': {
-          backgroundColor: 'transparent',
-        }
-      }}
-    >
+    <Box sx={{ 
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      p: { xs: 1.5, sm: 2, md: 3 },
+      fontFamily: '"Outfit", sans-serif',
+    }}>
+      
+      
       {/* Main Content */}
       <Box
         sx={{
@@ -545,29 +534,29 @@ const CSVOperations = () => {
         }}
       >
         <DialogTitle>
-          <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' } }}>
+          <StyledTypography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' } }}>
             CSV Format Requirements
-          </Typography>
+          </StyledTypography>
           {selectedType && (
-            <Typography 
+            <StyledTypography 
               variant="subtitle2" 
               color="text.secondary"
               sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             >
               For {selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Data
-            </Typography>
+            </StyledTypography>
           )}
         </DialogTitle>
         <DialogContent>
           {selectedType && (
             <>
-              <Typography 
+              <StyledTypography 
                 variant="body2" 
                 paragraph
                 sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
               >
                 Please ensure your CSV file follows these requirements:
-              </Typography>
+              </StyledTypography>
               <List>
                 {sections.find(s => s.type === selectedType)?.format.map((field, index) => (
                   <ListItem key={index}>
@@ -587,7 +576,7 @@ const CSVOperations = () => {
                   </ListItem>
                 ))}
               </List>
-              <Typography 
+              <StyledTypography 
                 variant="body2" 
                 color="text.secondary" 
                 sx={{ 
@@ -596,7 +585,7 @@ const CSVOperations = () => {
                 }}
               >
                 Note: The first row of your CSV file should contain these column headers.
-              </Typography>
+              </StyledTypography>
             </>
           )}
         </DialogContent>

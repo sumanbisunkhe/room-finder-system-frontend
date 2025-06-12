@@ -43,93 +43,64 @@ import {
 } from 'recharts';
 import * as userService from '../../../services/userService';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
+import StyledTypography from '../../../components/common/StyledTypography';
 
 const StatCard = ({ title, value, icon, color, loading }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   return (
-    <Paper
+    <Card
       elevation={0}
       sx={{
-        p: { xs: 1.5, sm: 2 },
         height: '100%',
-        bgcolor: 'background.paper',
+        border: 1,
+        borderColor: 'divider',
         borderRadius: 2,
-        border: `1px solid ${theme.palette.divider}`,
         position: 'relative',
-        overflow: 'hidden'
+        overflow: 'hidden',
       }}
     >
-      {loading && (
-        <LinearProgress
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 2,
-            bgcolor: alpha(color, 0.1),
-            '& .MuiLinearProgress-bar': {
-              bgcolor: color
-            }
-          }}
-        />
-      )}
-      <Stack spacing={1.5}>
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          spacing={1}
-        >
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{
-              fontSize: {
-                xs: '0.75rem',
-                sm: '0.875rem'
-              }
-            }}
-          >
-            {title}
-          </Typography>
-          <Box
-            sx={{
-              p: { xs: 0.75, sm: 1 },
-              borderRadius: 1.5,
-              bgcolor: alpha(color, 0.1),
-              color: color,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            {React.cloneElement(icon, {
-              sx: {
-                fontSize: {
-                  xs: '1rem',
-                  sm: '1.25rem'
-                }
-              }
-            })}
+      <CardContent sx={{ height: '100%', p: { xs: 1.5, sm: 2 } }}>
+        <Stack spacing={2}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{
+                width: { xs: 32, sm: 40 },
+                height: { xs: 32, sm: 40 },
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: alpha(color, 0.1),
+              }}
+            >
+              {React.cloneElement(icon, { sx: { fontSize: { xs: 18, sm: 24 }, color } })}
+            </Box>
+            <StyledTypography
+              variant="h6"
+              sx={{
+                fontSize: { xs: '1rem', sm: '1.25rem' },
+                fontWeight: 500,
+                color: 'text.primary',
+              }}
+            >
+              {title}
+            </StyledTypography>
           </Box>
+          <StyledTypography
+            variant="h4"
+            sx={{
+              fontSize: { xs: '1.5rem', sm: '2rem' },
+              fontWeight: 600,
+              color: color,
+            }}
+          >
+            {loading ? '-' : value.toLocaleString()}
+          </StyledTypography>
         </Stack>
-        <Typography
-          variant="h5"
-          fontWeight={600}
-          sx={{
-            fontSize: {
-              xs: '1.25rem',
-              sm: '1.5rem'
-            }
-          }}
-        >
-          {loading ? '-' : value}
-        </Typography>
-      </Stack>
-    </Paper>
+      </CardContent>
+    </Card>
   );
 };
 

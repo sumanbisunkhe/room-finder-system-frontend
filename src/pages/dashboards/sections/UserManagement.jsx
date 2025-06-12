@@ -59,6 +59,7 @@ import {
 } from '@mui/icons-material';
 import * as userService from '../../../services/userService';
 import _ from 'lodash';
+import StyledTypography from '../../../components/common/StyledTypography';
 
 // Add these functions before UserCard component
 const getRoleStyles = (role) => {
@@ -1180,16 +1181,17 @@ const UserManagement = ({
         maxWidth: '100%',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
+        overflow: isSmallScreen ? 'auto' : 'hidden',
         bgcolor: 'background.default',
         opacity: isLoading ? 0.5 : 1,
         pointerEvents: isLoading ? 'none' : 'auto',
         m: '0 !important',
         p: '0 !important',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        height: isSmallScreen ? 'calc(100vh - 64px)' : '100%'
       }}>
         {/* Filters and Search Bar */}
-        <Box sx={{ 
+        <Box sx={{
           p: 2, 
           display: 'flex', 
           flexDirection: isSmallScreen ? 'column' : 'row',
@@ -1197,7 +1199,10 @@ const UserManagement = ({
           gap: 2,
           bgcolor: 'background.paper',
           borderBottom: 1,
-          borderColor: 'divider'
+          borderColor: 'divider',
+          position: isSmallScreen ? 'static' : 'sticky',
+          top: 0,
+          zIndex: 2
         }}>
           {/* Search Bar */}
           <TextField
@@ -1294,14 +1299,17 @@ const UserManagement = ({
               flexGrow: 1,
               display: 'flex',
               flexDirection: 'column',
-              overflow: isSmallScreen ? 'auto' : 'hidden',
+              overflow: isSmallScreen ? 'visible' : 'auto',
               bgcolor: 'background.paper',
-              py: isSmallScreen ? 2 : 0,
+              pt: isSmallScreen ? 2 : 0,
+              pb: isSmallScreen ? '160px' : 0,
               px: 0,
               height: '100%',
               width: '100%',
-              maxHeight: 'calc(100vh - 200px)',
-              m: 0
+              maxWidth: '100%',
+              maxHeight: isSmallScreen ? 'none' : 'calc(100vh - 200px)',
+              m: 0,
+              boxSizing: 'border-box'
             }}
           >
             {isSmallScreen ? (
@@ -1310,11 +1318,23 @@ const UserManagement = ({
                 spacing={2}
                 sx={{
                   width: '100%',
-                  m: 0
+                  m: 0,
+                  pb: isSmallScreen ? 8 : 0,
+                  px: 0,
+                  boxSizing: 'border-box',
+                  '& .MuiGrid-item': {
+                    pl: isSmallScreen ? '16px !important' : 'inherit',
+                    pr: isSmallScreen ? '16px !important' : 'inherit',
+                  }
                 }}
               >
                 {filteredUsers.map((user) => (
-                  <Grid item xs={12} sm={6} key={user.id}>
+                  <Grid 
+                    item 
+                    xs={12} 
+                    sm={6} 
+                    key={user.id}
+                  >
                     <UserCard
                       user={user}
                       onActionClick={handleAction}
@@ -1416,6 +1436,13 @@ const UserManagement = ({
             justifyContent: 'center',
             borderTop: '1px solid',
             borderColor: 'divider',
+            position: isSmallScreen ? 'fixed' : 'relative',
+            bottom: isSmallScreen ? 0 : 'auto',
+            left: isSmallScreen ? 0 : 'auto',
+            right: isSmallScreen ? 0 : 'auto',
+            bgcolor: 'background.paper',
+            zIndex: isSmallScreen ? 2 : 'auto',
+            boxShadow: isSmallScreen ? '0px -2px 4px rgba(0, 0, 0, 0.1)' : 'none',
           }}
         >
           <Pagination

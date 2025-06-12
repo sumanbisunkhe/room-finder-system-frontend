@@ -56,7 +56,7 @@ import { styled } from '@mui/material/styles';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
-    borderRadius: 16,
+    borderRadius: '16px',
     background: theme.palette.mode === 'dark' 
       ? `linear-gradient(to bottom right, ${alpha(theme.palette.background.paper, 0.9)}, ${alpha(theme.palette.background.paper, 0.95)})`
       : `linear-gradient(to bottom right, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.98)})`,
@@ -86,9 +86,9 @@ const StyledDialogContent = styled(DialogContent)(({ theme }) => ({
   maxHeight: '70vh',
   overflow: 'hidden',
   '& .ReactCrop': {
-    flex: 1,
+    flex: '1',
     backgroundColor: alpha(theme.palette.background.paper, 0.6),
-    borderRadius: 8,
+    borderRadius: '8px',
     overflow: 'hidden',
     '& .ReactCrop__crop-selection': {
       borderRadius: '50%',
@@ -110,7 +110,7 @@ const CropContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   gap: theme.spacing(2),
-  minWidth: 0,
+  minWidth: '0',
   position: 'relative',
   alignItems: 'center',
   justifyContent: 'center',
@@ -207,14 +207,20 @@ const ZoomControls = styled(Box)(({ theme }) => ({
   },
 }));
 
+const StyledTypography = styled(Typography)(({ theme }) => ({
+  fontFamily: '"Outfit", sans-serif',
+}));
+
 const ProfileSection = () => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.up('sm'));
   const { showSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -225,7 +231,14 @@ const ProfileSection = () => {
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [showCropDialog, setShowCropDialog] = useState(false);
-  const [crop, setCrop] = useState({ unit: 'px', width: 100, height: 100, x: 0, y: 0 });
+  const [crop, setCrop] = useState({ 
+    unit: 'px', 
+    width: 100, 
+    height: 100, 
+    x: 0, 
+    y: 0,
+    aspect: 1 
+  });
   const [tempImage, setTempImage] = useState(null);
   const [imageRef, setImageRef] = useState(null);
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
@@ -477,27 +490,26 @@ const ProfileSection = () => {
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      ...(isDesktop && {
-        overflow: 'hidden',
-        position: 'relative',
-      }),
-      ...(!isDesktop && {
-        overflow: 'auto',
-      })
+      p: { xs: 1.5, sm: 2, md: 3 },
+      fontFamily: '"Outfit", sans-serif',
     }}>
-      <Box sx={{
-        p: { xs: 2, md: 3 },
-        height: '100%',
+      <Box
+        sx={{
+          width: '100%',
+          maxWidth: '1400px',
+          mx: 'auto',
         display: 'flex',
         flexDirection: 'column',
-      }}>
+          height: '100%',
+        }}
+      >
         <Grid 
           container 
-          spacing={3} 
+          spacing={{ xs: 2, sm: 3 }}
           sx={{ 
-            height: isDesktop ? '100%' : 'auto',
-            m: 0,
             width: '100%',
+            m: 0,
+            flexGrow: 1,
           }}
         >
           <Grid 
@@ -505,8 +517,8 @@ const ProfileSection = () => {
             xs={12} 
             md={4} 
             sx={{ 
-              height: isDesktop ? 'calc(100vh - 96px)' : 'auto',
               p: '12px !important',
+              order: { xs: 1, md: 1 },
             }}
           >
             <Card 
@@ -516,9 +528,22 @@ const ProfileSection = () => {
                 display: 'flex', 
                 flexDirection: 'column',
                 borderRadius: 2,
-                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.primary.main, 0.1)} 100%)`,
-                overflow: isDesktop ? 'auto' : 'visible',
+                bgcolor: 'background.paper',
+                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                 position: 'relative',
+                maxWidth: { xs: '100%', md: 'none' },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '100px',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.primary.main, 0.1)} 100%)`,
+                  borderTopLeftRadius: '8px',
+                  borderTopRightRadius: '8px',
+                  zIndex: 0,
+                },
               }}
             >
               <CardContent sx={{ p: 4, textAlign: 'center' }}>
@@ -604,9 +629,9 @@ const ProfileSection = () => {
                   </ImageViewerContent>
                 </StyledImageDialog>
                 
-                <Typography variant="h5" sx={{ mt: 2, mb: 1, fontWeight: 600 }}>
+                <StyledTypography variant="h5" sx={{ mt: 2, mb: 1, fontWeight: 600 }}>
                   {currentUser?.fullName || 'User Name'}
-                </Typography>
+                </StyledTypography>
                 
                 <Chip
                   label={currentUser?.role?.toUpperCase()}
@@ -706,8 +731,8 @@ const ProfileSection = () => {
             xs={12} 
             md={8} 
             sx={{ 
-              height: isDesktop ? 'calc(100vh - 96px)' : 'auto',
               p: '12px !important',
+              order: { xs: 2, md: 2 },
             }}
           >
             <Card 
@@ -717,34 +742,187 @@ const ProfileSection = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 borderRadius: 2,
-                overflow: isDesktop ? 'hidden' : 'visible',
+                bgcolor: 'background.paper',
+                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
               }}
             >
               <Box sx={{ 
-                p: 3, 
+                p: { xs: 2, sm: 3 },
                 borderBottom: 1, 
                 borderColor: 'divider',
                 display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                gap: { xs: 2, sm: 2 },
+                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                backdropFilter: 'blur(8px)',
+              }}>
+                <Box sx={{ 
+                display: 'flex',
                 alignItems: 'center',
                 gap: 2,
-                bgcolor: alpha(theme.palette.primary.main, 0.05),
-              }}>
-                <EditIcon color="primary" />
-                <Typography variant="h5" color="primary" fontWeight={600}>
-                  Edit Profile Information
-                </Typography>
+                  width: { xs: '100%', sm: 'auto' },
+                }}>
+                  <Box
+                    sx={{
+                      width: { xs: 36, sm: 40 },
+                      height: { xs: 36, sm: 40 },
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                      flexShrink: 0,
+                    }}
+                  >
+                    <EditIcon color="primary" sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                  </Box>
+                  <Box sx={{ flex: { xs: 1, sm: 'none' } }}>
+                    <StyledTypography 
+                      variant="h5" 
+                      color="primary" 
+                      fontWeight={600} 
+                      sx={{ 
+                        lineHeight: 1.2,
+                        fontSize: { xs: '1.125rem', sm: '1.25rem' },
+                      }}
+                    >
+                      Profile Information
+                    </StyledTypography>
+                    <StyledTypography 
+                      variant="caption" 
+                      color="text.secondary"
+                      sx={{
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      }}
+                    >
+                      {isEditing ? 'Edit your personal information below' : 'View your personal information'}
+                    </StyledTypography>
+                  </Box>
+                </Box>
+                <Stack 
+                  direction="row" 
+                  spacing={2}
+                  sx={{ 
+                    width: { xs: '100%', sm: 'auto' },
+                    ml: { xs: 0, sm: 'auto' },
+                  }}
+                >
+                  {isEditing ? (
+                    <>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          handleReset();
+                          setIsEditing(false);
+                        }}
+                        disabled={saving}
+                        startIcon={<CancelIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.3rem', md: '1.5rem' } }} />}
+                        fullWidth={!isDesktop}
+                        size={isDesktop ? 'medium' : 'small'}
+                        sx={{ 
+                          minWidth: { xs: 0, sm: 90, md: 100 },
+                          flex: { xs: 1, sm: 'none' },
+                          borderRadius: '12px',
+                          borderColor: theme => alpha(theme.palette.primary.main, 0.5),
+                          height: { xs: '32px', sm: '36px', md: '40px' },
+                          fontSize: { xs: '0.8125rem', sm: '0.875rem', md: '0.9375rem' },
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            bgcolor: theme => alpha(theme.palette.primary.main, 0.04),
+                          }
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={(e) => {
+                          handleSubmit(e);
+                          setIsEditing(false);
+                        }}
+                        disabled={saving}
+                        startIcon={saving ? 
+                          <CircularProgress size={isDesktop ? 20 : 16} /> : 
+                          <SaveIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.3rem', md: '1.5rem' } }} />
+                        }
+                        fullWidth={!isDesktop}
+                        size={isDesktop ? 'medium' : 'small'}
+                        sx={{ 
+                          minWidth: { xs: 0, sm: 120, md: 140 },
+                          flex: { xs: 1, sm: 'none' },
+                          borderRadius: '12px',
+                          height: { xs: '32px', sm: '36px', md: '40px' },
+                          fontSize: { xs: '0.8125rem', sm: '0.875rem', md: '0.9375rem' },
+                          background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          '&:hover': {
+                            background: theme => `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                          }
+                        }}
+                      >
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="contained"
+                      startIcon={<EditIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.3rem', md: '1.5rem' } }} />}
+                      onClick={() => setIsEditing(true)}
+                      fullWidth={!isDesktop}
+                      size={isDesktop ? 'medium' : 'small'}
+                      sx={{ 
+                        minWidth: { xs: 0, sm: 110, md: 120 },
+                        flex: { xs: 1, sm: 'none' },
+                        borderRadius: '12px',
+                        height: { xs: '32px', sm: '36px', md: '40px' },
+                        fontSize: { xs: '0.8125rem', sm: '0.875rem', md: '0.9375rem' },
+                        background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        '&:hover': {
+                          background: theme => `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                        }
+                      }}
+                    >
+                      Edit Profile
+                    </Button>
+                  )}
+                </Stack>
               </Box>
 
               <Box sx={{ 
-                p: 4,
+                p: { xs: 2, sm: 3 },
                 flexGrow: 1,
-                overflow: isDesktop ? 'auto' : 'visible',
+                display: 'flex',
+                flexDirection: 'column',
               }}>
-                <form onSubmit={handleSubmit}>
-                  <Stack spacing={4}>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
+                <form onSubmit={handleSubmit} style={{ height: '100%' }}>
+                  <Stack spacing={{ xs: 3, sm: 4 }}>
+                    {/* Basic Information Section */}
+                    <Box>
+                      <StyledTypography 
+                        variant="subtitle2" 
+                        color="text.secondary"
+                        sx={{ 
+                          mb: { xs: 2, sm: 3 },
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                          '&::before': {
+                            content: '""',
+                            width: 4,
+                            height: 4,
+                            borderRadius: '50%',
+                            bgcolor: 'primary.main',
+                          }
+                        }}
+                      >
+                        Basic Information
+                      </StyledTypography>
+                      <Stack spacing={{ xs: 2, sm: 3 }}>
                         <TextField
+                          size="small"
                           fullWidth
                           label="Username"
                           value={formData.username}
@@ -752,18 +930,25 @@ const ProfileSection = () => {
                           disabled
                           InputProps={{
                             startAdornment: (
-                              <PersonIcon color="action" sx={{ mr: 1 }} />
+                              <PersonIcon color="action" sx={{ mr: 1, fontSize: { xs: 18, sm: 20 } }} />
                             ),
                           }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              borderRadius: 2,
+                              borderRadius: '12px',
+                              bgcolor: theme => alpha(theme.palette.action.hover, 0.04),
+                              height: { xs: '42px', sm: '48px' },
+                            },
+                            '& .MuiInputLabel-root': {
+                              fontSize: { xs: '0.875rem', sm: '1rem' },
+                            },
+                            '& .MuiOutlinedInput-input': {
+                              fontSize: { xs: '0.875rem', sm: '1rem' },
                             },
                           }}
                         />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
                         <TextField
+                          size="small"
                           fullWidth
                           label="Role"
                           value={formData.role}
@@ -775,18 +960,46 @@ const ProfileSection = () => {
                           }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              borderRadius: 2,
+                              borderRadius: '12px',
+                              bgcolor: theme => alpha(theme.palette.action.hover, 0.04),
+                              height: '48px',
                             },
                           }}
                         />
-                      </Grid>
-                      <Grid item xs={12}>
+                      </Stack>
+                    </Box>
+
+                    {/* Contact Information Section */}
+                    <Box>
+                      <StyledTypography 
+                        variant="subtitle2" 
+                        color="text.secondary"
+                        sx={{ 
+                          mb: { xs: 2, sm: 3 },
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                          '&::before': {
+                            content: '""',
+                            width: 4,
+                            height: 4,
+                            borderRadius: '50%',
+                            bgcolor: 'primary.main',
+                          }
+                        }}
+                      >
+                        Contact Information
+                      </StyledTypography>
+                      <Stack spacing={{ xs: 2, sm: 3 }}>
                         <TextField
+                          size="small"
                           fullWidth
                           label="Email"
                           value={formData.email}
                           onChange={handleChange('email')}
                           type="email"
+                          disabled={!isEditing}
                           InputProps={{
                             startAdornment: (
                               <EmailIcon color="action" sx={{ mr: 1 }} />
@@ -794,35 +1007,26 @@ const ProfileSection = () => {
                           }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              borderRadius: 2,
+                              borderRadius: '12px',
+                              bgcolor: theme => isEditing ? 'transparent' : alpha(theme.palette.action.hover, 0.04),
+                              transition: 'all 0.2s',
+                              height: '48px',
+                              '&:hover': {
+                                bgcolor: theme => isEditing ? alpha(theme.palette.action.hover, 0.04) : null,
+                              },
+                              '&.Mui-focused': {
+                                bgcolor: 'transparent',
+                              }
                             },
                           }}
                         />
-                      </Grid>
-                      <Grid item xs={12}>
                         <TextField
-                          fullWidth
-                          label="Full Name"
-                          value={formData.fullName}
-                          onChange={handleChange('fullName')}
-                          InputProps={{
-                            startAdornment: (
-                              <AccountCircleIcon color="action" sx={{ mr: 1 }} />
-                            ),
-                          }}
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 2,
-                            },
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <TextField
+                          size="small"
                           fullWidth
                           label="Phone Number"
                           value={formData.phoneNumber}
                           onChange={handleChange('phoneNumber')}
+                          disabled={!isEditing}
                           InputProps={{
                             startAdornment: (
                               <PhoneIcon color="action" sx={{ mr: 1 }} />
@@ -830,50 +1034,50 @@ const ProfileSection = () => {
                           }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              borderRadius: 2,
+                              borderRadius: '12px',
+                              bgcolor: theme => isEditing ? 'transparent' : alpha(theme.palette.action.hover, 0.04),
+                              transition: 'all 0.2s',
+                              height: '48px',
+                              '&:hover': {
+                                bgcolor: theme => isEditing ? alpha(theme.palette.action.hover, 0.04) : null,
+                              },
+                              '&.Mui-focused': {
+                                bgcolor: 'transparent',
+                              }
                             },
                           }}
                         />
-                      </Grid>
-                    </Grid>
+                        <TextField
+                          size="small"
+                          fullWidth
+                          label="Full Name"
+                          value={formData.fullName}
+                          onChange={handleChange('fullName')}
+                          disabled={!isEditing}
+                          InputProps={{
+                            startAdornment: (
+                              <AccountCircleIcon color="action" sx={{ mr: 1 }} />
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '12px',
+                              bgcolor: theme => isEditing ? 'transparent' : alpha(theme.palette.action.hover, 0.04),
+                              transition: 'all 0.2s',
+                              height: '48px',
+                              '&:hover': {
+                                bgcolor: theme => isEditing ? alpha(theme.palette.action.hover, 0.04) : null,
+                              },
+                              '&.Mui-focused': {
+                                bgcolor: 'transparent',
+                              }
+                            },
+                          }}
+                        />
+                      </Stack>
+                    </Box>
                   </Stack>
                 </form>
-              </Box>
-
-              <Box sx={{ 
-                p: 3,
-                borderTop: 1,
-                borderColor: 'divider',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 2,
-                bgcolor: 'background.paper',
-              }}>
-                <Button
-                  variant="outlined"
-                  onClick={handleReset}
-                  disabled={saving}
-                  startIcon={<CancelIcon />}
-                  sx={{ 
-                    minWidth: 120,
-                    borderRadius: 2,
-                  }}
-                >
-                  Reset
-                </Button>
-                <Button
-                  variant="contained"
-                  type="submit"
-                  disabled={saving}
-                  onClick={handleSubmit}
-                  startIcon={saving ? <CircularProgress size={20} /> : <SaveIcon />}
-                  sx={{ 
-                    minWidth: 120,
-                    borderRadius: 2,
-                  }}
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
               </Box>
             </Card>
           </Grid>

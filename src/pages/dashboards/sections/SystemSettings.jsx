@@ -44,6 +44,7 @@ import {
 import { motion } from 'framer-motion';
 import * as userService from '../../../services/userService';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
+import StyledTypography from '../../../components/common/StyledTypography';
 
 const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColorSchemeChange, onBorderRadiusChange }) => {
   const { showSnackbar } = useSnackbar();
