@@ -111,10 +111,7 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
 
   const handleMobileMenuItemClick = (path) => {
     navigate(path);
-    if (!(activeSection === 'properties' && path.includes('property-analytics')) && 
-        !(activeSection === 'analytics' && path.includes('property-management'))) {
-      handleMobileMenuClose();
-    }
+    handleMobileMenuClose();
   };
 
   const activeSectionTitles = {
@@ -607,56 +604,56 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
               <ListItemButton
                 key={item.section}
                 selected={activeSection === item.section}
-                onClick={() => {
-                  navigate(item.path);
-                  if (!isMobile && !drawerOpen && !(activeSection === 'properties' && item.section === 'analytics') && !(activeSection === 'analytics' && item.section === 'properties')) {
-                    setDrawerOpen(false);
-                  }
-                }}
-                sx={{
-                  minHeight: 48,
-                  px: 2.5,
-                  borderRadius: '8px',
-                  mb: 0.5,
-                  justifyContent: drawerOpen ? 'initial' : 'center',
-                  '&.Mui-selected': {
-                    bgcolor: `${theme.palette.primary.main}15`,
-                  },
-                }}
-              >
-                <ListItemIcon sx={{
-                  minWidth: 0,
-                  mr: drawerOpen ? 2 : 'auto',
-                  justifyContent: 'center',
-                  color: activeSection === item.section ? 'primary.main' : 'text.secondary',
-                  transition: theme => theme.transitions.create(['color', 'transform'], {
-                    duration: '0.2s'
-                  }),
-                  fontSize: '1.2rem',
-                }}>
-                  {item.icon}
-                </ListItemIcon>
-                {drawerOpen && (
-                  <ListItemText 
-                    primary={item.label}
-                    sx={{
-                      opacity: drawerOpen ? 1 : 0,
-                      transition: theme => theme.transitions.create(['opacity', 'color'], {
-                        duration: theme.transitions.duration.enteringScreen,
-                      }),
-                    }}
-                    primaryTypographyProps={{
-                      fontFamily: "'Outfit', sans-serif",
-                      fontSize: '0.9rem',
-                      fontWeight: activeSection === item.section ? 600 : 500,
-                      color: activeSection === item.section ? 'primary.main' : 'text.primary',
-                      whiteSpace: 'nowrap',
-                      letterSpacing: '0.3px',
-                    }}
-                  />
-                )}
-              </ListItemButton>
-            ))}
+                  onClick={() => {
+                    navigate(item.path);
+                    if (!isMobile && !drawerOpen) {
+                      setDrawerOpen(false);
+                    }
+                  }}
+                  sx={{
+                    minHeight: 48,
+                    px: 2.5,
+                    borderRadius: '8px',
+                    mb: 0.5,
+                    justifyContent: drawerOpen ? 'initial' : 'center',
+                    '&.Mui-selected': {
+                      bgcolor: `${theme.palette.primary.main}15`,
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    minWidth: 0,
+                    mr: drawerOpen ? 2 : 'auto',
+                    justifyContent: 'center',
+                    color: activeSection === item.section ? 'primary.main' : 'text.secondary',
+                    transition: theme => theme.transitions.create(['color', 'transform'], {
+                      duration: '0.2s'
+                    }),
+                    fontSize: '1.2rem',
+                  }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  {drawerOpen && (
+                    <ListItemText 
+                      primary={item.label}
+                      sx={{
+                        opacity: drawerOpen ? 1 : 0,
+                        transition: theme => theme.transitions.create(['opacity', 'color'], {
+                          duration: theme.transitions.duration.enteringScreen,
+                        }),
+                      }}
+                      primaryTypographyProps={{
+                        fontFamily: "'Outfit', sans-serif",
+                        fontSize: '0.9rem',
+                        fontWeight: activeSection === item.section ? 600 : 500,
+                        color: activeSection === item.section ? 'primary.main' : 'text.primary',
+                        whiteSpace: 'nowrap',
+                        letterSpacing: '0.3px',
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              ))}
 
               <Divider sx={{ 
                 borderColor: theme => theme.palette.mode === 'dark' 
