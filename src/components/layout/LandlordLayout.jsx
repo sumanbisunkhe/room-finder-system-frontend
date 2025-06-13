@@ -208,70 +208,63 @@ const LandlordLayout = ({
                     }
                   }}
                 >
-                <ScopeIcon 
-                  className="logo-icon"
-                  sx={{
-                    fontSize: 32,
+                  <ScopeIcon 
+                    className="logo-icon"
+                    sx={{
+                      fontSize: 32,
+                      color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                      animation: 'scope 3s infinite',
+                      transition: 'transform 0.2s ease-in-out',
+                      '@keyframes scope': {
+                        '0%': { transform: 'rotate(0deg) scale(1)' },
+                        '25%': { transform: 'rotate(90deg) scale(1.1)' },
+                        '50%': { transform: 'rotate(180deg) scale(1)' },
+                        '75%': { transform: 'rotate(270deg) scale(1.1)' },
+                        '100%': { transform: 'rotate(360deg) scale(1)' },
+                      }
+                    }}
+                  />
+                  <Typography
+                    variant="h6"
+                    className="logo-text"
+                    sx={{
+                      fontFamily: "'Audiowide', cursive",
+                      fontWeight: 400,
+                      fontSize: '1.3rem',
+                      background: 'linear-gradient(45deg, #ff0000, #cc0000)',
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      letterSpacing: '0.5px',
+                      textAlign: 'center',
+                      transition: 'opacity 0.2s ease-in-out'
+                    }}
+                  >
+                    RoomRadar
+                  </Typography>
+                </Box>
+              </RouterLink>
+              <IconButton
+                onClick={() => setMobileOpen(false)}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  color: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+                  '&:hover': {
                     color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                    animation: 'scope 3s infinite',
-                    transition: 'transform 0.2s ease-in-out',
-                    '@keyframes scope': {
-                      '0%': { transform: 'rotate(0deg) scale(1)' },
-                      '25%': { transform: 'rotate(90deg) scale(1.1)' },
-                      '50%': { transform: 'rotate(180deg) scale(1)' },
-                      '75%': { transform: 'rotate(270deg) scale(1.1)' },
-                      '100%': { transform: 'rotate(360deg) scale(1)' },
-                    }
-                  }}
-                />
-                <Typography
-                  variant="h6"
-                  className="logo-text"
-                  sx={{
-                    fontFamily: "'Audiowide', cursive",
-                    fontWeight: 400,
-                    fontSize: '1.3rem',
-                    background: 'linear-gradient(45deg, #ff0000, #cc0000)',
-                    backgroundClip: 'text',
-                    WebkitBackgroundClip: 'text',
-                    color: 'transparent',
-                    letterSpacing: '0.5px',
-                    textAlign: 'center',
-                    transition: 'opacity 0.2s ease-in-out'
-                  }}
-                >
-                  RoomRadar
-                </Typography>
-              </Box>
-            </RouterLink>
-            <IconButton
-              onClick={() => setMobileOpen(false)}
-              sx={{
-                width: 32,
-                height: 32,
-                color: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
-                '&:hover': {
-                  color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                  background: 'transparent',
-                  transform: 'scale(1.1)',
-                },
-                '&:focus': {
-                  outline: 'none'
-                },
-                transition: 'all 0.2s ease',
-              }}
-            >
-                            <ChevronLeftOutlinedIcon />
-            </IconButton>
+                    background: 'transparent',
+                    transform: 'scale(1.1)',
+                  },
+                  '&:focus': {
+                    outline: 'none'
+                  },
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <ChevronLeftOutlinedIcon />
+              </IconButton>
             </Box>
           </Box>
-
-          <Divider sx={{ 
-            borderColor: theme => theme.palette.mode === 'dark' 
-              ? 'rgba(255,255,255,0.05)' 
-              : 'rgba(0,0,0,0.08)',
-            my: 1 
-          }} />
 
           {/* Mobile Drawer Content */}
           <Box sx={{ 
@@ -280,145 +273,112 @@ const LandlordLayout = ({
             height: 'calc(100% - 64px)',
             overflow: 'hidden'
           }}>
-            <Box sx={{ flexGrow: 1, overflow: 'auto', px: 1.5, py: 2 }}>
-              <List>
-                {menuItems.map((item) => (
-                  <ListItemButton
-                    key={item.section}
-                    onClick={() => handleNavigation(item.path)}
-                    selected={activeSection === item.section}
-                    sx={{
-                      py: 1.5,
-                      minHeight: 48,
-                      px: 2.5,
-                      borderRadius: '8px',
-                      mb: 0.5,
-                      '&.Mui-selected': {
-                        bgcolor: theme => `${theme.palette.primary.main}15`,
-                      },
-                      '&:hover': {
-                        bgcolor: theme => theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.05)'
-                          : 'rgba(0,0,0,0.04)',
-                        '& .MuiListItemIcon-root': {
-                          transform: 'scale(1.1)',
-                        }
+            <List sx={{ 
+              p: 1.5,
+              flex: 1,
+              overflow: 'auto'
+            }}>
+              {menuItems.map((item) => (
+                <ListItemButton
+                  key={item.section}
+                  onClick={() => handleNavigation(item.path)}
+                  selected={activeSection === item.section}
+                  sx={{
+                    py: 1.5,
+                    minHeight: 48,
+                    px: 2.5,
+                    borderRadius: '8px',
+                    mb: 0.5,
+                    '&.Mui-selected': {
+                      bgcolor: theme => `${theme.palette.primary.main}15`,
+                    },
+                    '&:hover': {
+                      bgcolor: theme => theme.palette.mode === 'dark'
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(0,0,0,0.04)',
+                      '& .MuiListItemIcon-root': {
+                        transform: 'scale(1.1)',
                       }
+                    }
+                  }}
+                >
+                  <ListItemIcon 
+                    sx={{ 
+                      minWidth: 0,
+                      mr: 2,
+                      color: activeSection === item.section ? 'primary.main' : 'text.secondary',
+                      transition: theme => theme.transitions.create(['color', 'transform'], {
+                        duration: '0.2s'
+                      }),
+                      fontSize: '1.2rem',
                     }}
                   >
-                    <ListItemIcon 
-                      sx={{ 
-                        minWidth: 0,
-                        mr: 2,
-                        color: activeSection === item.section ? 'primary.main' : 'text.secondary',
-                        transition: theme => theme.transitions.create(['color', 'transform'], {
-                          duration: '0.2s'
-                        }),
-                        fontSize: '1.2rem',
-                      }}
-                    >
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={item.label}
-                      primaryTypographyProps={{
-                        fontFamily: "'Outfit', sans-serif",
-                        fontSize: '0.9rem',
-                        fontWeight: activeSection === item.section ? 600 : 500,
-                        color: activeSection === item.section ? 'primary.main' : 'text.primary',
-                        whiteSpace: 'nowrap',
-                        letterSpacing: '0.3px',
-                      }}
-                    />
-                  </ListItemButton>
-                ))}
-              </List>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '0.9rem',
+                      fontWeight: activeSection === item.section ? 600 : 500,
+                      color: activeSection === item.section ? 'primary.main' : 'text.primary',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.3px',
+                    }}
+                  />
+                </ListItemButton>
+              ))}
+            </List>
 
+            {/* Bottom buttons */}
+            <Box sx={{ p: 1.5 }}>
               <Divider sx={{ 
                 borderColor: theme => theme.palette.mode === 'dark' 
                   ? 'rgba(255,255,255,0.05)' 
                   : 'rgba(0,0,0,0.08)',
-                my: 1 
+                mb: 1.5 
               }} />
-
-              {/* Theme toggle and logout */}
-              <List sx={{ px: 1.5, pb: 2 }}>
-                <ListItemButton
-                  onClick={() => {
-                    if (mode === 'dark') {
-                      onThemeChange('light');
-                    } else if (mode === 'light') {
-                      onThemeChange('system');
-                    } else {
-                      onThemeChange('dark');
+              <ListItemButton
+                onClick={handleLogout}
+                sx={{
+                  py: 1.5,
+                  minHeight: 48,
+                  borderRadius: '8px',
+                  color: 'error.main',
+                  px: 2.5,
+                  transition: theme => theme.transitions.create(['background-color', 'transform', 'box-shadow'], {
+                    duration: '0.2s'
+                  }),
+                  '&:hover': {
+                    transform: 'translateX(4px)',
+                    backgroundColor: theme => alpha(theme.palette.error.main, 0.08),
+                    boxShadow: '0 4px 12px rgba(211, 47, 47, 0.1)',
+                    '& .MuiListItemIcon-root': {
+                      transform: 'scale(1.1)',
                     }
+                  },
+                }}
+              >
+                <ListItemIcon sx={{
+                  minWidth: 0,
+                  mr: 2,
+                  justifyContent: 'center',
+                  color: 'inherit',
+                  transition: 'transform 0.2s',
+                }}>
+                  <LogoutOutlinedIcon />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Logout"
+                  primaryTypographyProps={{
+                    fontFamily: "'Outfit', sans-serif",
+                    fontSize: '0.9rem',
+                    fontWeight: 500,
+                    whiteSpace: 'nowrap',
+                    letterSpacing: '0.3px',
                   }}
-                  sx={{
-                    minHeight: 48,
-                    px: 2.5,
-                    borderRadius: '8px',
-                    mb: 0.5,
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 0,
-                    mr: 2,
-                    transition: theme => theme.transitions.create(['color', 'transform'], {
-                      duration: '0.2s'
-                    }),
-                    fontSize: '1.2rem',
-                  }}>
-                    {mode === 'dark' ? <LightModeIcon /> : mode === 'light' ? <DarkModeIcon /> : <AutoAwesomeIcon />}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={mode === 'dark' ? 'Light Mode' : mode === 'light' ? 'Dark Mode' : 'System Mode'}
-                    primaryTypographyProps={{
-                      fontFamily: "'Outfit', sans-serif",
-                      fontSize: '0.9rem',
-                      fontWeight: 500,
-                      whiteSpace: 'nowrap',
-                      letterSpacing: '0.3px',
-                    }}
-                  />
-                </ListItemButton>
-
-                <ListItemButton
-                  onClick={handleLogout}
-                  sx={{
-                    minHeight: 48,
-                    px: 2.5,
-                    borderRadius: '8px',
-                    mb: 0.5,
-                    color: 'error.main',
-                    '&:hover': {
-                      transform: 'translateX(4px)',
-                      backgroundColor: theme => alpha(theme.palette.error.main, 0.08),
-                      '& .MuiListItemIcon-root': {
-                        transform: 'scale(1.1)',
-                      }
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 0,
-                    mr: 2,
-                    color: 'inherit',
-                    transition: 'transform 0.2s',
-                  }}>
-                    <LogoutOutlinedIcon />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Logout"
-                    primaryTypographyProps={{
-                      fontFamily: "'Outfit', sans-serif",
-                      fontSize: '0.9rem',
-                      fontWeight: 500,
-                      whiteSpace: 'nowrap',
-                      letterSpacing: '0.3px',
-                    }}
-                  />
-                </ListItemButton>
-              </List>
+                />
+              </ListItemButton>
             </Box>
           </Box>
         </Drawer>
@@ -596,13 +556,6 @@ const LandlordLayout = ({
             )}
           </Box>
 
-          <Divider sx={{ 
-            borderColor: theme => theme.palette.mode === 'dark' 
-              ? 'rgba(255,255,255,0.05)' 
-              : 'rgba(0,0,0,0.08)',
-            my: 1 
-          }} />
-
           {/* Drawer Content */}
           <Box sx={{ 
             display: 'flex', 
@@ -665,110 +618,17 @@ const LandlordLayout = ({
                 </ListItemButton>
               ))}
 
-              <Divider sx={{ 
-                borderColor: theme => theme.palette.mode === 'dark' 
-                  ? 'rgba(255,255,255,0.05)' 
-                  : 'rgba(0,0,0,0.08)',
-                my: 1 
-              }} />
-
-              {/* Theme toggle and notifications */}
-              <ListItemButton
-                onClick={() => {
-                  if (mode === 'dark') {
-                    onThemeChange('light');
-                  } else if (mode === 'light') {
-                    onThemeChange('system');
-                  } else {
-                    onThemeChange('dark');
-                  }
-                }}
-                sx={{
-                  minHeight: 48,
-                  px: 2.5,
-                  borderRadius: '8px',
-                  mb: 0.5,
-                  justifyContent: drawerOpen ? 'initial' : 'center',
-                }}
-              >
-                <ListItemIcon sx={{
-                  minWidth: 0,
-                  mr: drawerOpen ? 2 : 'auto',
-                  justifyContent: 'center',
-                  transition: theme => theme.transitions.create(['color', 'transform'], {
-                    duration: '0.2s'
-                  }),
-                  fontSize: '1.2rem',
-                }}>
-                  {mode === 'dark' ? <LightModeIcon /> : mode === 'light' ? <DarkModeIcon /> : <AutoAwesomeIcon />}
-                </ListItemIcon>
-                {drawerOpen && (
-                  <ListItemText 
-                    primary={mode === 'dark' ? 'Light Mode' : mode === 'light' ? 'Dark Mode' : 'System Mode'}
-                    sx={{
-                      opacity: drawerOpen ? 1 : 0,
-                      transition: theme => theme.transitions.create(['opacity'], {
-                        duration: theme.transitions.duration.enteringScreen,
-                      }),
-                    }}
-                    primaryTypographyProps={{
-                      fontFamily: "'Outfit', sans-serif",
-                      fontSize: '0.9rem',
-                      fontWeight: 500,
-                      color: 'text.primary',
-                      whiteSpace: 'nowrap',
-                      letterSpacing: '0.3px',
-                    }}
-                  />
-                )}
-              </ListItemButton>
-
-              <ListItemButton
-                onClick={handleNotificationsOpen}
-                sx={{
-                  minHeight: 48,
-                  px: 2.5,
-                  borderRadius: '8px',
-                  mb: 0.5,
-                  justifyContent: drawerOpen ? 'initial' : 'center',
-                }}
-              >
-                <ListItemIcon sx={{
-                  minWidth: 0,
-                  mr: drawerOpen ? 2 : 'auto',
-                  justifyContent: 'center',
-                  transition: theme => theme.transitions.create(['color', 'transform'], {
-                    duration: '0.2s'
-                  }),
-                  fontSize: '1.2rem',
-                }}>
-                  <Badge badgeContent={4} color="error">
-                    <NotificationsOutlinedIcon />
-                  </Badge>
-                </ListItemIcon>
-                {drawerOpen && (
-                  <ListItemText 
-                    primary="Notifications"
-                    sx={{
-                      opacity: drawerOpen ? 1 : 0,
-                      transition: theme => theme.transitions.create(['opacity'], {
-                        duration: theme.transitions.duration.enteringScreen,
-                      }),
-                    }}
-                    primaryTypographyProps={{
-                      fontFamily: "'Outfit', sans-serif",
-                      fontSize: '0.9rem',
-                      fontWeight: 500,
-                      whiteSpace: 'nowrap',
-                      letterSpacing: '0.3px',
-                }}
-                  />
-                )}
-              </ListItemButton>
+              {/* Removing divider from here */}
             </List>
 
             {/* Bottom buttons */}
             <Box sx={{ p: 1.5 }}>
+              <Divider sx={{ 
+                borderColor: theme => theme.palette.mode === 'dark' 
+                  ? 'rgba(255,255,255,0.05)' 
+                  : 'rgba(0,0,0,0.08)',
+                mb: 1.5 
+              }} />
               <ListItemButton
                 onClick={handleLogout}
                 sx={{
@@ -851,7 +711,11 @@ const LandlordLayout = ({
             position="static" 
             color="inherit" 
             elevation={0}
-            sx={{ borderBottom: 1, borderColor: 'divider' }}
+            sx={{ 
+              borderBottom: 1, 
+              borderColor: 'divider',
+              borderRadius: 0
+            }}
           >
             <Toolbar sx={{ position: 'relative' }}>
               <IconButton
@@ -886,33 +750,21 @@ const LandlordLayout = ({
                 {activeSectionTitles[activeSection]}
               </Typography>
               <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconButton
+                <IconButton
                   onClick={() => {
                     if (mode === 'dark') {
                       onThemeChange('light');
-                    } else if (mode === 'light') {
-                      onThemeChange('system');
                     } else {
                       onThemeChange('dark');
                     }
                   }}
-                disableRipple
-                    sx={{
-                    width: 40,
-                    height: 40,
-                    color: theme => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
-                    '&:hover': {
-                      color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
-                      background: 'transparent'
-                    },
-                    '&:focus': {
-                      outline: 'none'
-                    }
+                  sx={{
+                    color: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
                   }}
                 >
-                  {mode === 'dark' ? <DarkModeIcon /> : mode === 'light' ? <LightModeIcon /> : <AutoAwesomeIcon />}
+                  {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
                 </IconButton>
-                </Box>
+              </Box>
             </Toolbar>
           </AppBar>
 
@@ -989,8 +841,6 @@ const LandlordLayout = ({
                   onClick={() => {
                     if (mode === 'dark') {
                       onThemeChange('light');
-                    } else if (mode === 'light') {
-                      onThemeChange('system');
                     } else {
                       onThemeChange('dark');
                     }
@@ -1004,10 +854,10 @@ const LandlordLayout = ({
                   }}
                 >
                   <ListItemIcon>
-                    {mode === 'dark' ? <LightModeIcon /> : mode === 'light' ? <DarkModeIcon /> : <AutoAwesomeIcon />}
+                    {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
                   </ListItemIcon>
               <ListItemText 
-                primary={mode === 'dark' ? 'Light Mode' : mode === 'light' ? 'Dark Mode' : 'System Mode'}
+                primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
                 primaryTypographyProps={{
                   fontFamily: "'Outfit', sans-serif",
                   fontSize: '0.9rem',
