@@ -550,7 +550,6 @@ const ProfileSection = () => {
                 <Box sx={{ position: 'relative', display: 'inline-block' }}>
                   <Avatar
                     src={avatarPreview || '/images/admin.png'}
-                    onClick={handleAvatarClick}
                     sx={{
                       width: 120,
                       height: 120,
@@ -558,11 +557,6 @@ const ProfileSection = () => {
                       border: `4px solid ${theme.palette.background.paper}`,
                       boxShadow: theme.shadows[3],
                       bgcolor: theme.palette.primary.main,
-                      cursor: 'pointer',
-                      transition: 'transform 0.2s',
-                      '&:hover': {
-                        transform: 'scale(1.05)',
-                      },
                       '& img': {
                         objectFit: 'cover',
                         width: '100%',

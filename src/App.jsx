@@ -26,7 +26,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
       case "SEEKER":
         return <Navigate to="/dashboard/seeker" replace />;
       case "LANDLORD":
-        return <Navigate to="/dashboard/landlord" replace />;
+        return <Navigate to="/landlord/dashboard" replace />;
       case "ADMIN":
         return <Navigate to="/dashboard/admin" replace />;
       default:
@@ -65,14 +65,14 @@ const App = () => {
 
           {/* Landlord Dashboard Routes */}
           <Route
-            path="/dashboard/landlord"
+            path="/landlord/dashboard"
             element={
               <ProtectedRoute requiredRole="LANDLORD">
                 <LandlordDashboard />
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="properties" replace />} />
+            <Route index element={<Navigate to="property-management" replace />} />
             <Route path="property-management" element={<LandlordDashboard />} />
             <Route path="property-bookings" element={<LandlordDashboard />} />
             <Route path="add-property" element={<LandlordDashboard />} />

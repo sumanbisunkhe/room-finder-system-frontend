@@ -27,6 +27,8 @@ import {
   DialogContent,
   DialogActions,
   TablePagination,
+  Pagination,
+  PaginationItem,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,6 +42,7 @@ import {
 import { styled } from '@mui/material/styles';
 import PropertyModal from '../../components/modals/PropertyModal';
 import ImageModal from '../../components/modals/ImageModal';
+import PropertyDetails from '../../components/property/PropertyDetails';
 import * as roomService from '../../services/roomService';
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
@@ -114,8 +117,12 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
     minSize: '',
     availability: 'all',
   });
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [pagination, setPagination] = useState({
+    currentPage: 0,
+    pageSize: 5,
+    totalElements: 0,
+    totalPages: 0
+  });
 
   const fetchProperties = async () => {
     try {
@@ -174,8 +181,10 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
   const handleCreateProperty = async () => {
     try {
       setLoading(true);
-      await roomService.createRoom(propertyForm, currentUser.id);
-      await fetchProperties();
+      const newProperty = await roomService.createRoom(propertyForm, currentUser.id);
+      // Update local state immediately
+      setProperties(prevProperties => [...prevProperties, newProperty]);
+      setFilteredProperties(prevFiltered => [...prevFiltered, newProperty]);
       setSnackbar({
         open: true,
         message: 'Property created successfully',
@@ -214,15 +223,27 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
   const handleUpdateProperty = async () => {
     try {
       setLoading(true);
-      await roomService.updateRoom(selectedProperty.id, propertyForm, currentUser.id);
-      await fetchProperties();
+      const updatedProperty = await roomService.updateRoom(selectedProperty.id, propertyForm, currentUser.id);
+      // Update local state immediately
+      setProperties(prevProperties => 
+        prevProperties.map(prop => 
+          prop.id === updatedProperty.id ? updatedProperty : prop
+        )
+      );
+      setFilteredProperties(prevFiltered => 
+        prevFiltered.map(prop => 
+          prop.id === updatedProperty.id ? updatedProperty : prop
+        )
+      );
+      if (selectedProperty) {
+        setSelectedProperty(updatedProperty);
+      }
       setSnackbar({
         open: true,
         message: 'Property updated successfully',
         severity: 'success',
       });
       setIsPropertyModalOpen(false);
-      setSelectedProperty(null);
       setPropertyForm({
         title: '',
         description: '',
@@ -267,22 +288,46 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
       setLoading(true);
       if (confirmDialog.action === 'delete') {
         await roomService.deleteRoom(confirmDialog.propertyId, currentUser.id);
+        // Update local state immediately
+        setProperties(prevProperties => 
+          prevProperties.filter(prop => prop.id !== confirmDialog.propertyId)
+        );
+        setFilteredProperties(prevFiltered => 
+          prevFiltered.filter(prop => prop.id !== confirmDialog.propertyId)
+        );
+        if (selectedProperty?.id === confirmDialog.propertyId) {
+          setSelectedProperty(null);
+        }
         setSnackbar({
           open: true,
           message: 'Property deleted successfully',
           severity: 'success',
         });
       } else {
-        await roomService.toggleAvailability(confirmDialog.propertyId, currentUser.id);
-      setSnackbar({
-        open: true,
+        const updatedProperty = await roomService.toggleAvailability(confirmDialog.propertyId, currentUser.id);
+        // Update local state immediately
+        const updatePropertyInState = (properties) =>
+          properties.map(prop =>
+            prop.id === confirmDialog.propertyId
+              ? { ...prop, available: !prop.available }
+              : prop
+          );
+        
+        setProperties(updatePropertyInState);
+        setFilteredProperties(updatePropertyInState);
+        
+        if (selectedProperty?.id === confirmDialog.propertyId) {
+          setSelectedProperty(prev => ({ ...prev, available: !prev.available }));
+        }
+        
+        setSnackbar({
+          open: true,
           message: confirmDialog.action === 'deactivate' 
             ? 'Property is now unavailable' 
             : 'Property is now available',
-        severity: 'success',
-      });
+          severity: 'success',
+        });
       }
-      await fetchProperties();
     } catch (error) {
       setSnackbar({
         open: true,
@@ -325,24 +370,48 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
     });
   };
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
+  const handlePageChange = (event, newPage) => {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: newPage - 1
+    }));
   };
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
+  // Update pagination data when filtered properties change
+  useEffect(() => {
+    setPagination(prev => ({
+      ...prev,
+      totalElements: filteredProperties.length,
+      totalPages: Math.ceil(filteredProperties.length / prev.pageSize)
+    }));
+  }, [filteredProperties]);
 
   const paginatedProperties = filteredProperties.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
+    pagination.currentPage * pagination.pageSize,
+    pagination.currentPage * pagination.pageSize + pagination.pageSize
   );
+
+  // Add periodic refresh
+  useEffect(() => {
+    // Initial fetch
+    if (currentUser?.id) {
+      fetchProperties();
+    }
+
+    // Set up periodic refresh every 30 seconds
+    const refreshInterval = setInterval(() => {
+      if (currentUser?.id && !isPropertyModalOpen) {
+        fetchProperties();
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [currentUser, isPropertyModalOpen]);
 
   return (
     <Container 
       maxWidth="xl" 
-          sx={{
+      sx={{
         py: 3,
         height: '100%',
         minHeight: '100vh',
@@ -350,53 +419,159 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
         flexDirection: 'column'
       }}
     >
-      {/* Main scrollable container */}
       <CustomScrollbar
         sx={{
           flex: 1,
-          mb: { xs: 8, md: 7 } // Space for pagination
+          mb: { xs: 8, md: 7 }
         }}
       >
-        {/* Content wrapper */}
-        <Stack spacing={2}>
-          {/* Search and Filters */}
-          <Paper sx={{
-            p: 2,
-            borderRadius: '0px',
-            border: '1px solid',
-            borderColor: 'divider'
-          }}>
-            {/* Mobile View - Stacked Layout */}
-            <Stack 
-              spacing={2} 
-              sx={{ 
-                display: { xs: 'flex', md: 'none' }
-          }}
-        >
-              {/* Search Field - First Row */}
-              <TextField
-                fullWidth
-                placeholder="Search by title, city or address..."
-                variant="outlined"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: 'text.secondary' }} />
-                    </InputAdornment>
-                  ),
-                  sx: { bgcolor: 'background.paper' }
+        <Stack spacing={0}>
+          {!selectedProperty && (
+            <Paper sx={{
+              p: 2,
+              borderRadius: '0px',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}>
+              {/* Mobile View - Stacked Layout */}
+              <Stack 
+                spacing={2} 
+                sx={{ 
+                  display: { xs: 'flex', md: 'none' }
                 }}
-                size="small"
-              />
+              >
+                {/* Search Field - First Row */}
+                <TextField
+                  fullWidth
+                  placeholder="Search by title, city or address..."
+                  variant="outlined"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ color: 'text.secondary' }} />
+                      </InputAdornment>
+                    ),
+                    sx: { bgcolor: 'background.paper' }
+                  }}
+                  size="small"
+                />
 
-              {/* Price and Size Filters - Second Row */}
+                {/* Price and Size Filters - Second Row */}
+                <Stack 
+                  direction="row" 
+                  spacing={1}
+                  sx={{ width: '100%' }}
+                >
+                  <TextField
+                    placeholder="Max Price"
+                    type="number"
+                    variant="outlined"
+                    value={filters.maxPrice}
+                    onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">Rs</InputAdornment>,
+                    }}
+                    size="small"
+                    sx={{ 
+                      flex: 1,
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: 'background.paper'
+                      }
+                    }}
+                  />
+                  <TextField
+                    placeholder="Min Size"
+                    type="number"
+                    variant="outlined"
+                    value={filters.minSize}
+                    onChange={(e) => setFilters({ ...filters, minSize: e.target.value })}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">sq.ft</InputAdornment>,
+                    }}
+                    size="small"
+                    sx={{ 
+                      flex: 1,
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: 'background.paper'
+                      }
+                    }}
+                  />
+                </Stack>
+
+                {/* Status and Add Button - Third Row */}
+                <Stack 
+                  direction="row" 
+                  spacing={1}
+                  sx={{ width: '100%' }}
+                >
+                  <FormControl 
+                    variant="outlined" 
+                    size="small"
+                    sx={{ 
+                      flex: 1,
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: 'background.paper'
+                      }
+                    }}
+                  >
+                    <Select
+                      value={filters.availability}
+                      onChange={(e) => setFilters({ ...filters, availability: e.target.value })}
+                      displayEmpty
+                    >
+                      <MenuItem value="all">All Status</MenuItem>
+                      <MenuItem value="available">Available</MenuItem>
+                      <MenuItem value="unavailable">Occupied</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => setIsPropertyModalOpen(true)}
+                    sx={{
+                      flex: 1,
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                      },
+                      textTransform: 'none',
+                      fontWeight: 600
+                    }}
+                  >
+                    Add Property
+                  </Button>
+                </Stack>
+              </Stack>
+
+              {/* Desktop View - Single Row Layout */}
               <Stack 
                 direction="row" 
-                spacing={1}
-                sx={{ width: '100%' }}
+                spacing={2}
+                alignItems="center"
+                sx={{ 
+                  display: { xs: 'none', md: 'flex' }
+                }}
               >
+                <TextField
+                  placeholder="Search by title, city or address..."
+                  variant="outlined"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ color: 'text.secondary' }} />
+                      </InputAdornment>
+                    ),
+                    sx: { bgcolor: 'background.paper' }
+                  }}
+                  size="small"
+                  sx={{ width: '30%' }}
+                />
+                
                 <TextField
                   placeholder="Max Price"
                   type="number"
@@ -407,13 +582,14 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
                     startAdornment: <InputAdornment position="start">Rs</InputAdornment>,
                   }}
                   size="small"
-                  sx={{ 
-                    flex: 1,
+                  sx={{
+                    width: '15%',
                     '& .MuiOutlinedInput-root': {
                       bgcolor: 'background.paper'
                     }
                   }}
                 />
+                
                 <TextField
                   placeholder="Min Size"
                   type="number"
@@ -424,26 +600,19 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
                     endAdornment: <InputAdornment position="end">sq.ft</InputAdornment>,
                   }}
                   size="small"
-                  sx={{ 
-                    flex: 1,
+                  sx={{
+                    width: '15%',
                     '& .MuiOutlinedInput-root': {
                       bgcolor: 'background.paper'
                     }
                   }}
                 />
-              </Stack>
-
-              {/* Status and Add Button - Third Row */}
-              <Stack 
-                direction="row" 
-                spacing={1}
-                sx={{ width: '100%' }}
-              >
+                
                 <FormControl 
                   variant="outlined" 
                   size="small"
                   sx={{ 
-                    flex: 1,
+                    width: '20%',
                     '& .MuiOutlinedInput-root': {
                       bgcolor: 'background.paper'
                     }
@@ -459,12 +628,13 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
                     <MenuItem value="unavailable">Occupied</MenuItem>
                   </Select>
                 </FormControl>
+
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}
                   onClick={() => setIsPropertyModalOpen(true)}
                   sx={{
-                    flex: 1,
+                    width: '20%',
                     bgcolor: 'primary.main',
                     color: 'primary.contrastText',
                     '&:hover': {
@@ -477,546 +647,532 @@ const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
                   Add Property
                 </Button>
               </Stack>
-            </Stack>
+            </Paper>
+          )}
 
-            {/* Desktop View - Single Row Layout */}
-            <Stack 
-              direction="row" 
-              spacing={2}
-              alignItems="center"
-              sx={{ 
-                display: { xs: 'none', md: 'flex' }
+          {selectedProperty ? (
+            <PropertyDetails
+              property={selectedProperty}
+              onClose={() => setSelectedProperty(null)}
+              onEdit={(property) => {
+                setPropertyForm({
+                  ...property,
+                  images: property.images || [],
+                  status: property.available ? 'available' : 'unavailable'
+                });
+                setIsPropertyModalOpen(true);
               }}
-            >
-              <TextField
-                placeholder="Search by title, city or address..."
-                variant="outlined"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: 'text.secondary' }} />
-                    </InputAdornment>
-                  ),
-                  sx: { bgcolor: 'background.paper' }
-                }}
-                size="small"
-                sx={{ width: '30%' }}
-              />
-              
-              <TextField
-                placeholder="Max Price"
-                type="number"
-                variant="outlined"
-                value={filters.maxPrice}
-                onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">Rs</InputAdornment>,
-                }}
-                size="small"
-                sx={{
-                  width: '15%',
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'background.paper'
-                  }
-                }}
-              />
-              
-              <TextField
-                placeholder="Min Size"
-                type="number"
-                variant="outlined"
-                value={filters.minSize}
-                onChange={(e) => setFilters({ ...filters, minSize: e.target.value })}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">sq.ft</InputAdornment>,
-                }}
-                size="small"
-                sx={{
-                  width: '15%',
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'background.paper'
-                  }
-                }}
-              />
-              
-              <FormControl 
-                variant="outlined" 
-                size="small"
-                sx={{ 
-                  width: '20%',
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'background.paper'
-                  }
-                }}
-              >
-                <Select
-                  value={filters.availability}
-                  onChange={(e) => setFilters({ ...filters, availability: e.target.value })}
-                  displayEmpty
-                >
-                  <MenuItem value="all">All Status</MenuItem>
-                  <MenuItem value="available">Available</MenuItem>
-                  <MenuItem value="unavailable">Occupied</MenuItem>
-                </Select>
-              </FormControl>
-
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setIsPropertyModalOpen(true)}
-                sx={{
-                  width: '20%',
-                  bgcolor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                  },
-                  textTransform: 'none',
-                  fontWeight: 600
-                }}
-              >
-                Add Property
-              </Button>
-            </Stack>
-        </Paper>
-
-          {/* Property List - Desktop */}
-        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-          <Paper sx={{
-            borderRadius: '16px',
-            border: '1px solid',
-            borderColor: 'divider'
-          }}>
-              <CustomScrollbar>
-                <TableContainer>
-              <Table stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell width="25%">Property Info</TableCell>
-                    <TableCell width="12%">Price</TableCell>
-                    <TableCell width="10%">Size</TableCell>
-                    <TableCell width="18%">Amenities</TableCell>
-                    <TableCell width="10%">Status</TableCell>
-                    <TableCell width="15%">Location</TableCell>
-                    <TableCell width="10%">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                      {paginatedProperties.map((property) => (
-                        <StyledTableRow key={property.id}>
-                      <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={1.5}>
-                          <Avatar
-                            variant="rounded"
-                            src={property.images?.[0] ? `${import.meta.env.VITE_API_URL}/uploads/${property.images[0]}` : undefined}
-                            onClick={() => {
-                              setSelectedPropertyImages(property.images);
-                              setIsImageModalOpen(true);
-                            }}
-                              sx={{
-                                width: 56,
-                                height: 56,
-                                bgcolor: 'background.default',
-                              borderRadius: '12px',
-                              cursor: 'pointer',
-                              '&:hover': {
-                                transform: 'scale(1.02)',
-                                transition: 'transform 0.2s ease'
-                              }
+              onStatusChange={handlePropertyAction}
+              theme={theme}
+            />
+          ) : (
+            <>
+              {/* Property List - Desktop */}
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <Paper sx={{
+                  borderRadius: '0px',
+                  borderTop: 0,
+                  border: '1px solid',
+                  borderColor: 'divider'
+                }}>
+                  <CustomScrollbar>
+                    <TableContainer>
+                      <Table stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell width="25%">Property Info</TableCell>
+                            <TableCell width="12%">Price</TableCell>
+                            <TableCell width="10%">Size</TableCell>
+                            <TableCell width="18%">Amenities</TableCell>
+                            <TableCell width="10%">Status</TableCell>
+                            <TableCell width="15%">Location</TableCell>
+                            <TableCell width="10%">Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {paginatedProperties.map((property) => (
+                            <StyledTableRow 
+                              key={property.id}
+                              onClick={() => setSelectedProperty(property)}
+                              sx={{ 
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                }
                               }}
                             >
-                              {!property.images?.length && <HomeIcon />}
-                            </Avatar>
-                          <Box>
-                            <Typography variant="subtitle2" noWrap>
-                              {property.title}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" noWrap>
-                              {property.city}
-                            </Typography>
-                            <br />
-                            <Typography variant="caption" color="text.secondary" noWrap>
-                              Posted on: {new Date(property.postedDate).toLocaleDateString()}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                            <Typography variant="body2">
-                          Rs. {property.price.toLocaleString()}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                            <Typography variant="body2">
-                          {property.size} sq.ft
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                            <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                              {Object.entries(property.amenities || {}).map(([key, value]) => (
-                                value && (
-                              <Chip
-                                    key={key}
-                                    label={key.charAt(0).toUpperCase() + key.slice(1)}
-                                size="small"
-                                sx={{
-                                      height: 24,
-                                      fontSize: '0.75rem',
-                                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                  color: theme.palette.primary.main,
-                                      mb: 0.5
-                                }}
-                              />
-                                )
-                            ))}
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={property.available ? 'Available' : 'Occupied'}
-                          size="small"
-                          sx={{
-                            height: 24,
-                                fontSize: '0.75rem',
-                            fontWeight: 600,
-                                bgcolor: property.available
-                              ? alpha(theme.palette.success.main, 0.1)
-                              : alpha(theme.palette.error.main, 0.1),
-                            color: property.available
-                              ? theme.palette.success.main
-                              : theme.palette.error.main,
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" noWrap>
-                          {property.address}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap>
-                          {property.city}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={0.5}>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setSelectedProperty(property);
-                              setPropertyForm({
-                                ...property,
-                                images: property.images || [],
-                                status: property.available ? 'available' : 'unavailable',
-                              });
-                              setIsPropertyModalOpen(true);
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                                onClick={() => handlePropertyAction(property.id, property.available ? 'deactivate' : 'activate')}
-                          >
-                            {property.available ? (
-                              <BlockIcon fontSize="small" />
-                            ) : (
-                              <CheckCircleIcon fontSize="small" />
-                            )}
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handlePropertyAction(property.id, 'delete')}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Stack>
-                      </TableCell>
-                    </StyledTableRow>
-                  ))}
-                      {paginatedProperties.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
-                            <Stack spacing={1} alignItems="center">
-                              <Typography variant="h6" color="text.secondary">
-                                No properties found
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {searchTerm || filters.maxPrice || filters.minSize || filters.availability !== 'all'
-                                  ? 'Try adjusting your filters'
-                                  : 'Add your first property to get started'}
-                              </Typography>
-                            </Stack>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            </CustomScrollbar>
-          </Paper>
-        </Box>
+                              <TableCell>
+                                <Stack direction="row" alignItems="center" spacing={1.5}>
+                                  <Avatar
+                                    variant="rounded"
+                                    src={property.images?.[0] ? `${import.meta.env.VITE_API_URL}/uploads/${property.images[0]}` : undefined}
+                                    sx={{
+                                      width: 56,
+                                      height: 56,
+                                      bgcolor: 'background.default',
+                                      borderRadius: '12px',
+                                    }}
+                                  >
+                                    {!property.images?.length && <HomeIcon />}
+                                  </Avatar>
+                                  <Box>
+                                    <Typography variant="subtitle2" noWrap>
+                                      {property.title}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" noWrap>
+                                      {property.city}
+                                    </Typography>
+                                    <br />
+                                    <Typography variant="caption" color="text.secondary" noWrap>
+                                      Posted on: {new Date(property.postedDate).toLocaleDateString()}
+                                    </Typography>
+                                  </Box>
+                                </Stack>
+                              </TableCell>
+                              <TableCell>
+                                    <Typography variant="body2">
+                                  Rs. {property.price.toLocaleString()}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                    <Typography variant="body2">
+                                  {property.size} sq.ft
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Stack spacing={0.75}>
+                                  <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                                    {Object.entries(property.amenities || {})
+                                      .filter(([_, value]) => value)
+                                      .slice(0, 3)
+                                      .map(([key, _]) => (
+                                        <Chip
+                                          key={key}
+                                          label={key.charAt(0).toUpperCase() + key.slice(1)}
+                                          size="small"
+                                          sx={{
+                                            height: 20,
+                                            fontSize: '0.7rem',
+                                            bgcolor: alpha(theme.palette.primary.main, 0.08),
+                                            color: theme.palette.primary.main,
+                                            fontWeight: 500,
+                                            '& .MuiChip-label': {
+                                              px: 1
+                                            }
+                                          }}
+                                        />
+                                    ))}
+                                  </Stack>
+                                  {Object.entries(property.amenities || {}).filter(([_, value]) => value).length > 3 && (
+                                    <Typography 
+                                      variant="caption" 
+                                      color="text.secondary"
+                                      sx={{ 
+                                        fontSize: '0.7rem',
+                                        fontStyle: 'italic'
+                                      }}
+                                    >
+                                      +{Object.entries(property.amenities || {}).filter(([_, value]) => value).length - 3} more
+                                    </Typography>
+                                  )}
+                                </Stack>
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={property.available ? 'Available' : 'Occupied'}
+                                  size="small"
+                                  sx={{
+                                    height: 24,
+                                        fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                        bgcolor: property.available
+                                      ? alpha(theme.palette.success.main, 0.1)
+                                      : alpha(theme.palette.error.main, 0.1),
+                                    color: property.available
+                                      ? theme.palette.success.main
+                                      : theme.palette.error.main,
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" noWrap>
+                                  {property.address}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" noWrap>
+                                  {property.city}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Stack direction="row" spacing={0.5}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedProperty(property);
+                                      setPropertyForm({
+                                        ...property,
+                                        images: property.images || [],
+                                        status: property.available ? 'available' : 'unavailable'
+                                      });
+                                      setIsPropertyModalOpen(true);
+                                    }}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handlePropertyAction(property.id, property.available ? 'deactivate' : 'activate');
+                                        }}
+                                  >
+                                    {property.available ? (
+                                      <BlockIcon fontSize="small" />
+                                    ) : (
+                                      <CheckCircleIcon fontSize="small" />
+                                    )}
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePropertyAction(property.id, 'delete');
+                                    }}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Stack>
+                              </TableCell>
+                            </StyledTableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CustomScrollbar>
+                </Paper>
+              </Box>
 
-        {/* Mobile View */}
-        <Box sx={{ display: { xs: 'block', md: 'none' } }}>
-          <Grid container spacing={2}>
-              {paginatedProperties.map((property) => (
-                <Grid item xs={12} sm={6} key={property.id}>
-                <Paper sx={{
-                    height: '100%',
-                    borderRadius: '0px',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden'
-                }}>
-                  <Box sx={{
-                      height: 200,
-                    bgcolor: 'background.default',
-                    position: 'relative'
-                  }}>
-                    {property.images?.[0] ? (
-                      <img
-                        src={`${import.meta.env.VITE_API_URL}/uploads/${property.images[0]}`}
-                        alt={property.title}
-                        style={{
-                          width: '100%',
-                            height: '100%',
-                          objectFit: 'cover',
-                          cursor: 'pointer'
+              {/* Mobile View */}
+              <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+                <Grid container spacing={2}>
+                  {paginatedProperties.map((property) => (
+                    <Grid item xs={12} sm={6} key={property.id}>
+                      <Paper 
+                        sx={{
+                          height: '100%',
+                          borderRadius: '0px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          overflow: 'hidden',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            boxShadow: theme.shadows[4],
+                            transform: 'translateY(-2px)',
+                            transition: 'all 0.2s ease-in-out'
+                          }
                         }}
-                        onClick={() => {
-                          setSelectedPropertyImages(property.images);
-                          setIsImageModalOpen(true);
-                        }}
-                      />
-                    ) : (
-                      <Box sx={{
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'text.secondary'
-                      }}>
-                        <HomeIcon sx={{ fontSize: 48 }} />
-                      </Box>
-                    )}
-                        <Chip
-                          label={property.available ? 'Available' : 'Occupied'}
-                          size="small"
-                          sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            backgroundColor: property.available
-                            ? alpha(theme.palette.success.main, 0.9)
-                            : alpha(theme.palette.error.main, 0.9),
-                          color: '#fff'
-                        }}
-                      />
-                    </Box>
-
-                    <Box sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                      <Stack spacing={2}>
-                        <Typography variant="subtitle1" fontWeight={600} noWrap>
-                          {property.title}
-                        </Typography>
-
-                        <Stack direction="row" spacing={2} divider={<Divider orientation="vertical" flexItem />}>
-                          <Typography variant="body2" color="primary.main" fontWeight={500}>
-                          Rs. {property.price.toLocaleString()}
-                        </Typography>
-                        <Typography variant="body2">
-                          {property.size} sq.ft
-                        </Typography>
-                      </Stack>
-
-                      <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                          {property.address}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {property.city}
-                        </Typography>
-                      </Box>
-
-                        <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 'auto' }}>
-                          {Object.entries(property.amenities || {}).map(([key, value]) => (
-                            value && (
-                            <Chip
-                                key={key}
-                                label={key.charAt(0).toUpperCase() + key.slice(1)}
-                              size="small"
-                              sx={{
-                                  height: 24,
-                                  fontSize: '0.75rem',
-                                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                color: theme.palette.primary.main,
-                                  mb: 0.5
+                        onClick={() => setSelectedProperty(property)}
+                      >
+                        <Box sx={{
+                            height: 200,
+                            bgcolor: 'background.default',
+                            position: 'relative'
+                        }}>
+                          {property.images?.[0] ? (
+                            <img
+                              src={`${import.meta.env.VITE_API_URL}/uploads/${property.images[0]}`}
+                              alt={property.title}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedProperty(property);
                               }}
                             />
-                            )
-                          ))}
+                          ) : (
+                            <Box 
+                              sx={{
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'text.secondary'
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedProperty(property);
+                              }}
+                            >
+                              <HomeIcon sx={{ fontSize: 48 }} />
+                            </Box>
+                          )}
+                              <Chip
+                                label={property.available ? 'Available' : 'Occupied'}
+                                size="small"
+                                sx={{
+                                position: 'absolute',
+                                top: 8,
+                                right: 8,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  backgroundColor: property.available
+                                  ? alpha(theme.palette.success.main, 0.9)
+                                  : alpha(theme.palette.error.main, 0.9),
+                                color: '#fff'
+                              }}
+                            />
+                          </Box>
+
+                          <Box sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                            <Stack spacing={2}>
+                              <Typography variant="subtitle1" fontWeight={600} noWrap>
+                                {property.title}
+                              </Typography>
+
+                              <Stack direction="row" spacing={2} divider={<Divider orientation="vertical" flexItem />}>
+                                <Typography variant="body2" color="primary.main" fontWeight={500}>
+                                Rs. {property.price.toLocaleString()}
+                              </Typography>
+                              <Typography variant="body2">
+                                {property.size} sq.ft
+                              </Typography>
+                            </Stack>
+
+                            <Box>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                {property.address}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {property.city}
+                              </Typography>
+                            </Box>
+
+                              <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 'auto' }}>
+                                {Object.entries(property.amenities || {}).map(([key, value]) => (
+                                  value && (
+                                  <Chip
+                                      key={key}
+                                      label={key.charAt(0).toUpperCase() + key.slice(1)}
+                                    size="small"
+                                    sx={{
+                                        height: 24,
+                                        fontSize: '0.75rem',
+                                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                      color: theme.palette.primary.main,
+                                        mb: 0.5
+                                    }}
+                                  />
+                                  )
+                                ))}
+                              </Stack>
+                            </Stack>
+
+                            <Divider sx={{ my: 2 }} />
+
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption" color="text.secondary">
+                                Posted: {new Date(property.postedDate).toLocaleDateString()}
+                              </Typography>
+                              <Stack direction="row" spacing={1}>
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedProperty(property);
+                                    setPropertyForm({
+                                      ...property,
+                                      images: property.images || [],
+                                      status: property.available ? 'available' : 'unavailable'
+                                    });
+                                    setIsPropertyModalOpen(true);
+                                  }}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePropertyAction(property.id, property.available ? 'deactivate' : 'activate');
+                                  }}
+                                >
+                                  {property.available ? (
+                                    <BlockIcon fontSize="small" />
+                                  ) : (
+                                    <CheckCircleIcon fontSize="small" />
+                                  )}
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePropertyAction(property.id, 'delete');
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                            </Stack>
+                          </Stack>
+                        </Box>
+                      </Paper>
+                    </Grid>
+                  ))}
+                  {paginatedProperties.length === 0 && (
+                    <Grid item xs={12}>
+                      <Paper sx={{ p: 4, textAlign: 'center' }}>
+                        <Stack spacing={1} alignItems="center">
+                          <Typography variant="h6" color="text.secondary">
+                            No properties found
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {searchTerm || filters.maxPrice || filters.minSize || filters.availability !== 'all'
+                              ? 'Try adjusting your filters'
+                              : 'Add your first property to get started'}
+                          </Typography>
                         </Stack>
-                      </Stack>
-
-                      <Divider sx={{ my: 2 }} />
-
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="caption" color="text.secondary">
-                          Posted: {new Date(property.postedDate).toLocaleDateString()}
-                        </Typography>
-                        <Stack direction="row" spacing={1}>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setSelectedProperty(property);
-                              setPropertyForm({
-                                ...property,
-                                images: property.images || [],
-                                status: property.available ? 'available' : 'unavailable'
-                              });
-                              setIsPropertyModalOpen(true);
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handlePropertyAction(property.id, property.available ? 'deactivate' : 'activate')}
-                          >
-                            {property.available ? (
-                              <BlockIcon fontSize="small" />
-                            ) : (
-                              <CheckCircleIcon fontSize="small" />
-                            )}
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handlePropertyAction(property.id, 'delete')}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                      </Stack>
-                    </Stack>
-                  </Box>
-                </Paper>
-              </Grid>
-            ))}
-              {paginatedProperties.length === 0 && (
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 4, textAlign: 'center' }}>
-                    <Stack spacing={1} alignItems="center">
-                      <Typography variant="h6" color="text.secondary">
-                        No properties found
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {searchTerm || filters.maxPrice || filters.minSize || filters.availability !== 'all'
-                          ? 'Try adjusting your filters'
-                          : 'Add your first property to get started'}
-                      </Typography>
-                    </Stack>
-                  </Paper>
+                      </Paper>
+                    </Grid>
+                  )}
                 </Grid>
-              )}
-          </Grid>
-        </Box>
-      </Stack>
+              </Box>
+            </>
+          )}
+        </Stack>
       </CustomScrollbar>
 
       {/* Fixed Pagination - Both Desktop and Mobile */}
-      <Paper
-        sx={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 1000,
-          borderRadius: 0,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          boxShadow: '0 -4px 8px rgba(0, 0, 0, 0.1)'
-        }}
-      >
-        <Container maxWidth="xl">
+      {!selectedProperty && (
+        <Paper
+          sx={{
+            position: 'fixed',
+            bottom: 0,
+            left: { xs: 0, sm: '240px' },
+            right: 0,
+            zIndex: 1000,
+            borderRadius: 0,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            boxShadow: '0 -4px 8px rgba(0, 0, 0, 0.1)',
+            transition: 'left 0.3s ease'
+          }}
+        >
           <Box sx={{
             py: { xs: 1.5, md: 0.75 },
             px: { xs: 1, sm: 2 },
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            minHeight: { xs: 52, md: 44 }
+            justifyContent: 'center',
+            minHeight: { xs: 52, md: 44 },
+            maxWidth: 'xl',
+            mx: 'auto'
           }}>
-            <Typography 
-              variant="body2" 
-              color="text.secondary"
-              sx={{
-                display: { xs: 'none', sm: 'block' }
+            <Box sx={{ position: 'absolute', right: { xs: 2, sm: 4 } }}>
+              <Typography 
+                variant="body2" 
+                color="text.secondary"
+                sx={{
+                  fontStyle: 'italic',
+                  fontSize: '0.75rem',
+                  py: 0.5,
+                  px: 1,
+                  display: { xs: 'none', md: 'block' }
+                }}
+              >
+                Total {filteredProperties.length} properties
+              </Typography>
+            </Box>
+            <Pagination
+              count={pagination.totalPages}
+              page={pagination.currentPage + 1}
+              onChange={handlePageChange}
+              shape="rounded"
+              renderItem={(item) => {
+                if (item.type === 'previous' || item.type === 'next') {
+                  return (
+                    <PaginationItem
+                      {...item}
+                      sx={{
+                        bgcolor: 'transparent',
+                        border: 'none',
+                        '&:hover': {
+                          bgcolor: 'transparent',
+                        },
+                        '&.Mui-disabled': {
+                          opacity: 0.5,
+                          bgcolor: 'transparent',
+                        },
+                      }}
+                    />
+                  );
+                }
+                return (
+                  <PaginationItem
+                    {...item}
+                    sx={{
+                      mx: 0.5,
+                      border: 'none',
+                      bgcolor: 'transparent',
+                      color: 'text.primary',
+                      '&.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        '&:hover': {
+                          bgcolor: 'primary.main',
+                        },
+                      },
+                      '&:hover': {
+                        bgcolor: 'transparent',
+                      },
+                    }}
+                  />
+                );
               }}
-            >
-              Total {filteredProperties.length} properties
-            </Typography>
-            <TablePagination
-              component="div"
-              count={filteredProperties.length}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25]}
               sx={{
-                ml: { xs: 0, sm: 'auto' },
-                border: 0,
-                '& .MuiTablePagination-select': {
-                  borderRadius: 1,
-                },
-                '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                  color: 'text.secondary',
-                },
-                '& .MuiTablePagination-toolbar': {
-                  minHeight: { xs: 40, md: 36 },
-                  px: { xs: 0, sm: 2 },
-                  '& .MuiTablePagination-displayedRows': {
-                    mb: 0
-                  },
-                  '& .MuiTablePagination-selectLabel': {
-                    mb: 0
-                  }
+                display: 'flex',
+                justifyContent: 'center',
+                py: 1.2,
+                '& .MuiPaginationItem-root': {
+                  mx: 0.5,
+                  minWidth: 32,
+                  height: 32
                 }
               }}
             />
           </Box>
-        </Container>
-      </Paper>
+        </Paper>
+      )}
 
       {/* Modals */}
       <PropertyModal
         open={isPropertyModalOpen}
         onClose={() => {
           setIsPropertyModalOpen(false);
-          setSelectedProperty(null);
-          setPropertyForm({
-            title: '',
-            description: '',
-            price: '',
-            address: '',
-            city: '',
-            size: '',
-            images: [],
-            amenities: {
-              wifi: false,
-              parking: false,
-              ac: false,
-              heating: false,
-              tv: false,
-              kitchen: false
-            },
-            available: true
-          });
+          if (!selectedProperty) {
+            setPropertyForm({
+              title: '',
+              description: '',
+              price: '',
+              address: '',
+              city: '',
+              size: '',
+              images: [],
+              amenities: {
+                wifi: false,
+                parking: false,
+                ac: false,
+                heating: false,
+                tv: false,
+                kitchen: false
+              },
+              available: true
+            });
+          }
         }}
         propertyForm={propertyForm}
         setPropertyForm={setPropertyForm}

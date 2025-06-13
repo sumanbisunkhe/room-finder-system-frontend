@@ -72,7 +72,7 @@ const LoginPage = () => {
           navigate("/dashboard/seeker");
           break;
         case "LANDLORD":
-          navigate("/dashboard/landlord");
+          navigate("/landlord/dashboard");
           break;
         case "ADMIN":
           navigate("/dashboard/admin");

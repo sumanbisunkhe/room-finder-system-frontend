@@ -30,6 +30,9 @@ import {
   ChevronLeft as ChevronLeftOutlinedIcon,
   ChevronRight as ChevronRightOutlinedIcon,
   NotificationsOutlined as NotificationsOutlinedIcon,
+  KeyboardArrowDown as ArrowIcon,
+  GpsFixed as ScopeIcon,
+  ViewSidebar as LeftPanelIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { ThemeProvider, alpha } from '@mui/material/styles';
@@ -38,7 +41,10 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(() => {
+    const savedState = localStorage.getItem('landlordDrawerOpen');
+    return savedState !== null ? JSON.parse(savedState) : true;
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMenuAnchor, setMobileMenuAnchor] = useState(null);
   const [notificationsAnchor, setNotificationsAnchor] = useState(null);
@@ -46,25 +52,25 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
   const menuItems = [
     { 
       section: 'properties',
-      path: '/dashboard/landlord/property-management',
+      path: '/landlord/dashboard/property-management',
       icon: <HomeIcon />, 
-      label: 'Property Management'
+      label: 'Manage Properties'
     },
     { 
       section: 'analytics',
-      path: '/dashboard/landlord/property-analytics',
+      path: '/landlord/dashboard/property-analytics',
       icon: <DashboardIcon />, 
       label: 'Property Analytics'
     },
     { 
       section: 'settings',
-      path: '/dashboard/landlord/system-settings',
+      path: '/landlord/dashboard/system-settings',
       icon: <SettingsIcon />, 
       label: 'System Settings'
     },
     { 
       section: 'profile',
-      path: '/dashboard/landlord/profile-information',
+      path: '/landlord/dashboard/profile-information',
       icon: <AccountCircleIcon />, 
       label: 'Profile Information'
     }
@@ -82,7 +88,9 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
   const activeSection = getActiveSection();
 
   const handleDrawerToggle = () => {
-    setDrawerOpen(!drawerOpen);
+    const newState = !drawerOpen;
+    setDrawerOpen(newState);
+    localStorage.setItem('landlordDrawerOpen', JSON.stringify(newState));
   };
 
   const handleMobileMenuOpen = (event) => {
@@ -103,11 +111,14 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
 
   const handleMobileMenuItemClick = (path) => {
     navigate(path);
-    handleMobileMenuClose();
+    if (!(activeSection === 'properties' && path.includes('property-analytics')) && 
+        !(activeSection === 'analytics' && path.includes('property-management'))) {
+      handleMobileMenuClose();
+    }
   };
 
   const activeSectionTitles = {
-    properties: 'Property Management',
+    properties: 'Manage Properties',
     analytics: 'Property Analytics',
     settings: 'System Settings',
     profile: 'Profile Information',
@@ -117,6 +128,289 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', minHeight: '100vh', m: 0, p: 0, overflow: 'hidden' }}>
+        {/* Mobile Drawer */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile.
+          }}
+          sx={{
+            display: { xs: 'block', lg: 'none' },
+            '& .MuiDrawer-paper': {
+              width: 240,
+              overflow: 'hidden',
+              background: theme => theme.palette.mode === 'dark' 
+                ? 'linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%)'
+                : 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
+              borderRight: theme => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)'}`,
+              borderRadius: 0,
+              transition: theme.transitions.create(['width', 'margin'], {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+            },
+          }}
+        >
+          {/* Logo */}
+          <Box 
+            sx={{
+              p: 2,
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              minHeight: 64,
+              position: 'relative',
+              borderBottom: theme => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)'}`,
+              background: theme => theme.palette.mode === 'dark'
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)'
+                : 'linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,249,250,0.5) 100%)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              borderRadius: 0
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <RouterLink 
+                to="/landlord/dashboard/property-management"
+                style={{ 
+                  textDecoration: 'none',
+                  display: 'block',
+                  flexGrow: 1
+                }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 1,
+                    justifyContent: 'center',
+                    width: '100%',
+                    '&:hover': {
+                      '& .logo-icon': {
+                        transform: 'scale(1.1)',
+                      },
+                      '& .logo-text': {
+                        opacity: 0.8
+                      }
+                    }
+                  }}
+                >
+                <ScopeIcon 
+                  className="logo-icon"
+                  sx={{
+                    fontSize: 32,
+                    color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                    animation: 'scope 3s infinite',
+                    transition: 'transform 0.2s ease-in-out',
+                    '@keyframes scope': {
+                      '0%': { transform: 'rotate(0deg) scale(1)' },
+                      '25%': { transform: 'rotate(90deg) scale(1.1)' },
+                      '50%': { transform: 'rotate(180deg) scale(1)' },
+                      '75%': { transform: 'rotate(270deg) scale(1.1)' },
+                      '100%': { transform: 'rotate(360deg) scale(1)' },
+                    }
+                  }}
+                />
+                <Typography
+                  variant="h6"
+                  className="logo-text"
+                  sx={{
+                    fontFamily: "'Audiowide', cursive",
+                    fontWeight: 400,
+                    fontSize: '1.3rem',
+                    background: 'linear-gradient(45deg, #ff0000, #cc0000)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    color: 'transparent',
+                    letterSpacing: '0.5px',
+                    textAlign: 'center',
+                    transition: 'opacity 0.2s ease-in-out'
+                  }}
+                >
+                  RoomRadar
+                </Typography>
+              </Box>
+            </RouterLink>
+            <IconButton
+              onClick={() => setMobileOpen(false)}
+              sx={{
+                width: 32,
+                height: 32,
+                color: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+                '&:hover': {
+                  color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  background: 'transparent',
+                  transform: 'scale(1.1)',
+                },
+                '&:focus': {
+                  outline: 'none'
+                },
+                transition: 'all 0.2s ease',
+              }}
+            >
+                            <ChevronLeftOutlinedIcon />
+            </IconButton>
+            </Box>
+          </Box>
+
+          <Divider sx={{ 
+            borderColor: theme => theme.palette.mode === 'dark' 
+              ? 'rgba(255,255,255,0.05)' 
+              : 'rgba(0,0,0,0.08)',
+            my: 1 
+          }} />
+
+          {/* Mobile Drawer Content */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            height: 'calc(100% - 64px)',
+            overflow: 'hidden'
+          }}>
+            <Box sx={{ flexGrow: 1, overflow: 'auto', px: 1.5, py: 2 }}>
+              <List>
+                {menuItems.map((item) => (
+                  <ListItemButton
+                    key={item.section}
+                    onClick={() => {
+                      navigate(item.path);
+                      setMobileOpen(false);
+                      if (!isMobile) {
+                        handleDrawerToggle();
+                      }
+                    }}
+                    selected={activeSection === item.section}
+                    sx={{
+                      py: 1.5,
+                      minHeight: 48,
+                      px: 2.5,
+                      borderRadius: '8px',
+                      mb: 0.5,
+                      '&.Mui-selected': {
+                        bgcolor: theme => `${theme.palette.primary.main}15`,
+                      },
+                      '&:hover': {
+                        bgcolor: theme => theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(0,0,0,0.04)',
+                        '& .MuiListItemIcon-root': {
+                          transform: 'scale(1.1)',
+                        }
+                      }
+                    }}
+                  >
+                    <ListItemIcon 
+                      sx={{ 
+                        minWidth: 0,
+                        mr: 2,
+                        color: activeSection === item.section ? 'primary.main' : 'text.secondary',
+                        transition: theme => theme.transitions.create(['color', 'transform'], {
+                          duration: '0.2s'
+                        }),
+                        fontSize: '1.2rem',
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={item.label}
+                      primaryTypographyProps={{
+                        fontFamily: "'Outfit', sans-serif",
+                        fontSize: '0.9rem',
+                        fontWeight: activeSection === item.section ? 600 : 500,
+                        color: activeSection === item.section ? 'primary.main' : 'text.primary',
+                        whiteSpace: 'nowrap',
+                        letterSpacing: '0.3px',
+                      }}
+                    />
+                  </ListItemButton>
+                ))}
+              </List>
+
+              <Divider sx={{ 
+                borderColor: theme => theme.palette.mode === 'dark' 
+                  ? 'rgba(255,255,255,0.05)' 
+                  : 'rgba(0,0,0,0.08)',
+                my: 1 
+              }} />
+
+              {/* Theme toggle and logout */}
+              <List sx={{ px: 1.5, pb: 2 }}>
+                <ListItemButton
+                  onClick={toggleColorMode}
+                  sx={{
+                    minHeight: 48,
+                    px: 2.5,
+                    borderRadius: '8px',
+                    mb: 0.5,
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    minWidth: 0,
+                    mr: 2,
+                    transition: theme => theme.transitions.create(['color', 'transform'], {
+                      duration: '0.2s'
+                    }),
+                    fontSize: '1.2rem',
+                  }}>
+                    {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    primaryTypographyProps={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.3px',
+                    }}
+                  />
+                </ListItemButton>
+
+                <ListItemButton
+                  onClick={handleLogout}
+                  sx={{
+                    minHeight: 48,
+                    px: 2.5,
+                    borderRadius: '8px',
+                    mb: 0.5,
+                    color: 'error.main',
+                    '&:hover': {
+                      transform: 'translateX(4px)',
+                      backgroundColor: theme => alpha(theme.palette.error.main, 0.08),
+                      '& .MuiListItemIcon-root': {
+                        transform: 'scale(1.1)',
+                      }
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    minWidth: 0,
+                    mr: 2,
+                    color: 'inherit',
+                    transition: 'transform 0.2s',
+                  }}>
+                    <LogoutOutlinedIcon />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="Logout"
+                    primaryTypographyProps={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.3px',
+                    }}
+                  />
+                </ListItemButton>
+              </List>
+            </Box>
+          </Box>
+        </Drawer>
+
         {/* Desktop Drawer - Hide on mobile/tablet */}
         <Drawer
           variant="permanent"
@@ -124,47 +418,178 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
           sx={{
             display: { xs: 'none', lg: 'block' },
             '& .MuiDrawer-paper': {
-              width: drawerOpen ? 280 : 72,
+              width: drawerOpen ? 240 : 65,
               overflow: 'hidden',
               transition: theme.transitions.create(['width', 'margin'], {
                 easing: theme.transitions.easing.sharp,
                 duration: theme.transitions.duration.enteringScreen,
               }),
-              bgcolor: 'background.paper',
-              borderRight: (theme) => `1px solid ${theme.palette.divider}`,
+              background: theme => theme.palette.mode === 'dark' 
+                ? 'linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%)'
+                : 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
+              borderRight: theme => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)'}`,
               borderRadius: 0,
             },
           }}
         >
           {/* Logo */}
-          <Box sx={{
+          <Box 
+            sx={{
+              p: 2,
             display: 'flex', 
             alignItems: 'center', 
-            justifyContent: 'center',
-            p: 2,
-            minHeight: 64
-          }}>
-            <RouterLink to="/dashboard/landlord/property-management" style={{ textDecoration: 'none' }}>
-              <Box sx={{ 
+              justifyContent: 'space-between',
+              minHeight: 64,
+              position: 'relative',
+              borderBottom: theme => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)'}`,
+              background: theme => theme.palette.mode === 'dark'
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)'
+                : 'linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,249,250,0.5) 100%)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              borderRadius: 0
+            }}
+          >
+            <RouterLink 
+              to="/landlord/dashboard/property-management"
+              style={{ 
+                textDecoration: 'none',
+                display: 'block',
+                width: '100%'
+              }}
+            >
+              <Box
+                sx={{
                 display: 'flex', 
+                  flexDirection: 'column',
                 alignItems: 'center',
+                  gap: 1,
+                  justifyContent: 'center',
                 width: '100%',
-                justifyContent: 'center'
-              }}>
-              <img
-                src="/src/assets/RR.png"
-                alt="RoomRadar Logo"
-                style={{
-                    maxWidth: drawerOpen ? '150px' : '40px',
-                    height: 'auto',
-                    transition: 'all 0.3s ease'
+                  '&:hover': {
+                    '& .logo-icon': {
+                      transform: 'scale(1.1)',
+                    },
+                    '& .logo-text': {
+                      opacity: 0.8
+                    }
+                  }
                 }}
-              />
+              >
+                <ScopeIcon 
+                  className="logo-icon"
+                  sx={{
+                    fontSize: 32,
+                    color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                    animation: 'scope 3s infinite',
+                    transition: 'transform 0.2s ease-in-out',
+                    '@keyframes scope': {
+                      '0%': { transform: 'rotate(0deg) scale(1)' },
+                      '25%': { transform: 'rotate(90deg) scale(1.1)' },
+                      '50%': { transform: 'rotate(180deg) scale(1)' },
+                      '75%': { transform: 'rotate(270deg) scale(1.1)' },
+                      '100%': { transform: 'rotate(360deg) scale(1)' },
+                    },
+                  }}
+                />
+                {drawerOpen && (
+                  <Typography
+                    variant="h6"
+                    className="logo-text"
+                    sx={{
+                      fontFamily: "'Audiowide', cursive",
+                      fontWeight: 400,
+                      fontSize: '1.3rem',
+                      background: 'linear-gradient(45deg, #ff0000, #cc0000)',
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      letterSpacing: '0.5px',
+                      textAlign: 'center',
+                      transition: 'opacity 0.2s ease-in-out'
+                }}
+                  >
+                    RoomRadar
+                  </Typography>
+                )}
               </Box>
             </RouterLink>
+            {/* Expand/Collapse Button */}
+            {!drawerOpen ? (
+              <IconButton
+                onClick={handleDrawerToggle}
+                disableRipple
+                sx={{
+                  position: 'fixed',
+                  left: 63,
+                  top: 20,
+                  width: 24,
+                  height: 24,
+                  p: 0,
+                  zIndex: theme => theme.zIndex.drawer + 2,
+                  color: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                    transform: 'scale(1.1)',
+                    background: 'transparent'
+                  },
+                  '&:focus': {
+                    outline: 'none'
+                  },
+                  '&.MuiIconButton-root': {
+                    background: 'transparent'
+                  },
+                  '&:active': {
+                    background: 'transparent'
+                  }
+                }}
+              >
+                <ArrowIcon sx={{ 
+                  transform: 'rotate(-90deg)',
+                  fontSize: '1.2rem',
+                }} />
+              </IconButton>
+            ) : (
+              <IconButton
+                onClick={handleDrawerToggle}
+                disableRipple
+                sx={{
+                  width: 24,
+                  height: 24,
+                  p: 0,
+                  color: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                    transform: 'scale(1.1)',
+                    background: 'transparent'
+                  },
+                  '&:focus': {
+                    outline: 'none'
+                  },
+                  '&.MuiIconButton-root': {
+                    background: 'transparent'
+                  },
+                  '&:active': {
+                    background: 'transparent'
+                  }
+                }}
+              >
+                <ArrowIcon sx={{ 
+                  transform: 'rotate(90deg)',
+                  fontSize: '1.2rem',
+                }} />
+              </IconButton>
+            )}
           </Box>
 
-          <Divider />
+          <Divider sx={{ 
+            borderColor: theme => theme.palette.mode === 'dark' 
+              ? 'rgba(255,255,255,0.05)' 
+              : 'rgba(0,0,0,0.08)',
+            my: 1 
+          }} />
 
           {/* Drawer Content */}
           <Box sx={{ 
@@ -182,42 +607,63 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
               <ListItemButton
                 key={item.section}
                 selected={activeSection === item.section}
-                  onClick={() => navigate(item.path)}
-                  sx={{
-                    minHeight: 48,
-                    px: 2.5,
-                    borderRadius: '8px',
-                    mb: 0.5,
-                    justifyContent: drawerOpen ? 'initial' : 'center',
-                    '&.Mui-selected': {
-                      bgcolor: `${theme.palette.primary.main}15`,
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 0,
-                    mr: drawerOpen ? 2 : 'auto',
-                    justifyContent: 'center',
-                    color: activeSection === item.section ? 'primary.main' : 'text.secondary'
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  {drawerOpen && (
-                    <ListItemText 
-                      primary={item.label}
-                      sx={{
-                        opacity: drawerOpen ? 1 : 0,
-                        '& .MuiTypography-root': {
-                          fontWeight: 600,
-                          fontSize: '0.875rem'
-                        }
-                      }}
-                    />
-                  )}
-                </ListItemButton>
-              ))}
+                onClick={() => {
+                  navigate(item.path);
+                  if (!isMobile && !drawerOpen && !(activeSection === 'properties' && item.section === 'analytics') && !(activeSection === 'analytics' && item.section === 'properties')) {
+                    setDrawerOpen(false);
+                  }
+                }}
+                sx={{
+                  minHeight: 48,
+                  px: 2.5,
+                  borderRadius: '8px',
+                  mb: 0.5,
+                  justifyContent: drawerOpen ? 'initial' : 'center',
+                  '&.Mui-selected': {
+                    bgcolor: `${theme.palette.primary.main}15`,
+                  },
+                }}
+              >
+                <ListItemIcon sx={{
+                  minWidth: 0,
+                  mr: drawerOpen ? 2 : 'auto',
+                  justifyContent: 'center',
+                  color: activeSection === item.section ? 'primary.main' : 'text.secondary',
+                  transition: theme => theme.transitions.create(['color', 'transform'], {
+                    duration: '0.2s'
+                  }),
+                  fontSize: '1.2rem',
+                }}>
+                  {item.icon}
+                </ListItemIcon>
+                {drawerOpen && (
+                  <ListItemText 
+                    primary={item.label}
+                    sx={{
+                      opacity: drawerOpen ? 1 : 0,
+                      transition: theme => theme.transitions.create(['opacity', 'color'], {
+                        duration: theme.transitions.duration.enteringScreen,
+                      }),
+                    }}
+                    primaryTypographyProps={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '0.9rem',
+                      fontWeight: activeSection === item.section ? 600 : 500,
+                      color: activeSection === item.section ? 'primary.main' : 'text.primary',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.3px',
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            ))}
 
-              <Divider sx={{ my: 1 }} />
+              <Divider sx={{ 
+                borderColor: theme => theme.palette.mode === 'dark' 
+                  ? 'rgba(255,255,255,0.05)' 
+                  : 'rgba(0,0,0,0.08)',
+                my: 1 
+              }} />
 
               {/* Theme toggle and notifications */}
               <ListItemButton
@@ -234,6 +680,10 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                   minWidth: 0,
                   mr: drawerOpen ? 2 : 'auto',
                   justifyContent: 'center',
+                  transition: theme => theme.transitions.create(['color', 'transform'], {
+                    duration: '0.2s'
+                  }),
+                  fontSize: '1.2rem',
                 }}>
                   {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
                 </ListItemIcon>
@@ -241,10 +691,17 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                   <ListItemText 
                     primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
                     sx={{
-                      '& .MuiTypography-root': {
-                        fontWeight: 600,
-                        fontSize: '0.875rem'
-                      }
+                      opacity: drawerOpen ? 1 : 0,
+                      transition: theme => theme.transitions.create(['opacity'], {
+                        duration: theme.transitions.duration.enteringScreen,
+                      }),
+                    }}
+                    primaryTypographyProps={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.3px',
                     }}
                   />
                 )}
@@ -264,6 +721,10 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                   minWidth: 0,
                   mr: drawerOpen ? 2 : 'auto',
                   justifyContent: 'center',
+                  transition: theme => theme.transitions.create(['color', 'transform'], {
+                    duration: '0.2s'
+                  }),
+                  fontSize: '1.2rem',
                 }}>
                   <Badge badgeContent={4} color="error">
                     <NotificationsOutlinedIcon />
@@ -273,10 +734,17 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                   <ListItemText 
                     primary="Notifications"
                     sx={{
-                      '& .MuiTypography-root': {
-                        fontWeight: 600,
-                        fontSize: '0.875rem'
-                  }
+                      opacity: drawerOpen ? 1 : 0,
+                      transition: theme => theme.transitions.create(['opacity'], {
+                        duration: theme.transitions.duration.enteringScreen,
+                      }),
+                    }}
+                    primaryTypographyProps={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.3px',
                 }}
                   />
                 )}
@@ -286,58 +754,33 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
             {/* Bottom buttons */}
             <Box sx={{ p: 1.5 }}>
               <ListItemButton
-                onClick={handleDrawerToggle}
+                onClick={handleLogout}
                 sx={{
+                  py: 1.5,
                   minHeight: 48,
-                  px: 2.5,
                   borderRadius: '8px',
-                  mb: 1,
+                  color: 'error.main',
                   justifyContent: drawerOpen ? 'initial' : 'center',
-                  color: 'primary.main',
+                  px: 2.5,
+                  transition: theme => theme.transitions.create(['background-color', 'transform', 'box-shadow'], {
+                    duration: '0.2s'
+                  }),
                   '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.08),
-                  }
+                    transform: 'translateX(4px)',
+                    backgroundColor: theme => alpha(theme.palette.error.main, 0.08),
+                    boxShadow: '0 4px 12px rgba(211, 47, 47, 0.1)',
+                    '& .MuiListItemIcon-root': {
+                      transform: 'scale(1.1)',
+                    }
+                  },
                 }}
               >
                 <ListItemIcon sx={{
                   minWidth: 0,
                   mr: drawerOpen ? 2 : 'auto',
                   justifyContent: 'center',
-                  color: 'inherit'
-                }}>
-                  {drawerOpen ? <ChevronLeftOutlinedIcon /> : <ChevronRightOutlinedIcon />}
-                </ListItemIcon>
-                {drawerOpen && (
-                <ListItemText
-                    primary="Collapse"
-                    sx={{ 
-                      '& .MuiTypography-root': {
-                    fontWeight: 600,
-                        fontSize: '0.875rem'
-                      }
-                  }}
-                />
-                )}
-              </ListItemButton>
-
-            <ListItemButton
-              onClick={handleLogout}
-              sx={{
-                  minHeight: 48,
-                  px: 2.5,
-                  borderRadius: '8px',
-                  color: 'error.main',
-                  justifyContent: drawerOpen ? 'initial' : 'center',
-                '&:hover': {
-                    bgcolor: alpha(theme.palette.error.main, 0.08),
-                }
-              }}
-            >
-                <ListItemIcon sx={{
-                  minWidth: 0,
-                  mr: drawerOpen ? 2 : 'auto',
-                  justifyContent: 'center',
-                  color: 'inherit'
+                  color: 'inherit',
+                  transition: 'transform 0.2s',
                 }}>
                   <LogoutOutlinedIcon />
               </ListItemIcon>
@@ -345,10 +788,17 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
               <ListItemText
                 primary="Logout"
                     sx={{ 
-                      '& .MuiTypography-root': {
-                        fontWeight: 600,
-                        fontSize: '0.875rem'
-                      }
+                      opacity: drawerOpen ? 1 : 0,
+                      transition: theme => theme.transitions.create(['opacity'], {
+                        duration: theme.transitions.duration.enteringScreen,
+                      }),
+                    }}
+                    primaryTypographyProps={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.3px',
                     }}
               />
                 )}
@@ -362,8 +812,8 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
           component="main"
           sx={{
             flexGrow: 1,
-            width: { lg: `calc(100% - ${drawerOpen ? 280 : 72}px)` },
-            ml: { lg: `${drawerOpen ? 280 : 72}px` },
+            width: { lg: `calc(100% - ${drawerOpen ? 240 : 65}px)` },
+            ml: { lg: `${drawerOpen ? 240 : 65}px` },
             transition: theme.transitions.create(['width', 'margin'], {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,
@@ -382,129 +832,65 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
         >
           {/* Mobile/Tablet AppBar */}
           <AppBar
-            position="sticky"
+            position="static" 
+            color="inherit" 
             elevation={0}
-            sx={{
-              bgcolor: 'background.paper',
-              borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-              width: '100%',
-              m: 0,
-              borderRadius: 0,
-              '& .MuiToolbar-root': {
-                borderRadius: 0
-              }
-            }}
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
-            <Toolbar 
-              disableGutters
-              sx={{
-                minHeight: '64px !important',
-                px: { xs: 2, lg: 3 },
-                gap: 1,
-                justifyContent: 'space-between',
-                width: '100%',
-                m: 0,
-                borderRadius: 0
-              }}
-            >
-              {/* Logo - Show on mobile/tablet */}
-              <Box
-                sx={{
-                  display: { xs: 'flex', lg: 'none' },
-                  alignItems: 'center',
+            <Toolbar sx={{ position: 'relative' }}>
+              <IconButton
+                edge="start"
+                color="inherit"
+                onClick={() => {
+                  if (isMobile) {
+                    setMobileOpen(!mobileOpen);
+                  } else {
+                    handleDrawerToggle();
+                  }
                 }}
+                sx={{ mr: 2, display: { lg: 'none' } }}
               >
-                <RouterLink to="/dashboard/landlord/property-management" style={{ textDecoration: 'none' }}>
-                    <img
-                      src="/src/assets/RR.png"
-                      alt="RoomRadar Logo"
-                      style={{
-                      height: '40px',
-                      width: 'auto',
-                      }}
-                    />
-                  </RouterLink>
-                </Box>
-
-              {/* Title - Show on all screens */}
+                <LeftPanelIcon />
+              </IconButton>
               <Typography 
                 variant="h6" 
-                color="textPrimary" 
-                noWrap 
                 sx={{ 
-                  fontSize: '1rem',
-                  display: { xs: 'none', sm: 'block' }
+                  flexGrow: 1, 
+                  fontFamily: "'Outfit', sans-serif",
+                  fontWeight: 500,
+                  letterSpacing: '0.3px',
+                  fontSize: '1.1rem',
+                  textAlign: { xs: 'center', md: 'left' },
+                  position: { xs: 'absolute', md: 'static' },
+                  left: { xs: '50%', md: 'auto' },
+                  transform: { xs: 'translateX(-50%)', md: 'none' },
+                  width: { xs: 'auto', md: 'auto' }
                 }}
               >
                 {activeSectionTitles[activeSection]}
               </Typography>
-
-              {/* Mobile Menu Button */}
+              <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconButton
-                color="inherit"
-                aria-label="open menu"
-                onClick={handleMobileMenuOpen}
+                  onClick={toggleColorMode}
                 disableRipple
                     sx={{
-                  display: { xs: 'flex', lg: 'none' },
-                  ml: 1,
-                  color: 'primary.main',
-                  position: 'relative',
-                      p: 1,
-                  '&:hover': {
-                    backgroundColor: 'transparent',
-                    '& .menu-icon': {
-                      transform: 'rotate(180deg)',
-                    }
-                  },
-                  '&:focus': {
-                    outline: 'none',
-                  },
-                  '&:focus-visible': {
-                    outline: 'none',
-                  },
-                  '&:active': {
-                    backgroundColor: 'transparent',
-                  }
-                    }}
-                  >
-                <Box
-                  className="menu-icon"
-                  sx={{
-                    position: 'relative',
-                    width: 20,
-                    height: 20,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    '& span': {
-                      display: 'block',
-                      width: '100%',
-                      height: 1.5,
-                      bgcolor: 'currentColor',
-                      borderRadius: 1,
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    },
+                    width: 40,
+                    height: 40,
+                    color: theme => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
                     '&:hover': {
-                      '& span:nth-of-type(1)': {
-                        transform: 'translateY(6px) rotate(45deg)',
-                      },
-                      '& span:nth-of-type(2)': {
-                        opacity: 0,
-                        transform: 'scaleX(0)',
-                      },
-                      '& span:nth-of-type(3)': {
-                        transform: 'translateY(-6px) rotate(-45deg)',
-                      }
+                      color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                      background: 'transparent'
+                    },
+                    '&:focus': {
+                      outline: 'none'
                     }
                   }}
                 >
-                  <span />
-                  <span />
-                  <span />
+                  {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+                </IconButton>
                 </Box>
-                  </IconButton>
+            </Toolbar>
+          </AppBar>
 
               {/* Mobile Menu */}
               <Menu
@@ -512,15 +898,29 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                 open={Boolean(mobileMenuAnchor)}
                 onClose={handleMobileMenuClose}
                 PaperProps={{
-                  elevation: 8,
+              elevation: 0,
                   sx: {
                     width: 280,
                     maxWidth: '100%',
-                    mt: 1,
+                mt: 1.5,
+                overflow: 'visible',
+                filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                     '& .MuiList-root': {
                       py: 1
-                    }
-                  }
+                },
+                '&:before': {
+                  content: '""',
+                  display: 'block',
+                  position: 'absolute',
+                  top: 0,
+                  right: 14,
+                  width: 10,
+                  height: 10,
+                  bgcolor: 'background.paper',
+                  transform: 'translateY(-50%) rotate(45deg)',
+                  zIndex: 0,
+                },
+              },
                 }}
                 transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                 anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
@@ -537,14 +937,24 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                       mx: 1,
                       mb: 0.5,
                       '&.Mui-selected': {
-                        bgcolor: `${theme.palette.primary.main}15`,
+                    bgcolor: theme => `${theme.palette.primary.main}15`,
                       }
                     }}
                   >
                     <ListItemIcon sx={{ color: activeSection === item.section ? 'primary.main' : 'text.secondary' }}>
                       {item.icon}
                     </ListItemIcon>
-                    <ListItemText primary={item.label} />
+                <ListItemText 
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontFamily: "'Outfit', sans-serif",
+                    fontSize: '0.9rem',
+                    fontWeight: activeSection === item.section ? 600 : 500,
+                    color: activeSection === item.section ? 'primary.main' : 'text.primary',
+                    whiteSpace: 'nowrap',
+                    letterSpacing: '0.3px',
+                  }}
+                />
                   </MenuItem>
                 ))}
 
@@ -564,7 +974,15 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                   <ListItemIcon>
                     {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
                   </ListItemIcon>
-                  <ListItemText primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'} />
+              <ListItemText 
+                primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                primaryTypographyProps={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: '0.9rem',
+                  fontWeight: 500,
+                  letterSpacing: '0.3px',
+                }}
+              />
                 </MenuItem>
 
                 {/* Logout */}
@@ -582,11 +1000,17 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                   <ListItemIcon sx={{ color: 'inherit' }}>
                     <LogoutOutlinedIcon />
                   </ListItemIcon>
-                  <ListItemText primary="Logout" />
+              <ListItemText 
+                primary="Logout"
+                primaryTypographyProps={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: '0.9rem',
+                  fontWeight: 500,
+                  letterSpacing: '0.3px',
+                }}
+              />
                 </MenuItem>
               </Menu>
-            </Toolbar>
-          </AppBar>
 
           {/* Page Content */}
           {children}
