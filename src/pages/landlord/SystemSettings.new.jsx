@@ -46,19 +46,7 @@ import * as userService from '../../services/userService';
 import { useOutletContext } from 'react-router-dom';
 
 const SystemSettings = () => {
-  const {
-    theme,
-    currentUser,
-    properties,
-    propertyStats,
-    setSnackbar,
-    mode: themePreference,
-    colorScheme,
-    borderRadius,
-    onThemeChange,
-    onColorSchemeChange,
-    onBorderRadiusChange
-  } = useOutletContext();
+  const { theme, mode, colorScheme, borderRadius, onThemeChange, onColorSchemeChange, onBorderRadiusChange, currentUser, handleLogout, setSnackbar } = useOutletContext();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -73,18 +61,10 @@ const SystemSettings = () => {
     systemNotifications: true,
   });
   const [themeSettings, setThemeSettings] = useState({
-    mode: themePreference,
-    colorScheme,
-    borderRadius
+    mode: mode || 'system',
+    colorScheme: colorScheme || 'blue',
+    borderRadius: borderRadius || 'medium',
   });
-
-  useEffect(() => {
-    setThemeSettings({
-      mode: themePreference,
-      colorScheme,
-      borderRadius
-    });
-  }, [themePreference, colorScheme, borderRadius]);
 
   const handlePasswordChange = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword) {
@@ -222,7 +202,7 @@ const SystemSettings = () => {
         }}
       >
         <CardContent sx={{ p: 3 }}>
-        <Stack spacing={3}>
+          <Stack spacing={3}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               {React.cloneElement(icon, { 
                 color: 'primary',
@@ -230,17 +210,17 @@ const SystemSettings = () => {
               })}
               <Box>
                 <Typography variant="h6" fontWeight={600}>
-              {title}
-            </Typography>
+                  {title}
+                </Typography>
                 {description && (
                   <Typography variant="body2" color="text.secondary">
                     {description}
                   </Typography>
-            )}
+                )}
               </Box>
-          </Box>
-          {children}
-        </Stack>
+            </Box>
+            {children}
+          </Stack>
         </CardContent>
       </Card>
     </motion.div>
@@ -274,14 +254,14 @@ const SystemSettings = () => {
     }}>
       <Stack spacing={0}>
         {/* Theme Settings */}
-          <Paper
-            elevation={0}
-            sx={{
-              bgcolor: 'background.paper',
+        <Paper 
+          elevation={0} 
+          sx={{ 
+            bgcolor: 'background.paper',
             borderBottom: '1px solid',
-              borderColor: 'divider'
-            }}
-          >
+            borderColor: 'divider'
+          }}
+        >
           <Box sx={{ p: 3 }}>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
               <Box
@@ -469,7 +449,7 @@ const SystemSettings = () => {
               <Box>
                 <Typography variant="subtitle2" fontWeight={500} gutterBottom>
                   Change Password
-                  </Typography>
+                </Typography>
                 <Stack spacing={2}>
                   <TextField
                     fullWidth
@@ -550,7 +530,7 @@ const SystemSettings = () => {
               </Box>
             </Stack>
           </Box>
-          </Paper>
+        </Paper>
 
         {/* Notification Settings */}
         <Paper 
@@ -585,11 +565,11 @@ const SystemSettings = () => {
             </Stack>
 
             <Box 
-                  sx={{
+              sx={{ 
                 bgcolor: 'background.default',
                 borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'divider',
+                border: '1px solid',
+                borderColor: 'divider',
                 overflow: 'hidden'
               }}
             >
@@ -603,17 +583,17 @@ const SystemSettings = () => {
                       '&:hover': {
                         bgcolor: (theme) => alpha(theme.palette.primary.main, 0.02)
                       }
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
+                    }}
                   >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                    >
                       <Typography variant="subtitle2" fontWeight={500}>
                         {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                    </Typography>
-                    <Switch
+                      </Typography>
+                      <Switch
                         checked={value}
                         onChange={(e) => handleNotificationChange(key, e.target.checked)}
                         color="success"
@@ -628,11 +608,11 @@ const SystemSettings = () => {
                             boxShadow: 'none'
                           }
                         }}
-                    />
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
+                      />
+                    </Stack>
+                  </Box>
+                ))}
+              </Stack>
             </Box>
           </Box>
         </Paper>
@@ -694,19 +674,19 @@ const SystemSettings = () => {
                 >
                   Backup System Data
                 </Button>
-              <Button
-                variant="outlined"
-                fullWidth
+                <Button
+                  variant="outlined"
+                  fullWidth
                   component="label"
                   startIcon={<RestoreIcon />}
-                sx={{
-                  py: 1.5,
+                  sx={{
+                    py: 1.5,
                     '&:focus': {
                       outline: 'none',
                       boxShadow: 'none'
                     }
-                }}
-              >
+                  }}
+                >
                   Restore from Backup
                   <input
                     type="file"
@@ -714,8 +694,8 @@ const SystemSettings = () => {
                     accept=".json"
                     onChange={handleImportData}
                   />
-              </Button>
-            </Stack>
+                </Button>
+              </Stack>
             </Box>
           </Box>
         </Paper>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import {
   Container,
   Stack,
@@ -78,7 +79,8 @@ const CustomScrollbar = styled('div')(({ theme }) => ({
   },
 }));
 
-const PropertyManagement = ({ theme, currentUser, setSnackbar }) => {
+const PropertyManagement = () => {
+  const { theme, currentUser, setSnackbar } = useOutletContext();
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);

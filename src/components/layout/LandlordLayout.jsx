@@ -33,11 +33,22 @@ import {
   KeyboardArrowDown as ArrowIcon,
   GpsFixed as ScopeIcon,
   ViewSidebar as LeftPanelIcon,
+  AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { ThemeProvider, alpha } from '@mui/material/styles';
 
-const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }) => {
+const LandlordLayout = ({ 
+  children, 
+  theme, 
+  mode, 
+  colorScheme,
+  borderRadius,
+  onThemeChange,
+  onColorSchemeChange,
+  onBorderRadiusChange,
+  handleLogout 
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
@@ -109,9 +120,11 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
     setNotificationsAnchor(null);
   };
 
-  const handleMobileMenuItemClick = (path) => {
+  const handleNavigation = (path) => {
     navigate(path);
-    handleMobileMenuClose();
+    if (isMobile) {
+      setMobileOpen(false);
+    }
   };
 
   const activeSectionTitles = {
@@ -131,7 +144,7 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
           ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
+            keepMounted: true,
           }}
           sx={{
             display: { xs: 'block', lg: 'none' },
@@ -272,13 +285,7 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                 {menuItems.map((item) => (
                   <ListItemButton
                     key={item.section}
-                    onClick={() => {
-                      navigate(item.path);
-                      setMobileOpen(false);
-                      if (!isMobile) {
-                        handleDrawerToggle();
-                      }
-                    }}
+                    onClick={() => handleNavigation(item.path)}
                     selected={activeSection === item.section}
                     sx={{
                       py: 1.5,
@@ -337,7 +344,15 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
               {/* Theme toggle and logout */}
               <List sx={{ px: 1.5, pb: 2 }}>
                 <ListItemButton
-                  onClick={toggleColorMode}
+                  onClick={() => {
+                    if (mode === 'dark') {
+                      onThemeChange('light');
+                    } else if (mode === 'light') {
+                      onThemeChange('system');
+                    } else {
+                      onThemeChange('dark');
+                    }
+                  }}
                   sx={{
                     minHeight: 48,
                     px: 2.5,
@@ -353,10 +368,10 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                     }),
                     fontSize: '1.2rem',
                   }}>
-                    {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+                    {mode === 'dark' ? <LightModeIcon /> : mode === 'light' ? <DarkModeIcon /> : <AutoAwesomeIcon />}
                   </ListItemIcon>
                   <ListItemText 
-                    primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    primary={mode === 'dark' ? 'Light Mode' : mode === 'light' ? 'Dark Mode' : 'System Mode'}
                     primaryTypographyProps={{
                       fontFamily: "'Outfit', sans-serif",
                       fontSize: '0.9rem',
@@ -604,12 +619,7 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
               <ListItemButton
                 key={item.section}
                 selected={activeSection === item.section}
-                  onClick={() => {
-                    navigate(item.path);
-                    if (!isMobile && !drawerOpen) {
-                      setDrawerOpen(false);
-                    }
-                  }}
+                  onClick={() => handleNavigation(item.path)}
                   sx={{
                     minHeight: 48,
                     px: 2.5,
@@ -664,7 +674,15 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
 
               {/* Theme toggle and notifications */}
               <ListItemButton
-                onClick={toggleColorMode}
+                onClick={() => {
+                  if (mode === 'dark') {
+                    onThemeChange('light');
+                  } else if (mode === 'light') {
+                    onThemeChange('system');
+                  } else {
+                    onThemeChange('dark');
+                  }
+                }}
                 sx={{
                   minHeight: 48,
                   px: 2.5,
@@ -682,11 +700,11 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                   }),
                   fontSize: '1.2rem',
                 }}>
-                  {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+                  {mode === 'dark' ? <LightModeIcon /> : mode === 'light' ? <DarkModeIcon /> : <AutoAwesomeIcon />}
                 </ListItemIcon>
                 {drawerOpen && (
                   <ListItemText 
-                    primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    primary={mode === 'dark' ? 'Light Mode' : mode === 'light' ? 'Dark Mode' : 'System Mode'}
                     sx={{
                       opacity: drawerOpen ? 1 : 0,
                       transition: theme => theme.transitions.create(['opacity'], {
@@ -697,6 +715,7 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                       fontFamily: "'Outfit', sans-serif",
                       fontSize: '0.9rem',
                       fontWeight: 500,
+                      color: 'text.primary',
                       whiteSpace: 'nowrap',
                       letterSpacing: '0.3px',
                     }}
@@ -868,7 +887,15 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
               </Typography>
               <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconButton
-                  onClick={toggleColorMode}
+                  onClick={() => {
+                    if (mode === 'dark') {
+                      onThemeChange('light');
+                    } else if (mode === 'light') {
+                      onThemeChange('system');
+                    } else {
+                      onThemeChange('dark');
+                    }
+                  }}
                 disableRipple
                     sx={{
                     width: 40,
@@ -883,7 +910,7 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                     }
                   }}
                 >
-                  {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+                  {mode === 'dark' ? <DarkModeIcon /> : mode === 'light' ? <LightModeIcon /> : <AutoAwesomeIcon />}
                 </IconButton>
                 </Box>
             </Toolbar>
@@ -925,7 +952,7 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                 {menuItems.map((item) => (
                   <MenuItem
                     key={item.section}
-                    onClick={() => handleMobileMenuItemClick(item.path)}
+                    onClick={() => handleNavigation(item.path)}
                     selected={activeSection === item.section}
                     sx={{
                       py: 1.5,
@@ -959,7 +986,15 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
 
                 {/* Theme Toggle */}
                 <MenuItem
-                  onClick={toggleColorMode}
+                  onClick={() => {
+                    if (mode === 'dark') {
+                      onThemeChange('light');
+                    } else if (mode === 'light') {
+                      onThemeChange('system');
+                    } else {
+                      onThemeChange('dark');
+                    }
+                  }}
                   sx={{
                     py: 1.5,
                     px: 2,
@@ -969,10 +1004,10 @@ const LandlordLayout = ({ children, theme, mode, toggleColorMode, handleLogout }
                   }}
                 >
                   <ListItemIcon>
-                    {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+                    {mode === 'dark' ? <LightModeIcon /> : mode === 'light' ? <DarkModeIcon /> : <AutoAwesomeIcon />}
                   </ListItemIcon>
               <ListItemText 
-                primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                primary={mode === 'dark' ? 'Light Mode' : mode === 'light' ? 'Dark Mode' : 'System Mode'}
                 primaryTypographyProps={{
                   fontFamily: "'Outfit', sans-serif",
                   fontSize: '0.9rem',

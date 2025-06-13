@@ -46,8 +46,9 @@ import {
   GpsFixed as ScopeIcon,
   ViewSidebar as LeftPanelIcon,
 } from '@mui/icons-material';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom';
 import * as userService from '../../services/userService';
+import { isTokenValid } from '../../services/authService';
 
 // Lazy load components
 const UserManagement = lazy(() => import('./sections/UserManagement'));
@@ -386,6 +387,105 @@ const AdminDashboard = () => {
     [mode, colorScheme, borderRadius]
   );
 
+  // Logout handlers
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true);
+  };
+
+  const handleLogoutCancel = () => {
+    setLogoutDialogOpen(false);
+  };
+
+  const handleLogoutConfirm = async () => {
+    try {
+      await userService.logout();
+      handleUserMenuClose();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      setState(prev => ({
+        ...prev,
+        snackbar: {
+          open: true,
+          message: 'Failed to logout',
+          severity: 'error',
+        },
+      }));
+    } finally {
+      setLogoutDialogOpen(false);
+    }
+  };
+
+  // Theme handlers
+  const handleThemeChange = React.useCallback((newPreference) => {
+    startTransition(() => {
+      setThemePreference(newPreference);
+      localStorage.setItem('adminThemeMode', newPreference);
+    });
+  }, []);
+
+  const handleColorSchemeChange = React.useCallback((newScheme) => {
+    startTransition(() => {
+      setColorScheme(newScheme);
+      localStorage.setItem('adminColorScheme', newScheme);
+    });
+  }, []);
+
+  const handleBorderRadiusChange = React.useCallback((newRadius) => {
+    startTransition(() => {
+      setBorderRadius(newRadius);
+      localStorage.setItem('adminBorderRadius', newRadius);
+    });
+  }, []);
+
+  // Theme context value
+  const themeContextValue = React.useMemo(() => ({
+    theme: customTheme,
+    mode: themePreference,
+    colorScheme,
+    borderRadius,
+    onThemeChange: handleThemeChange,
+    onColorSchemeChange: handleColorSchemeChange,
+    onBorderRadiusChange: handleBorderRadiusChange,
+    currentUser: state.currentUser,
+    handleLogout: handleLogoutClick,
+    setSnackbar: (message, severity) => {
+      setState(prev => ({
+        ...prev,
+        snackbar: {
+          open: true,
+          message,
+          severity,
+        },
+      }));
+    }
+  }), [
+    customTheme,
+    themePreference,
+    colorScheme,
+    borderRadius,
+    handleThemeChange,
+    handleColorSchemeChange,
+    handleBorderRadiusChange,
+    state.currentUser,
+    handleLogoutClick
+  ]);
+
+  const handleThemeToggle = () => {
+    const newPreference = themePreference === 'light' ? 'dark' : 'light';
+    handleThemeChange(newPreference);
+  };
+
+  const handleSnackbarClose = () => {
+    setState(prev => ({
+      ...prev,
+      snackbar: {
+        ...prev.snackbar,
+        open: false,
+      },
+    }));
+  };
+
   // Menu items
   const menuItems = [
     { 
@@ -441,30 +541,52 @@ const AdminDashboard = () => {
       try {
         setState(prev => ({ ...prev, loading: true }));
         const response = await userService.getCurrentUser();
-          if (response && response.data) {
-            setState(prev => ({
-              ...prev,
-            currentUser: response.data,
-            loading: false,
-            }));
+        if (response && response.data) {
+          // Verify the user is an admin
+          if (response.data.role !== 'ADMIN') {
+            throw new Error("Unauthorized: User is not an admin");
           }
-        } catch (error) {
-        console.error('Error fetching current user:', error);
           setState(prev => ({
             ...prev,
+            currentUser: response.data,
+            loading: false,
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+        setState(prev => ({
+          ...prev,
           loading: false,
           error: 'Failed to fetch user data',
-            snackbar: {
-              open: true,
+          snackbar: {
+            open: true,
             message: 'Failed to fetch user data',
             severity: 'error',
           },
-          }));
-        }
+        }));
+        // Clear any invalid tokens and redirect to login
+        localStorage.clear();
+        navigate('/login');
+      }
     };
 
     fetchCurrentUser();
-  }, []);
+  }, [navigate]);
+
+  // Add authentication check effect
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      const userRole = localStorage.getItem('userRole');
+      
+      if (!token || !isTokenValid() || userRole !== 'ADMIN') {
+        localStorage.clear();
+        navigate('/login');
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
 
   // Handlers
   const handleDrawerToggle = () => {
@@ -472,6 +594,11 @@ const AdminDashboard = () => {
   };
 
   const handleMenuItemClick = (section, path) => {
+    if (!isTokenValid()) {
+      localStorage.clear();
+      navigate('/login');
+      return;
+    }
     setState(prev => ({ ...prev, activeSection: section }));
     navigate(path);
     if (isMobile) {
@@ -485,70 +612,6 @@ const AdminDashboard = () => {
 
   const handleUserMenuClose = () => {
     setUiState(prev => ({ ...prev, userMenuAnchor: null }));
-  };
-
-  const handleLogoutClick = () => {
-    setLogoutDialogOpen(true);
-  };
-
-  const handleLogoutCancel = () => {
-    setLogoutDialogOpen(false);
-  };
-
-  const handleLogoutConfirm = async () => {
-    try {
-      await userService.logout();
-      handleUserMenuClose();
-      navigate('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-      setState(prev => ({
-        ...prev,
-        snackbar: {
-          open: true,
-          message: 'Failed to logout',
-          severity: 'error',
-        },
-      }));
-    } finally {
-      setLogoutDialogOpen(false);
-    }
-  };
-
-  const handleThemeChange = React.useCallback((newPreference) => {
-    startTransition(() => {
-      setThemePreference(newPreference);
-      localStorage.setItem('adminThemeMode', newPreference);
-    });
-  }, []);
-
-  const handleColorSchemeChange = React.useCallback((newScheme) => {
-    startTransition(() => {
-      setColorScheme(newScheme);
-      localStorage.setItem('adminColorScheme', newScheme);
-    });
-  }, []);
-
-  const handleBorderRadiusChange = React.useCallback((newRadius) => {
-    startTransition(() => {
-      setBorderRadius(newRadius);
-      localStorage.setItem('adminBorderRadius', newRadius);
-    });
-  }, []);
-
-  const handleThemeToggle = () => {
-    const newPreference = themePreference === 'light' ? 'dark' : 'light';
-    handleThemeChange(newPreference);
-  };
-
-  const handleSnackbarClose = () => {
-      setState(prev => ({
-        ...prev,
-        snackbar: {
-        ...prev.snackbar,
-        open: false,
-      },
-    }));
   };
 
   // Add pagination handlers
@@ -644,148 +707,11 @@ const AdminDashboard = () => {
 
   // Render section content
   const renderSection = () => {
-    switch (state.activeSection) {
-      case 'users':
-        return (
-          <Suspense fallback={<Box 
-            sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              height: '100%',
-              width: '100%',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              bgcolor: 'background.default'
-            }}
-          >
-            <CircularProgress size={48} />
-          </Box>}>
-            <UserManagement 
-              users={state.users}
-              onSearch={handleSearchChange}
-              onFilter={handleFilterChange}
-              onUserAction={handleUserAction}
-              paginationData={state.paginationData}
-              onPageChange={handlePageChange}
-              onPageSizeChange={handlePageSizeChange}
-              isLoading={state.loading}
-            />
-          </Suspense>
-        );
-      case 'analytics':
-        return (
-          <Suspense fallback={<Box 
-            sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              height: '100%',
-              width: '100%',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              bgcolor: 'background.default'
-            }}
-          >
-            <CircularProgress size={48} />
-          </Box>}>
-            <UserAnalytics />
-          </Suspense>
-        );
-      case 'settings':
-        return (
-          <Suspense fallback={<Box 
-            sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              height: '100%',
-              width: '100%',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              bgcolor: 'background.default'
-            }}
-          >
-            <CircularProgress size={48} />
-          </Box>}>
-            <Box sx={{ 
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              position: 'relative',
-              margin: 0,
-              padding: 0
-            }}>
-              <SystemSettings
-                theme={customTheme}
-                mode={themePreference}
-                colorScheme={colorScheme}
-                borderRadius={borderRadius}
-                onThemeChange={handleThemeChange}
-                onColorSchemeChange={handleColorSchemeChange}
-                onBorderRadiusChange={handleBorderRadiusChange}
-                currentUser={state.currentUser}
-                handleLogout={handleLogoutClick}
-                setSnackbar={(message, severity) => {
-                  setState(prev => ({
-                    ...prev,
-                    snackbar: {
-                      open: true,
-                      message,
-                      severity,
-                    },
-                  }));
-                }}
-              />
-            </Box>
-          </Suspense>
-        );
-      case 'csv':
-        return (
-          <Suspense fallback={<Box 
-            sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              height: '100%',
-              width: '100%',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              bgcolor: 'background.default'
-            }}
-          >
-            <CircularProgress size={48} />
-          </Box>}>
-            <CSVOperations />
-          </Suspense>
-        );
-      case 'profile':
-        return (
-          <Suspense fallback={<Box 
-            sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              height: '100%',
-              width: '100%',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              bgcolor: 'background.default'
-            }}
-          >
-            <CircularProgress size={48} />
-          </Box>}>
-            <ProfileSection />
-          </Suspense>
-        );
-      default:
-        return null;
-    }
+    return (
+      <Box sx={{ height: '100%', width: '100%' }}>
+        <Outlet context={themeContextValue} />
+      </Box>
+    );
   };
 
   return (

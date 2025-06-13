@@ -25,8 +25,10 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import * as userService from '../../services/userService';
+import { useOutletContext } from 'react-router-dom';
 
-const ProfileInformation = ({ theme, currentUser, setCurrentUser, setSnackbar }) => {
+const ProfileInformation = () => {
+  const { theme, currentUser, setCurrentUser, setSnackbar } = useOutletContext();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({
     username: '',
