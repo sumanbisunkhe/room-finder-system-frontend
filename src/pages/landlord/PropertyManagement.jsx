@@ -412,7 +412,7 @@ const PropertyManagement = () => {
 
   return (
     <Container 
-      maxWidth="xl" 
+      maxWidth={false} 
       sx={{
         py: 3,
         height: '100%',
@@ -543,7 +543,7 @@ const PropertyManagement = () => {
                       fontWeight: 600
                     }}
                   >
-                    Add Property
+                    Add 
                   </Button>
                 </Stack>
               </Stack>
@@ -554,10 +554,13 @@ const PropertyManagement = () => {
                 spacing={2}
                 alignItems="center"
                 sx={{ 
-                  display: { xs: 'none', md: 'flex' }
+                  display: { xs: 'none', md: 'flex' },
+                  width: '100%' // Ensure the stack itself takes full width
                 }}
               >
                 <TextField
+                  // fullWidth // Use fullWidth instead of fixed width
+                  fullWidth
                   placeholder="Search by title, city or address..."
                   variant="outlined"
                   value={searchTerm}
@@ -571,10 +574,11 @@ const PropertyManagement = () => {
                     sx: { bgcolor: 'background.paper' }
                   }}
                   size="small"
-                  sx={{ width: '30%' }}
+                  // Removed sx={{ width: '30%' }}
                 />
                 
                 <TextField
+                  flex={1} // Use flex:1 to distribute space evenly
                   placeholder="Max Price"
                   type="number"
                   variant="outlined"
@@ -585,7 +589,7 @@ const PropertyManagement = () => {
                   }}
                   size="small"
                   sx={{
-                    width: '15%',
+                     width: '20%',
                     '& .MuiOutlinedInput-root': {
                       bgcolor: 'background.paper'
                     }
@@ -593,6 +597,7 @@ const PropertyManagement = () => {
                 />
                 
                 <TextField
+                  flex={1} // Use flex:1 to distribute space evenly
                   placeholder="Min Size"
                   type="number"
                   variant="outlined"
@@ -602,8 +607,8 @@ const PropertyManagement = () => {
                     endAdornment: <InputAdornment position="end">sq.ft</InputAdornment>,
                   }}
                   size="small"
-                  sx={{
-                    width: '15%',
+                  sx={{ 
+                     width: '15%',
                     '& .MuiOutlinedInput-root': {
                       bgcolor: 'background.paper'
                     }
@@ -611,10 +616,11 @@ const PropertyManagement = () => {
                 />
                 
                 <FormControl 
+                  flex={1} // Use flex:1 to distribute space evenly
                   variant="outlined" 
                   size="small"
                   sx={{ 
-                    width: '20%',
+                     width: '18%',
                     '& .MuiOutlinedInput-root': {
                       bgcolor: 'background.paper'
                     }
@@ -630,13 +636,12 @@ const PropertyManagement = () => {
                     <MenuItem value="unavailable">Occupied</MenuItem>
                   </Select>
                 </FormControl>
-
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}
                   onClick={() => setIsPropertyModalOpen(true)}
                   sx={{
-                    width: '20%',
+                    width: '15%', // Keep the Add Property button at a fixed width
                     bgcolor: 'primary.main',
                     color: 'primary.contrastText',
                     '&:hover': {
@@ -646,7 +651,7 @@ const PropertyManagement = () => {
                     fontWeight: 600
                   }}
                 >
-                  Add Property
+                  Add 
                 </Button>
               </Stack>
             </Paper>
@@ -675,20 +680,21 @@ const PropertyManagement = () => {
                   borderRadius: '0px',
                   borderTop: 0,
                   border: '1px solid',
-                  borderColor: 'divider'
+                  borderColor: 'divider',
+                  width: '100%' // Ensure the paper takes full width
                 }}>
                   <CustomScrollbar>
                     <TableContainer>
                       <Table stickyHeader>
                         <TableHead>
                           <TableRow>
-                            <TableCell width="25%">Property Info</TableCell>
-                            <TableCell width="12%">Price</TableCell>
-                            <TableCell width="10%">Size</TableCell>
-                            <TableCell width="18%">Amenities</TableCell>
-                            <TableCell width="10%">Status</TableCell>
-                            <TableCell width="15%">Location</TableCell>
-                            <TableCell width="10%">Actions</TableCell>
+                            <TableCell>Property Info</TableCell>
+                            <TableCell>Price</TableCell>
+                            <TableCell>Size</TableCell>
+                            <TableCell>Amenities</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell>Location</TableCell>
+                            <TableCell>Actions</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
