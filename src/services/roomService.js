@@ -42,6 +42,50 @@ const handleError = (error, context = 'room operation') => {
   return Promise.reject(new Error(`Failed to ${context}: ${error.message}`));
 };
 
+/**
+ * Formats amenities data from backend to frontend format
+ * @param {Object} room - The room data from backend
+ * @returns {Object} - Formatted room data with boolean amenities
+ */
+const formatRoomData = (room) => {
+  if (!room) return room;
+  
+  // Create a new object to avoid mutating the original
+  const formattedRoom = { ...room };
+  
+  // Convert amenities from Map to object with boolean values
+  if (formattedRoom.amenities) {
+    const defaultAmenities = {
+      wifi: false,
+      parking: false,
+      ac: false,
+      heating: false,
+      tv: false,
+      kitchen: false
+    };
+    
+    // Convert string values to boolean and merge with defaults
+    const booleanAmenities = Object.entries(formattedRoom.amenities).reduce((acc, [key, value]) => {
+      acc[key] = value === 'true';
+      return acc;
+    }, { ...defaultAmenities });
+    
+    formattedRoom.amenities = booleanAmenities;
+  } else {
+    // If no amenities exist, set default amenities all to false
+    formattedRoom.amenities = {
+      wifi: false,
+      parking: false,
+      ac: false,
+      heating: false,
+      tv: false,
+      kitchen: false
+    };
+  }
+  
+  return formattedRoom;
+};
+
 /* ==================== Core Room API Methods ==================== */
 export const createRoom = async (roomData, landlordId) => {
   try {
@@ -56,10 +100,14 @@ export const createRoom = async (roomData, landlordId) => {
     formData.append('size', Number(roomData.size));
     formData.append('available', roomData.available);
 
-    // Append amenities as individual fields
-    Object.entries(roomData.amenities).forEach(([key, value]) => {
-      formData.append(`amenities[${key}]`, value);
-    });
+    // Append only selected amenities (where value is true)
+    if (roomData.amenities && typeof roomData.amenities === 'object') {
+      Object.entries(roomData.amenities)
+        .filter(([_, value]) => value === true)
+        .forEach(([key, value]) => {
+          formData.append(`amenities[${key}]`, value.toString());
+        });
+    }
 
     // Handle images
     roomData.images.forEach(image => {
@@ -72,7 +120,6 @@ export const createRoom = async (roomData, landlordId) => {
       headers: {
         'X-Landlord-Id': landlordId,
         'Content-Type': 'multipart/form-data'
-
       }
     });
     return response.data;
@@ -85,7 +132,7 @@ export const updateRoom = async (roomId, updates, landlordId) => {
   try {
     const formData = new FormData();
 
-    /// 1. Handle existing images
+    // 1. Handle existing images
     const existingImages = updates.images.filter(img => typeof img === 'string');
     formData.append('existingImages', JSON.stringify(existingImages));
 
@@ -98,9 +145,14 @@ export const updateRoom = async (roomId, updates, landlordId) => {
     // Append other fields
     Object.entries(updates).forEach(([key, value]) => {
       if (key === 'amenities') {
-        Object.entries(value).forEach(([amenityKey, amenityValue]) => {
-          formData.append(`amenities[${amenityKey}]`, amenityValue);
-        });
+        // Only append amenities that are true (selected)
+        if (value && typeof value === 'object') {
+          Object.entries(value)
+            .filter(([_, amenityValue]) => amenityValue === true)
+            .forEach(([amenityKey, amenityValue]) => {
+              formData.append(`amenities[${amenityKey}]`, 'true');
+            });
+        }
       } else if (key !== 'images') { // Skip images since handled above
         formData.append(key, value);
       }
@@ -141,7 +193,7 @@ export const fetchAllRooms = async () => {
 export const getRoomById = async (roomId) => {
   try {
     const response = await api.get(`/rooms/${roomId}`);
-    return response.data;
+    return formatRoomData(response.data);
   } catch (error) {
     return handleError(error, 'fetch room');
   }
@@ -189,6 +241,9 @@ export const fetchRoomsByLandlord = async (landlordId) => {
       console.error('Invalid response data type:', typeof response.data);
       throw new Error('Invalid response format: response data is not an object');
     }
+
+    // Format each property's amenities
+    properties = properties.map(formatRoomData);
 
     // If we got an empty array, that's valid - the landlord might not have any properties
     if (properties.length === 0) {

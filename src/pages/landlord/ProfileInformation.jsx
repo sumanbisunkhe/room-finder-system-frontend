@@ -439,7 +439,7 @@ const ProfileInformation = () => {
 
   return (
     <Container 
-      maxWidth="xl" 
+      maxWidth={false} 
       sx={{ 
         mt: { xs: '56px', sm: '64px' },
         minHeight: 'calc(100vh - 64px)',
@@ -457,11 +457,17 @@ const ProfileInformation = () => {
         height: '100%',
         overflow: 'visible'
       }}>
-        <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }} sx={{ pl: { xs: 0.5, sm: 1, md: 1.5 } }}>
+        <Grid 
+          container 
+          spacing={{ xs: 1, sm: 1.5, md: 2 }} 
+          sx={{
+            pl: { xs: 0.5, sm: 1, md: 1.5 },
+            height: '100%'
+          }}>
           <Grid 
             item 
             xs={12} 
-            md={4} 
+            md={6} 
             sx={{
               p: { xs: '8px !important', sm: '12px !important' },
               order: { xs: 1, md: 1 },
@@ -477,7 +483,6 @@ const ProfileInformation = () => {
                 bgcolor: 'background.paper',
                 border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                 position: 'relative',
-                maxWidth: { xs: '100%', md: 'none' },
                 '&::before': {
                   content: '""',
                   position: 'absolute',
@@ -622,7 +627,7 @@ const ProfileInformation = () => {
           <Grid 
             item 
             xs={12} 
-            md={8} 
+            md={6} 
             sx={{ 
               p: { xs: '8px !important', sm: '12px !important' },
               order: { xs: 2, md: 2 },
