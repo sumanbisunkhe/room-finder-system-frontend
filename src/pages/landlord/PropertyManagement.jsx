@@ -81,8 +81,9 @@ const CustomScrollbar = styled('div')(({ theme }) => ({
 
 const PropertyManagement = () => {
   const { theme, currentUser, setSnackbar } = useOutletContext();
-  const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
+  const [allProperties, setAllProperties] = useState([]); // Store all properties
+  const [properties, setProperties] = useState([]); // Store current page properties
+  const [filteredProperties, setFilteredProperties] = useState([]); // Store filtered properties for current page
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [selectedPropertyImages, setSelectedPropertyImages] = useState([]);
   const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
@@ -126,22 +127,40 @@ const PropertyManagement = () => {
     totalPages: 0
   });
 
+  // Fetch all properties for search/filter
+  const fetchAllProperties = async () => {
+    try {
+      const response = await roomService.fetchRoomsByLandlord(currentUser.id, 0, 1000); // Fetch all properties
+      if (!response || !response.content) {
+        throw new Error('Invalid response format from server');
+      }
+      setAllProperties(response.content);
+    } catch (error) {
+      console.error('Error fetching all properties:', error);
+      setAllProperties([]);
+    }
+  };
+
+  // Fetch paginated properties for display
   const fetchProperties = async () => {
     try {
       setLoading(true);
-      const fetchedProperties = await roomService.fetchRoomsByLandlord(currentUser.id);
+      const response = await roomService.fetchRoomsByLandlord(currentUser.id, pagination.currentPage, pagination.pageSize);
       
-      // Ensure fetchedProperties is an array
-      if (!Array.isArray(fetchedProperties)) {
-        throw new Error('Invalid response format: expected an array of properties');
+      if (!response || !response.content) {
+        throw new Error('Invalid response format from server');
       }
-      
-      setProperties(fetchedProperties);
-      setFilteredProperties(fetchedProperties);
+
+      setProperties(response.content);
+      setPagination(prev => ({
+        ...prev,
+        totalElements: response.totalElements,
+        totalPages: response.totalPages,
+        currentPage: response.currentPage
+      }));
     } catch (error) {
       console.error('Error fetching properties:', error);
       setProperties([]);
-      setFilteredProperties([]);
       setSnackbar({
         open: true,
         message: error.message || 'Failed to fetch properties',
@@ -152,19 +171,22 @@ const PropertyManagement = () => {
     }
   };
 
+  // Initial load
   useEffect(() => {
     if (currentUser?.id) {
+      fetchAllProperties();
       fetchProperties();
     }
   }, [currentUser]);
 
+  // Handle search and filter
   useEffect(() => {
-    if (!Array.isArray(properties)) {
+    if (!Array.isArray(allProperties)) {
       setFilteredProperties([]);
       return;
     }
 
-    const filtered = properties.filter((property) => {
+    const filtered = allProperties.filter((property) => {
       const matchesSearch = property.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         property.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         property.address?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -177,16 +199,70 @@ const PropertyManagement = () => {
       return matchesSearch && matchesPrice && matchesSize && matchesAvailability;
     });
 
-    setFilteredProperties(filtered);
-  }, [properties, searchTerm, filters]);
+    // Update pagination based on filtered results
+    setPagination(prev => ({
+      ...prev,
+      totalElements: filtered.length,
+      totalPages: Math.ceil(filtered.length / prev.pageSize),
+      currentPage: 0 // Reset to first page when filter changes
+    }));
+
+    // Get current page of filtered results
+    const startIndex = 0;
+    const endIndex = pagination.pageSize;
+    setFilteredProperties(filtered.slice(startIndex, endIndex));
+  }, [allProperties, searchTerm, filters]);
+
+  // Update filtered properties when page changes
+  useEffect(() => {
+    if (!Array.isArray(allProperties)) return;
+
+    const filtered = allProperties.filter((property) => {
+      const matchesSearch = property.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.address?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesPrice = filters.maxPrice ? property.price <= parseFloat(filters.maxPrice) : true;
+      const matchesSize = filters.minSize ? property.size >= parseFloat(filters.minSize) : true;
+      const matchesAvailability = filters.availability === 'all' ? true :
+        filters.availability === 'available' ? property.available : !property.available;
+
+      return matchesSearch && matchesPrice && matchesSize && matchesAvailability;
+    });
+
+    const startIndex = pagination.currentPage * pagination.pageSize;
+    const endIndex = startIndex + pagination.pageSize;
+    setFilteredProperties(filtered.slice(startIndex, endIndex));
+  }, [pagination.currentPage, allProperties, searchTerm, filters]);
+
+  const handlePageChange = (event, newPage) => {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: newPage - 1
+    }));
+  };
+
+  // Add periodic refresh
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      if (currentUser?.id && !isPropertyModalOpen) {
+        fetchAllProperties();
+        fetchProperties();
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [currentUser, isPropertyModalOpen]);
 
   const handleCreateProperty = async () => {
     try {
       setLoading(true);
       const newProperty = await roomService.createRoom(propertyForm, currentUser.id);
-      // Update local state immediately
-      setProperties(prevProperties => [...prevProperties, newProperty]);
-      setFilteredProperties(prevFiltered => [...prevFiltered, newProperty]);
+      
+      // Refresh both all properties and current page
+      await fetchAllProperties();
+      await fetchProperties();
+      
       setSnackbar({
         open: true,
         message: 'Property created successfully',
@@ -290,13 +366,11 @@ const PropertyManagement = () => {
       setLoading(true);
       if (confirmDialog.action === 'delete') {
         await roomService.deleteRoom(confirmDialog.propertyId, currentUser.id);
-        // Update local state immediately
-        setProperties(prevProperties => 
-          prevProperties.filter(prop => prop.id !== confirmDialog.propertyId)
-        );
-        setFilteredProperties(prevFiltered => 
-          prevFiltered.filter(prop => prop.id !== confirmDialog.propertyId)
-        );
+        
+        // Refresh both all properties and current page
+        await fetchAllProperties();
+        await fetchProperties();
+        
         if (selectedProperty?.id === confirmDialog.propertyId) {
           setSelectedProperty(null);
         }
@@ -307,16 +381,10 @@ const PropertyManagement = () => {
         });
       } else {
         const updatedProperty = await roomService.toggleAvailability(confirmDialog.propertyId, currentUser.id);
-        // Update local state immediately
-        const updatePropertyInState = (properties) =>
-          properties.map(prop =>
-            prop.id === confirmDialog.propertyId
-              ? { ...prop, available: !prop.available }
-              : prop
-          );
         
-        setProperties(updatePropertyInState);
-        setFilteredProperties(updatePropertyInState);
+        // Refresh both all properties and current page
+        await fetchAllProperties();
+        await fetchProperties();
         
         if (selectedProperty?.id === confirmDialog.propertyId) {
           setSelectedProperty(prev => ({ ...prev, available: !prev.available }));
@@ -371,44 +439,6 @@ const PropertyManagement = () => {
       action
     });
   };
-
-  const handlePageChange = (event, newPage) => {
-    setPagination(prev => ({
-      ...prev,
-      currentPage: newPage - 1
-    }));
-  };
-
-  // Update pagination data when filtered properties change
-  useEffect(() => {
-    setPagination(prev => ({
-      ...prev,
-      totalElements: filteredProperties.length,
-      totalPages: Math.ceil(filteredProperties.length / prev.pageSize)
-    }));
-  }, [filteredProperties]);
-
-  const paginatedProperties = filteredProperties.slice(
-    pagination.currentPage * pagination.pageSize,
-    pagination.currentPage * pagination.pageSize + pagination.pageSize
-  );
-
-  // Add periodic refresh
-  useEffect(() => {
-    // Initial fetch
-    if (currentUser?.id) {
-      fetchProperties();
-    }
-
-    // Set up periodic refresh every 30 seconds
-    const refreshInterval = setInterval(() => {
-      if (currentUser?.id && !isPropertyModalOpen) {
-        fetchProperties();
-      }
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(refreshInterval);
-  }, [currentUser, isPropertyModalOpen]);
 
   return (
     <Container 
@@ -698,7 +728,7 @@ const PropertyManagement = () => {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {paginatedProperties.map((property) => (
+                          {filteredProperties.map((property) => (
                             <StyledTableRow 
                               key={property.id}
                               onClick={() => setSelectedProperty(property)}
@@ -863,7 +893,7 @@ const PropertyManagement = () => {
               {/* Mobile View */}
               <Box sx={{ display: { xs: 'block', md: 'none' } }}>
                 <Grid container spacing={2}>
-                  {paginatedProperties.map((property) => (
+                  {filteredProperties.map((property) => (
                     <Grid item xs={12} sm={6} key={property.id}>
                       <Paper 
                         sx={{
@@ -1030,7 +1060,7 @@ const PropertyManagement = () => {
                       </Paper>
                     </Grid>
                   ))}
-                  {paginatedProperties.length === 0 && (
+                  {filteredProperties.length === 0 && (
                     <Grid item xs={12}>
                       <Paper sx={{ p: 4, textAlign: 'center' }}>
                         <Stack spacing={1} alignItems="center">
@@ -1092,7 +1122,7 @@ const PropertyManagement = () => {
                   display: { xs: 'none', md: 'block' }
                 }}
               >
-                Total {filteredProperties.length} properties
+                Total {pagination.totalElements} properties
               </Typography>
             </Box>
             <Pagination

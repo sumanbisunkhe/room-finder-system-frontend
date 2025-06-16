@@ -181,10 +181,23 @@ export const deleteRoom = async (roomId, landlordId) => {
   }
 };
 
-export const fetchAllRooms = async () => {
+export const fetchAllRooms = async (page = 0, size = 5) => {
   try {
-    const response = await api.get('/rooms');
-    return response.data;
+    const response = await api.get('/rooms', {
+      params: {
+        page: page,
+        size: size
+      }
+    });
+    
+    // The response will contain pagination information
+    return {
+      content: response.data.content,
+      totalElements: response.data.totalElements,
+      totalPages: response.data.totalPages,
+      currentPage: response.data.number,
+      pageSize: response.data.size
+    };
   } catch (error) {
     return handleError(error, 'fetch all rooms');
   }
@@ -199,68 +212,31 @@ export const getRoomById = async (roomId) => {
   }
 };
 
-export const fetchRoomsByLandlord = async (landlordId) => {
+export const fetchRoomsByLandlord = async (landlordId, page = 0, size = 5) => {
   try {
     if (!landlordId) {
       throw new Error('Landlord ID is required');
     }
 
-    console.log('Fetching rooms for landlord:', landlordId);
-    
-    const response = await api.get(`/rooms/landlord/${landlordId}`);
-    
-    console.log('Full API Response:', {
-      status: response.status,
-      headers: response.headers,
-      data: response.data,
-      dataType: typeof response.data,
-      isArray: Array.isArray(response.data)
-    });
-
-    // Handle different response formats
-    let properties = [];
-    
-    if (response.data && typeof response.data === 'object') {
-      if (Array.isArray(response.data)) {
-        // Direct array response
-        properties = response.data;
-      } else if (response.data.data && Array.isArray(response.data.data)) {
-        // Nested data array
-        properties = response.data.data;
-      } else if (response.data.properties && Array.isArray(response.data.properties)) {
-        // Nested properties array
-        properties = response.data.properties;
-      } else if (response.data.content && Array.isArray(response.data.content)) {
-        // Paginated response
-        properties = response.data.content;
-      } else {
-        console.error('Unexpected response structure:', response.data);
-        throw new Error('Invalid response format: response data is not in expected format');
+    const response = await api.get(`/rooms/landlord/${landlordId}`, {
+      params: {
+        page: page,
+        size: size
       }
-    } else {
-      console.error('Invalid response data type:', typeof response.data);
-      throw new Error('Invalid response format: response data is not an object');
-    }
-
-    // Format each property's amenities
-    properties = properties.map(formatRoomData);
-
-    // If we got an empty array, that's valid - the landlord might not have any properties
-    if (properties.length === 0) {
-      return properties;
-    }
-
-    // Only validate if we have properties
-    if (!properties.every(property => 
-      property && 
-      typeof property === 'object' && 
-      'id' in property
-    )) {
-      console.error('Invalid property objects in response:', properties);
-      throw new Error('Invalid response format: property objects are missing required fields');
-    }
-
-    return properties;
+    });
+    
+    // Format the rooms data
+    const formattedContent = response.data.content.map(formatRoomData);
+    
+    return {
+      content: formattedContent,
+      totalElements: response.data.totalElements,
+      totalPages: response.data.totalPages,
+      currentPage: response.data.number,
+      pageSize: response.data.size,
+      isFirst: response.data.first,
+      isLast: response.data.last
+    };
   } catch (error) {
     console.error('Error in fetchRoomsByLandlord:', {
       error: error.message,
@@ -277,7 +253,15 @@ export const fetchRoomsByLandlord = async (landlordId) => {
 
     if (error.response.status === 404) {
       // Return empty array if no properties found
-      return [];
+      return {
+        content: [],
+        totalElements: 0,
+        totalPages: 0,
+        currentPage: 0,
+        pageSize: size,
+        isFirst: true,
+        isLast: true
+      };
     }
 
     return handleError(error, 'fetch landlord rooms');

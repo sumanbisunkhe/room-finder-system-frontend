@@ -353,20 +353,47 @@ const ProfileInformation = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
+    setError(null);
+
     try {
-      setSaving(true);
-      const response = await userService.updateProfile({
+      const updateData = {
         ...formData,
         avatar: avatarFile
-      });
+      };
+
+      const response = await userService.updateUserProfile(currentUser.id, updateData);
+      
       if (response.success) {
-        setSnackbar({ open: true, message: 'Profile updated successfully', severity: 'success' });
-        fetchUserData();
+        await fetchUserData();
+        setIsEditing(false);
+        setSnackbar({
+          open: true,
+          message: 'Profile updated successfully',
+          severity: 'success'
+        });
       } else {
-        throw new Error(response.message || 'Failed to update profile');
+        if (response.data) {
+          const firstError = Object.values(response.data)[0];
+          setSnackbar({
+            open: true,
+            message: firstError,
+            severity: 'error'
+          });
+        } else {
+          setSnackbar({
+            open: true,
+            message: response.message || 'Failed to update profile',
+            severity: 'error'
+          });
+        }
       }
     } catch (err) {
-      setSnackbar({ open: true, message: err.message || 'Failed to update profile', severity: 'error' });
+      setSnackbar({
+        open: true,
+        message: err.message || 'Failed to update profile',
+        severity: 'error'
+      });
     } finally {
       setSaving(false);
     }
@@ -429,14 +456,6 @@ const ProfileInformation = () => {
     );
   }
 
-  if (error) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
-    );
-  }
-
   return (
     <Container 
       maxWidth={false} 
@@ -450,6 +469,19 @@ const ProfileInformation = () => {
         overflow: 'auto'
       }}
     >
+      {error && (
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 2,
+            mx: { xs: 1, sm: 1.5, md: 2 },
+            mt: { xs: 1, sm: 1.5, md: 2 }
+          }}
+          onClose={() => setError(null)}
+        >
+          {error}
+        </Alert>
+      )}
       <Box sx={{ 
         p: { xs: 1, sm: 1.5, md: 2 },
         pt: { xs: 2, sm: 2.5, md: 3 },
@@ -715,16 +747,17 @@ const ProfileInformation = () => {
                           setIsEditing(false);
                         }}
                         disabled={saving}
-                        startIcon={<CancelIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.2rem', md: '1.3rem' } }} />}
+                        startIcon={<CancelIcon sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }} />}
                         fullWidth={!isDesktop}
-                        size={isDesktop ? 'medium' : 'small'}
+                        size="small"
                         sx={{ 
-                          minWidth: { xs: 0, sm: 90, md: 100 },
+                          minWidth: { xs: 0, sm: 80, md: 90 },
                           flex: { xs: 1, sm: 'none' },
-                          borderRadius: { xs: '8px', sm: '12px' },
+                          borderRadius: { xs: '6px', sm: '8px' },
                           borderColor: theme => alpha(theme.palette.primary.main, 0.5),
-                          height: { xs: '32px', sm: '36px', md: '40px' },
-                          fontSize: { xs: '0.75rem', sm: '0.8125rem', md: '0.875rem' },
+                          height: { xs: '28px', sm: '32px' },
+                          fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                          px: { xs: 1, sm: 1.5 },
                           '&:hover': {
                             borderColor: 'primary.main',
                             bgcolor: theme => alpha(theme.palette.primary.main, 0.04),
@@ -741,19 +774,20 @@ const ProfileInformation = () => {
                         }}
                         disabled={saving}
                         startIcon={saving ? 
-                          <CircularProgress size={isDesktop ? 20 : 16} /> : 
-                          <SaveIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.2rem', md: '1.3rem' } }} />
+                          <CircularProgress size={16} /> : 
+                          <SaveIcon sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }} />
                         }
                         fullWidth={!isDesktop}
-                        size={isDesktop ? 'medium' : 'small'}
+                        size="small"
                         sx={{ 
-                          minWidth: { xs: 0, sm: 120, md: 140 },
+                          minWidth: { xs: 0, sm: 100, md: 110 },
                           flex: { xs: 1, sm: 'none' },
-                          borderRadius: { xs: '8px', sm: '12px' },
-                          height: { xs: '32px', sm: '36px', md: '40px' },
-                          fontSize: { xs: '0.75rem', sm: '0.8125rem', md: '0.875rem' },
+                          borderRadius: { xs: '6px', sm: '8px' },
+                          height: { xs: '28px', sm: '32px' },
+                          fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                          px: { xs: 1, sm: 1.5 },
                           background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                           '&:hover': {
                             background: theme => `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
                           }
@@ -765,18 +799,19 @@ const ProfileInformation = () => {
                   ) : (
                     <Button
                       variant="contained"
-                      startIcon={<EditIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.2rem', md: '1.3rem' } }} />}
+                      startIcon={<EditIcon sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }} />}
                       onClick={() => setIsEditing(true)}
                       fullWidth={!isDesktop}
-                      size={isDesktop ? 'medium' : 'small'}
+                      size="small"
                       sx={{ 
-                        minWidth: { xs: 0, sm: 110, md: 120 },
+                        minWidth: { xs: 0, sm: 90, md: 100 },
                         flex: { xs: 1, sm: 'none' },
-                        borderRadius: { xs: '8px', sm: '12px' },
-                        height: { xs: '32px', sm: '36px', md: '40px' },
-                        fontSize: { xs: '0.75rem', sm: '0.8125rem', md: '0.875rem' },
+                        borderRadius: { xs: '6px', sm: '8px' },
+                        height: { xs: '28px', sm: '32px' },
+                        fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                        px: { xs: 1, sm: 1.5 },
                         background: theme => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                         '&:hover': {
                           background: theme => `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
                         }

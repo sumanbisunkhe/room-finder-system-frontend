@@ -256,9 +256,9 @@ const LandlordDashboard = () => {
     }
     try {
       setLoading(true);
-      const fetchedProperties = await roomService.fetchRoomsByLandlord(currentUser.id);
+      const response = await roomService.fetchRoomsByLandlord(currentUser.id);
 
-      const processedProperties = fetchedProperties.map((property) => ({
+      const processedProperties = response.content.map((property) => ({
         id: property.id,
         landlordId: property.landlordId,
         title: property.title,
@@ -281,7 +281,7 @@ const LandlordDashboard = () => {
       }));
 
       const stats = {
-        totalProperties: processedProperties.length,
+        totalProperties: response.totalElements,
         availableProperties: processedProperties.filter(
           (property) => property.available === true
         ).length,
