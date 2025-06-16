@@ -15,6 +15,9 @@ import ProfileSection from "./pages/dashboards/sections/ProfileSection";
 import PropertyManagement from "./pages/landlord/PropertyManagement";
 import PropertyAnalytics from "./pages/landlord/PropertyAnalytics";
 import ProfileInformation from "./pages/landlord/ProfileInformation";
+import BookingsSection from "./pages/dashboards/sections/BookingsSection";
+import BookingAnalyticsSection from "./pages/dashboards/sections/BookingAnalyticsSection";
+import BrowsePropertySection from "./pages/dashboards/sections/BrowsePropertySection";
 import { SnackbarProvider } from "./contexts/SnackbarContext";
 import { isTokenValid } from "./services/authService";
 import "./App.css";
@@ -32,7 +35,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     // Redirect to appropriate dashboard based on role
     switch (userRole) {
       case "SEEKER":
-        return <Navigate to="/dashboard/seeker" replace />;
+        return <Navigate to="/seeker/dashboard" replace />;
       case "LANDLORD":
         return <Navigate to="/landlord/dashboard" replace />;
       case "ADMIN":
@@ -56,7 +59,7 @@ const App = () => {
 
           {/* Seeker Dashboard Routes */}
           <Route 
-            path="/dashboard/seeker"
+            path="/seeker/dashboard"
             element={
               <ProtectedRoute requiredRole="SEEKER">
                 <SeekerDashboard />
@@ -64,11 +67,11 @@ const App = () => {
             }
           >
             <Route index element={<Navigate to="browse-property" replace />} />
-            <Route path="browse-property" element={<SeekerDashboard />} />
-            <Route path="bookings" element={<SeekerDashboard />} />
-            <Route path="property-analytics" element={<SeekerDashboard />} />
-            <Route path="system-settings" element={<SeekerDashboard />} />
-            <Route path="profile-information" element={<SeekerDashboard />} />
+            <Route path="browse-property" element={<BrowsePropertySection />} />
+            <Route path="bookings" element={<BookingsSection />} />
+            <Route path="booking-analytics" element={<BookingAnalyticsSection />} />
+            <Route path="system-settings" element={<SystemSettings />} />
+            <Route path="profile-information" element={<ProfileSection />} />
           </Route>
 
           {/* Landlord Dashboard Routes */}

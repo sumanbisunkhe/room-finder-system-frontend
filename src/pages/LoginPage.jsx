@@ -69,7 +69,7 @@ const LoginPage = () => {
 
       switch (role) {
         case "SEEKER":
-          navigate("/dashboard/seeker");
+          navigate("/seeker/dashboard");
           break;
         case "LANDLORD":
           navigate("/landlord/dashboard");

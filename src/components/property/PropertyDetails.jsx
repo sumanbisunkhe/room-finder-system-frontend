@@ -37,7 +37,7 @@ import { autoPlay } from 'react-swipeable-views-utils';
 
 const AutoPlaySwipeableViews = autoPlay(SwipeableViews);
 
-const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, theme }) => {
+const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow, theme }) => {
   const [activeStep, setActiveStep] = useState(0);
   const maxSteps = property?.images?.length || 0;
 
@@ -681,6 +681,18 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, theme }) =
                 </Button>
               </Stack>
             </Paper>
+
+            {/* Booking Button */}
+            <Button
+              variant="contained"
+              color="primary"
+              fullWidth
+              sx={{ mt: 2, py: 1.5, borderRadius: '8px' }}
+              onClick={() => onBookNow(property)}
+              disabled={!property.available}
+            >
+              {property.available ? 'Book This Property' : 'Property Not Available'}
+            </Button>
           </Stack>
         </Grid>
       </Grid>
