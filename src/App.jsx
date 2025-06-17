@@ -20,6 +20,7 @@ import BookingAnalyticsSection from "./pages/dashboards/sections/BookingAnalytic
 import BrowsePropertySection from "./pages/dashboards/sections/BrowsePropertySection";
 import { SnackbarProvider } from "./contexts/SnackbarContext";
 import { isTokenValid } from "./services/authService";
+import ViewPropertyDetails from "./pages/seeker/ViewPropertyDetails";
 import "./App.css";
 
 const ProtectedRoute = ({ children, requiredRole }) => {
@@ -72,6 +73,7 @@ const App = () => {
             <Route path="booking-analytics" element={<BookingAnalyticsSection />} />
             <Route path="system-settings" element={<SystemSettings />} />
             <Route path="profile-information" element={<ProfileSection />} />
+            <Route path="property/:id" element={<ViewPropertyDetails />} />
           </Route>
 
           {/* Landlord Dashboard Routes */}

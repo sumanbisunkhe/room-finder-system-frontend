@@ -34,6 +34,7 @@ import {
   Chip,
   IconButton,
   Tooltip,
+  Collapse,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -48,12 +49,14 @@ import {
   Tv as TvIcon,
   Kitchen as KitchenIcon,
   FilterList as FilterListIcon,
+  RestartAlt as RestartAltIcon,
 } from '@mui/icons-material';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import * as roomService from '../../../services/roomService';
 import * as bookingService from '../../../services/bookingService';
 import { styled, useTheme } from '@mui/material/styles';
 import PropertyDetails from '../../../components/property/PropertyDetails';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
@@ -107,11 +110,28 @@ const CustomScrollbar = styled('div')(({ theme }) => ({
   },
 }));
 
+const StyledPaginationPaper = styled(Paper)(({ theme, drawerOpen }) => ({
+  position: 'fixed',
+  bottom: 0,
+  left: 0,
+  right: 0,
+  marginLeft: drawerOpen ? 240 : 65, // Drawer width when expanded/collapsed
+  padding: theme.spacing(2),
+  display: 'flex',
+  justifyContent: 'center',
+  borderRadius: 0,
+  transition: theme.transitions.create(['margin'], {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
+  zIndex: theme.zIndex.drawer - 1,
+}));
+
 const BrowsePropertySection = () => {
-  const { currentUser, setSnackbar, theme, drawerOpen } = useOutletContext();
+  const { theme, drawerOpen } = useOutletContext();
+  const navigate = useNavigate();
   const MUItheme = useTheme();
   const [allRooms, setAllRooms] = useState([]);
-  const [rooms, setRooms] = useState([]);
   const [filteredRooms, setFilteredRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -119,7 +139,7 @@ const BrowsePropertySection = () => {
   const [filters, setFilters] = useState({
     maxPrice: '',
     minSize: '',
-    availability: 'all',
+    availability: 'available',
   });
   const [pagination, setPagination] = useState({
     currentPage: 0,
@@ -134,74 +154,62 @@ const BrowsePropertySection = () => {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [isPropertyDetailsModalOpen, setIsPropertyDetailsModalOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [snackbarState, setSnackbarState] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+  const isMobileOrTablet = useMediaQuery(MUItheme.breakpoints.down('md'));
+  const [infinitePage, setInfinitePage] = useState(0);
+  const [infiniteRooms, setInfiniteRooms] = useState([]);
+  const [hasMore, setHasMore] = useState(true);
 
   // Fetch all rooms for search/filter
   const fetchAllRooms = useCallback(async () => {
     try {
-      const response = await roomService.fetchAllRooms(0, 1000); // Fetch all rooms
-      if (!response || !response.content) {
-        throw new Error('Invalid response format from server');
-      }
-      setAllRooms(response.content);
-    } catch (error) {
-      console.error('Error fetching all rooms:', error);
-      setAllRooms([]);
-      setSnackbar({
-        open: true,
-        message: error.message || 'Failed to fetch all rooms for filtering',
-        severity: 'error',
-      });
-    }
-  }, [setSnackbar]);
-
-  // Fetch paginated rooms for display
-  const fetchRooms = useCallback(async (page = pagination.currentPage) => {
-    try {
+      console.log('Fetching all rooms...');
       setLoading(true);
-      const response = await roomService.fetchAllRooms(page, pagination.pageSize);
+      const response = await roomService.fetchAllRooms(0, 1000); // Fetch all rooms
+      console.log('All rooms response:', response);
       
       if (!response || !response.content) {
         throw new Error('Invalid response format from server');
       }
-
-      setRooms(response.content);
-      setFilteredRooms(response.content);
-      setPagination(prev => ({
-        ...prev,
-        totalElements: response.totalElements,
-        totalPages: response.totalPages,
-        currentPage: page
+      
+      const formattedRooms = response.content.map(room => ({
+        ...room,
+        price: parseFloat(room.price) || 0,
+        size: parseFloat(room.size) || 0,
       }));
+      
+      setAllRooms(formattedRooms);
     } catch (error) {
-      console.error('Error fetching paginated rooms:', error);
-      setRooms([]);
-      setFilteredRooms([]);
-      setSnackbar({
+      console.error('Error fetching all rooms:', error);
+      setAllRooms([]);
+      setSnackbarState({
         open: true,
-        message: error.message || 'Failed to fetch rooms',
+        message: error.message || 'Failed to fetch all rooms for filtering',
         severity: 'error',
       });
     } finally {
       setLoading(false);
     }
-  }, [pagination.pageSize, setSnackbar]);
+  }, []);
 
   // Initial load
   useEffect(() => {
-    if (currentUser?.id) {
-      fetchAllRooms();
-      fetchRooms(0);
-    }
-  }, [currentUser, fetchAllRooms, fetchRooms]);
+    console.log('Initial load effect triggered');
+    fetchAllRooms();
+  }, [fetchAllRooms]);
 
   // Handle search and filter
   useEffect(() => {
-    if (!Array.isArray(rooms)) {
+    if (!Array.isArray(allRooms)) {
       setFilteredRooms([]);
       return;
     }
 
-    const filtered = rooms.filter((room) => {
+    const filtered = allRooms.filter((room) => {
       const matchesSearch = room.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         room.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         room.address?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -214,8 +222,80 @@ const BrowsePropertySection = () => {
       return matchesSearch && matchesPrice && matchesSize && matchesAvailability;
     });
 
-    setFilteredRooms(filtered);
-  }, [rooms, searchTerm, filters]);
+    // Update pagination based on filtered results
+    setPagination(prev => ({
+      ...prev,
+      totalElements: filtered.length,
+      totalPages: Math.ceil(filtered.length / prev.pageSize),
+      currentPage: 0 // Reset to first page when filter changes
+    }));
+
+    // Get current page of filtered results
+    const startIndex = 0;
+    const endIndex = pagination.pageSize;
+    setFilteredRooms(filtered.slice(startIndex, endIndex));
+  }, [allRooms, searchTerm, filters, pagination.pageSize]);
+
+  // Update filtered rooms when page changes
+  useEffect(() => {
+    if (!Array.isArray(allRooms)) return;
+
+    const filtered = allRooms.filter((room) => {
+      const matchesSearch = room.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        room.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        room.address?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesPrice = filters.maxPrice ? room.price <= parseFloat(filters.maxPrice) : true;
+      const matchesSize = filters.minSize ? room.size >= parseFloat(filters.minSize) : true;
+      const matchesAvailability = filters.availability === 'all' ? true :
+        filters.availability === 'available' ? room.available : !room.available;
+
+      return matchesSearch && matchesPrice && matchesSize && matchesAvailability;
+    });
+
+    const startIndex = pagination.currentPage * pagination.pageSize;
+    const endIndex = startIndex + pagination.pageSize;
+    setFilteredRooms(filtered.slice(startIndex, endIndex));
+  }, [pagination.currentPage, allRooms, searchTerm, filters]);
+
+  // Infinite scroll effect for mobile/tablet
+  useEffect(() => {
+    if (!isMobileOrTablet) return;
+    // Reset on filter/search change
+    setInfinitePage(0);
+    setInfiniteRooms([]);
+    setHasMore(true);
+  }, [searchTerm, filters, allRooms, isMobileOrTablet]);
+
+  useEffect(() => {
+    if (!isMobileOrTablet) return;
+    // Filtered rooms
+    const filtered = allRooms.filter((room) => {
+      const matchesSearch = room.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        room.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        room.address?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesPrice = filters.maxPrice ? room.price <= parseFloat(filters.maxPrice) : true;
+      const matchesSize = filters.minSize ? room.size >= parseFloat(filters.minSize) : true;
+      const matchesAvailability = filters.availability === 'all' ? true :
+        filters.availability === 'available' ? room.available : !room.available;
+      return matchesSearch && matchesPrice && matchesSize && matchesAvailability;
+    });
+    const pageSize = pagination.pageSize;
+    const startIndex = infinitePage * pageSize;
+    const endIndex = startIndex + pageSize;
+    const nextRooms = filtered.slice(startIndex, endIndex);
+    setInfiniteRooms((prev) => infinitePage === 0 ? nextRooms : [...prev, ...nextRooms]);
+    setHasMore(endIndex < filtered.length);
+  }, [infinitePage, allRooms, searchTerm, filters, isMobileOrTablet, pagination.pageSize]);
+
+  // Infinite scroll handler
+  const handleScroll = (e) => {
+    if (!hasMore) return;
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollHeight - scrollTop - clientHeight < 100) {
+      setInfinitePage((prev) => prev + 1);
+    }
+  };
 
   const handleOpenBookingDialog = (room) => {
     setSelectedRoom(room);
@@ -241,7 +321,7 @@ const BrowsePropertySection = () => {
 
   const handleBooking = async () => {
     if (!selectedRoom || !startDate || !endDate || !currentUser?.id) {
-      setSnackbar({ open: true, message: "Please fill all booking details.", severity: 'warning' });
+      setSnackbarState({ open: true, message: "Please fill all booking details.", severity: 'warning' });
       return;
     }
 
@@ -255,11 +335,11 @@ const BrowsePropertySection = () => {
         totalPrice: selectedRoom.price, // This might need adjustment based on dates
       };
       await bookingService.createBooking(bookingRequest);
-      setSnackbar({ open: true, message: "Booking request sent successfully!", severity: 'success' });
+      setSnackbarState({ open: true, message: "Booking request sent successfully!", severity: 'success' });
       handleCloseBookingDialog();
       // Potentially refresh rooms or update status
     } catch (err) {
-      setSnackbar({ open: true, message: err.message || "Failed to send booking request.", severity: 'error' });
+      setSnackbarState({ open: true, message: err.message || "Failed to send booking request.", severity: 'error' });
     } finally {
       setBookingLoading(false);
     }
@@ -267,18 +347,23 @@ const BrowsePropertySection = () => {
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
-    fetchRooms(0); // Reset to first page
+    setPagination(prev => ({ ...prev, currentPage: 0 }));
   };
 
-  const handleFilterChange = (event) => {
-    const { name, value } = event.target;
+  const handleFilterChange = (name, value) => {
     setFilters(prev => ({ ...prev, [name]: value }));
-    fetchRooms(0); // Reset to first page
+    setPagination(prev => ({ ...prev, currentPage: 0 }));
   };
 
   const handlePageChange = (event, newPage) => {
-    const page = newPage - 1; // Convert to 0-based index
-    fetchRooms(page);
+    setPagination(prev => ({
+      ...prev,
+      currentPage: newPage - 1
+    }));
+  };
+
+  const handlePropertyClick = (room) => {
+    navigate(`/seeker/dashboard/property/${room.id}`);
   };
 
   const renderAmenityIcon = (amenity) => {
@@ -291,6 +376,341 @@ const BrowsePropertySection = () => {
       case 'kitchen': return <KitchenIcon fontSize="small" />;
       default: return null;
     }
+  };
+
+  // Add empty state component
+  const EmptyState = () => (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        py: 8,
+        px: 2,
+      }}
+    >
+      <HomeIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+      <Typography variant="h6" color="text.secondary" gutterBottom>
+        No Properties Found
+      </Typography>
+      <Typography variant="body2" color="text.secondary" align="center">
+        {error ? 'Error loading properties. Please try again later.' : 'No properties are available at the moment.'}
+      </Typography>
+    </Box>
+  );
+
+  // Add loading state component
+  const LoadingState = () => (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '400px'
+      }}
+    >
+      <CircularProgress />
+    </Box>
+  );
+
+  // Update the main render section to use these components
+  const renderContent = () => {
+    if (loading) {
+      return <LoadingState />;
+    }
+    if (error || (!loading && (!filteredRooms || filteredRooms.length === 0))) {
+      return <EmptyState />;
+    }
+    if (isMobileOrTablet) {
+    return (
+      <Grid container spacing={3}>
+          {infiniteRooms.map((room) => {
+            // Get up to 2 active amenities
+            const activeAmenities = room.amenities ? Object.entries(room.amenities).filter(([_, v]) => v).slice(0, 2) : [];
+            return (
+              <Grid item xs={12} sm={6} md={4} lg={2.4} key={room.id}>
+            <StyledCard 
+              onClick={() => handlePropertyClick(room)}
+                  sx={{
+                    cursor: 'pointer',
+                    maxHeight: 480,
+                    minHeight: 420,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    boxShadow: 3,
+                    transition: 'box-shadow 0.2s, transform 0.2s',
+                    '&:hover': {
+                      boxShadow: 8,
+                      transform: 'translateY(-4px) scale(1.02)',
+                    },
+                  }}
+            >
+                  <Box sx={{ position: 'relative', height: 200, overflow: 'hidden' }}>
+                <Box
+                  component="img"
+                  src={room.images?.[0] ? `${import.meta.env.VITE_API_URL}/uploads/${room.images[0]}` : undefined}
+                  alt={room.title}
+                  sx={{
+                    width: '100%',
+                    height: 200,
+                    objectFit: 'cover',
+                    borderRadius: '16px 16px 0 0',
+                        transition: 'transform 0.3s',
+                  }}
+                />
+                    <Box
+                    sx={{
+                      position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'linear-gradient(to bottom, rgba(0,0,0,0.18) 60%, rgba(0,0,0,0.55) 100%)',
+                    }}
+                  />
+                    <Chip
+                      label={room.available ? 'Available' : 'Not Available'}
+                      size="small"
+                  sx={{
+                    position: 'absolute',
+                        top: 10,
+                        left: 10,
+                        bgcolor: room.available ? 'success.light' : 'error.light',
+                        color: room.available ? 'success.dark' : 'error.dark',
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        px: 1.2,
+                        borderRadius: 1.5,
+                        zIndex: 2,
+                  }}
+                />
+              </Box>
+                  <CardContent sx={{ p: 2.5, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 1.2 }}>
+                <Typography 
+                      variant="subtitle1"
+                  sx={{ 
+                        fontWeight: 700,
+                        color: 'text.primary',
+                        fontSize: '1.08rem',
+                        mb: 0.5,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                  }}
+                >
+                  {room.title}
+                </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                      <AttachMoneyIcon sx={{ color: 'primary.main', fontSize: 19 }} />
+                      <Typography variant="body1" color="primary.main" sx={{ fontWeight: 600, fontSize: '1.05rem' }}>
+                      ${room.price.toLocaleString()}
+                    </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        /month
+                    </Typography>
+                  </Stack>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                      <LocationOnIcon sx={{ color: 'text.secondary', fontSize: 17 }} />
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                        {room.city}
+                    </Typography>
+                  </Stack>
+                    {room.address && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {room.address}
+                    </Typography>
+                    )}
+                    {activeAmenities.length > 0 && (
+                      <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                        {activeAmenities.map(([amenity]) => (
+                          <Box key={amenity} sx={{ display: 'flex', alignItems: 'center', bgcolor: 'background.default', borderRadius: 1, px: 0.9, py: 0.4 }}>
+                            {renderAmenityIcon(amenity)}
+                            <Typography variant="caption" sx={{ ml: 0.5, fontSize: '0.75rem', color: 'text.secondary' }}>
+                              {amenity.charAt(0).toUpperCase() + amenity.slice(1)}
+                            </Typography>
+                          </Box>
+                        ))}
+                  </Stack>
+                    )}
+                  </CardContent>
+                  <Box sx={{ p: 2.5, pt: 0, mt: 'auto' }}>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      onClick={() => handleOpenBookingDialog(room)}
+                      disabled={!room.available}
+                            sx={{
+                        borderRadius: 2,
+                        py: 1.2,
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        boxShadow: 'none',
+                        fontSize: '0.95rem',
+                        '&:hover': {
+                          boxShadow: 'none',
+                          transform: 'translateY(-2px)',
+                          transition: 'transform 0.2s ease-in-out',
+                        },
+                      }}
+                    >
+                      {room.available ? 'View Details & Book' : 'Not Available'}
+                    </Button>
+                  </Box>
+                </StyledCard>
+              </Grid>
+            );
+          })}
+        </Grid>
+      );
+    }
+    // Desktop: use paginated filteredRooms
+    return (
+      <Grid container spacing={3}>
+        {filteredRooms.map((room) => {
+          // Get up to 2 active amenities
+          const activeAmenities = room.amenities ? Object.entries(room.amenities).filter(([_, v]) => v).slice(0, 2) : [];
+          return (
+            <Grid item xs={12} sm={6} md={4} lg={2.4} key={room.id}>
+              <StyledCard 
+                onClick={() => handlePropertyClick(room)}
+                sx={{
+                  cursor: 'pointer',
+                  maxHeight: 480,
+                  minHeight: 420,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  boxShadow: 3,
+                  transition: 'box-shadow 0.2s, transform 0.2s',
+                  '&:hover': {
+                    boxShadow: 8,
+                    transform: 'translateY(-4px) scale(1.02)',
+                  },
+                }}
+              >
+                <Box sx={{ position: 'relative', height: 200, overflow: 'hidden' }}>
+                  <Box
+                    component="img"
+                    src={room.images?.[0] ? `${import.meta.env.VITE_API_URL}/uploads/${room.images[0]}` : undefined}
+                    alt={room.title}
+                    sx={{
+                      width: '100%',
+                      height: 200,
+                      objectFit: 'cover',
+                      borderRadius: '16px 16px 0 0',
+                      transition: 'transform 0.3s',
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.18) 60%, rgba(0,0,0,0.55) 100%)',
+                    }}
+                  />
+                  <Chip
+                    label={room.available ? 'Available' : 'Not Available'}
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: 10,
+                      left: 10,
+                      bgcolor: room.available ? 'success.light' : 'error.light',
+                      color: room.available ? 'success.dark' : 'error.dark',
+                      fontWeight: 600,
+                      fontSize: '0.7rem',
+                      px: 1.2,
+                      borderRadius: 1.5,
+                      zIndex: 2,
+                    }}
+                  />
+                </Box>
+                <CardContent sx={{ p: 2.5, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 1.2 }}>
+                  <Typography 
+                    variant="subtitle1"
+                    sx={{ 
+                      fontWeight: 700,
+                      color: 'text.primary',
+                      fontSize: '1.08rem',
+                      mb: 0.5,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                            }}
+                  >
+                    {room.title}
+                  </Typography>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                    <AttachMoneyIcon sx={{ color: 'primary.main', fontSize: 19 }} />
+                    <Typography variant="body1" color="primary.main" sx={{ fontWeight: 600, fontSize: '1.05rem' }}>
+                      ${room.price.toLocaleString()}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      /month
+                    </Typography>
+                    </Stack>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                    <LocationOnIcon sx={{ color: 'text.secondary', fontSize: 17 }} />
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {room.city}
+                    </Typography>
+                  </Stack>
+                  {room.address && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {room.address}
+                    </Typography>
+                  )}
+                  {activeAmenities.length > 0 && (
+                    <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                      {activeAmenities.map(([amenity]) => (
+                        <Box key={amenity} sx={{ display: 'flex', alignItems: 'center', bgcolor: 'background.default', borderRadius: 1, px: 0.9, py: 0.4 }}>
+                          {renderAmenityIcon(amenity)}
+                          <Typography variant="caption" sx={{ ml: 0.5, fontSize: '0.75rem', color: 'text.secondary' }}>
+                            {amenity.charAt(0).toUpperCase() + amenity.slice(1)}
+                          </Typography>
+                        </Box>
+                      ))}
+                </Stack>
+                  )}
+              </CardContent>
+                <Box sx={{ p: 2.5, pt: 0, mt: 'auto' }}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={() => handleOpenBookingDialog(room)}
+                  disabled={!room.available}
+                  sx={{
+                    borderRadius: 2,
+                      py: 1.2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    boxShadow: 'none',
+                      fontSize: '0.95rem',
+                    '&:hover': {
+                      boxShadow: 'none',
+                      transform: 'translateY(-2px)',
+                      transition: 'transform 0.2s ease-in-out',
+                    },
+                  }}
+                >
+                  {room.available ? 'View Details & Book' : 'Not Available'}
+                </Button>
+              </Box>
+            </StyledCard>
+          </Grid>
+          );
+        })}
+      </Grid>
+    );
   };
 
   if (loading) {
@@ -310,360 +730,282 @@ const BrowsePropertySection = () => {
   }
 
   return (
-    <Container maxWidth={false} disableGutters>
-      <Stack spacing={0}>
-        <Paper elevation={3} sx={{ p: 3, borderRadius: 0, m: 0, mb: 0 }}>
-          <Stack direction="row" flexWrap="wrap" alignItems="center" spacing={1}>
-            <TextField
-              label="Search Properties"
-              variant="outlined"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              size="small"
-              sx={{ flexGrow: 1 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Tooltip title="Toggle Filters">
-              <IconButton 
-                onClick={() => setShowFilters(!showFilters)}
-                color={showFilters ? "primary" : "default"}
-              >
-                <FilterListIcon />
-              </IconButton>
-            </Tooltip>
-
-            {showFilters && (
-              <>
-                <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-                  <Select
-                    name="availability"
-                    value={filters.availability}
-                    onChange={handleFilterChange}
-                    displayEmpty
-                  >
-                    <MenuItem value="all">All Availability</MenuItem>
-                    <MenuItem value="available">Available</MenuItem>
-                    <MenuItem value="unavailable">Unavailable</MenuItem>
-                  </Select>
-                </FormControl>
-                <TextField
-                  label="Max Price"
-                  name="maxPrice"
-                  type="number"
-                  variant="outlined"
-                  size="small"
-                  value={filters.maxPrice}
-                  onChange={handleFilterChange}
-                  sx={{ maxWidth: 120 }}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                  }}
-                />
-                <TextField
-                  label="Min Size"
-                  name="minSize"
-                  type="number"
-                  variant="outlined"
-                  size="small"
-                  value={filters.minSize}
-                  onChange={handleFilterChange}
-                  sx={{ maxWidth: 120 }}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">sqft</InputAdornment>,
-                  }}
-                />
-              </>
-            )}
-          </Stack>
-        </Paper>
-
-        <Paper elevation={3} sx={{ p: 3, borderRadius: 0, m: 0, mt: 0 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-           
-            <Typography variant="body2" color="text.secondary">
-              Showing {filteredRooms.length} of {pagination.totalElements} properties
-            </Typography>
-          </Stack>
-
-          <CustomScrollbar sx={{ maxHeight: '70vh' }}>
-            <Grid container spacing={3}>
-              {filteredRooms.length === 0 ? (
-                <Grid item xs={12}>
-                  <Box sx={{ textAlign: 'center', py: 8 }}>
-                    <HomeIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      No properties found
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Try adjusting your search criteria or filters
-                    </Typography>
-                  </Box>
-                </Grid>
-              ) : (
-                filteredRooms.map((room) => (
-                  <Grid item key={room.id} xs={12} sm={6} md={4} sx={{
-                    [MUItheme.breakpoints.up('lg')]: {
-                      width: '20%',
-                      maxWidth: '20%',
-                      flexBasis: '20%',
-                    },
-                  }}>
-                    <StyledCard>
-                      <Box sx={{ position: 'relative' }}>
-                        <Box
-                          component="img"
-                          src={room.images?.[0] ? `${import.meta.env.VITE_API_URL}/uploads/${room.images[0]}` : undefined}
-                          alt={room.title}
-                          sx={{
-                            width: '100%',
-                            height: 200,
-                            objectFit: 'cover',
-                          }}
-                        />
-                        {!room.available && (
-                          <Chip
-                            label="Not Available"
-                            color="error"
-                            size="small"
-                            sx={{
-                              position: 'absolute',
-                              top: 16,
-                              right: 16,
-                            }}
-                          />
-                        )}
-                      </Box>
-                      <CardContent sx={{ flexGrow: 1, p: 2 }}>
-                        <Typography variant="h6" component="div" gutterBottom sx={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                          {room.title}
-                        </Typography>
-                        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1 }}>
-                          <AttachMoneyIcon fontSize="small" color="primary" />
-                          <Typography variant="body1" color="primary.main" sx={{ fontWeight: 600 }}>
-                            ${room.price} / month
-                          </Typography>
-                        </Stack>
-                        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1 }}>
-                          <LocationOnIcon fontSize="small" color="action" />
-                          <Typography variant="body2" color="text.secondary" noWrap>
-                            {room.address}, {room.city}
-                          </Typography>
-                        </Stack>
-                        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 2 }}>
-                          <SquareFootIcon fontSize="small" color="action" />
-                          <Typography variant="body2" color="text.secondary">
-                            {room.size} sqft
-                          </Typography>
-                        </Stack>
-                        {room.amenities && Object.values(room.amenities).some(Boolean) && (
-                          <Stack direction="row" flexWrap="wrap" spacing={1}>
-                            {Object.entries(room.amenities).map(([amenity, value]) =>
-                              value && (
-                                <StyledChip
-                                  key={amenity}
-                                  icon={renderAmenityIcon(amenity)}
-                                  label={amenity.charAt(0).toUpperCase() + amenity.slice(1)}
-                                  size="small"
-                                />
-                              )
-                            )}
-                          </Stack>
-                        )}
-                      </CardContent>
-                      <Box sx={{ p: 2, pt: 0 }}>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          fullWidth
-                          onClick={() => handleOpenBookingDialog(room)}
-                          disabled={!room.available}
-                          sx={{
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {room.available ? 'View Details & Book' : 'Not Available'}
-                        </Button>
-                      </Box>
-                    </StyledCard>
-                  </Grid>
-                ))
-              )}
-            </Grid>
-          </CustomScrollbar>
-        </Paper>
-      </Stack>
-
-      {/* Fixed Pagination */}
-      <Paper
+    <Container maxWidth={false} sx={{ py: 2, px: 0 }}>
+      <Box
         sx={{
-          position: 'fixed',
-          bottom: 0,
-          left: { 
-            xs: 0, 
-            sm: drawerOpen ? '240px' : '64px' 
+          overflowY: { xs: 'auto', sm: 'auto', md: 'visible' },
+          maxHeight: {
+            xs: 'calc(100vh - 56px)',
+            sm: 'calc(100vh - 64px)',
+            md: 'none',
           },
-          right: 0,
-          zIndex: 1000,
-          borderRadius: 0,
-          borderTop: '1px solid',
-          borderColor: 'divider',
+        }}
+        onScroll={isMobileOrTablet ? handleScroll : undefined}
+      >
+      {/* Search and Filter Section */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 0,
           bgcolor: 'background.paper',
-          boxShadow: '0 -4px 8px rgba(0, 0, 0, 0.1)',
-          transition: 'left 0.3s ease'
+          border: '1px solid',
+          borderColor: theme => alpha(theme.palette.divider, 0.1),
+          borderBottom: 'none',
+          boxShadow: 'none',
+          borderRadius: '16px 16px 0 0',
         }}
       >
-        <Box sx={{
-          py: { xs: 1.5, md: 0.75 },
-          px: { xs: 1, sm: 2 },
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: { xs: 52, md: 44 },
-          maxWidth: 'xl',
-          mx: 'auto'
-        }}>
-          <Box sx={{ position: 'absolute', right: { xs: 2, sm: 4 } }}>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontStyle: 'italic',
-                fontSize: '0.75rem',
-                py: 0.5,
-                px: 1,
-                display: { xs: 'none', md: 'block' }
-              }}
+        <Stack 
+          direction={{ xs: 'column', md: 'row' }} 
+          spacing={2} 
+          alignItems="center"
+          sx={{ width: '100%' }}
+        >
+          <TextField
+            placeholder="Search by title, city, or address..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" />
+                </InputAdornment>
+              ),
+              sx: {
+                borderRadius: 2,
+                bgcolor: theme => alpha(theme.palette.background.default, 0.8),
+                '&:hover': {
+                  bgcolor: theme => alpha(theme.palette.background.default, 1),
+                }
+              }
+            }}
+            sx={{ 
+              flex: 2,
+              minWidth: 0,
+              width: { xs: '100%', md: 'auto' },
+            }}
+          />
+          <TextField
+            label="Max Price"
+            type="number"
+            value={filters.maxPrice}
+            onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+            InputProps={{
+              startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              sx: { borderRadius: 2 }
+            }}
+            sx={{ 
+              flex: 1,
+              minWidth: 0,
+              width: { xs: '100%', md: 'auto' },
+            }}
+          />
+          <TextField
+            label="Min Size (sqft)"
+            type="number"
+            value={filters.minSize}
+            onChange={(e) => handleFilterChange('minSize', e.target.value)}
+            InputProps={{
+              sx: { borderRadius: 2 }
+            }}
+            sx={{ 
+              flex: 1,
+              minWidth: 0,
+              width: { xs: '100%', md: 'auto' },
+            }}
+          />
+          <FormControl sx={{ flex: 1, minWidth: 0, width: { xs: '100%', md: 'auto' } }}>
+            <Select
+              value={filters.availability}
+              onChange={(e) => handleFilterChange('availability', e.target.value)}
+              displayEmpty
+              sx={{ borderRadius: 2, height: '56px' }}
             >
-              Total {pagination.totalElements} properties
-            </Typography>
+              <MenuItem value="all">All Properties</MenuItem>
+              <MenuItem value="available">Available Only</MenuItem>
+              <MenuItem value="unavailable">Unavailable Only</MenuItem>
+            </Select>
+          </FormControl>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setFilters({
+                maxPrice: '',
+                minSize: '',
+                availability: 'all'
+              });
+              setSearchTerm('');
+            }}
+            sx={{
+              height: '56px',
+              borderRadius: 2,
+              borderColor: theme => alpha(theme.palette.divider, 0.2),
+              px: 3,
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: 0,
+              width: { xs: '100%', md: 'auto' },
+            }}
+          >
+            <RestartAltIcon />
+          </Button>
+        </Stack>
+      </Paper>
+
+      {/* Properties Grid Section */}
+      <Paper
+        elevation={0}
+        sx={{
+          minHeight: 300,
+          borderRadius: '0 0 16px 16px',
+          bgcolor: 'background.paper',
+          border: '1px solid',
+          borderColor: theme => alpha(theme.palette.divider, 0.1),
+          boxShadow: theme => `0 0 20px ${alpha(theme.palette.primary.main, 0.08)}`,
+          pb: 7 // Add padding at bottom for fixed pagination
+        }}
+      >
+        <CustomScrollbar>
+          <Box sx={{ p: 3 }}>
+            {renderContent()}
           </Box>
+        </CustomScrollbar>
+      </Paper>
+
+      {/* Pagination only for desktop */}
+      {!isMobileOrTablet && !loading && filteredRooms.length > 0 && (
+        <StyledPaginationPaper drawerOpen={drawerOpen} elevation={3}>
           <Pagination
             count={pagination.totalPages}
             page={pagination.currentPage + 1}
             onChange={handlePageChange}
-            shape="rounded"
             color="primary"
-            size="medium"
+            size="small"
             showFirstButton
             showLastButton
-            renderItem={(item) => {
-              if (item.type === 'previous' || item.type === 'next') {
-                return (
-                  <PaginationItem
-                    {...item}
-                    sx={{
-                      bgcolor: 'transparent',
-                      border: 'none',
-                      '&:hover': {
-                        bgcolor: 'transparent',
-                      },
-                      '&.Mui-disabled': {
-                        opacity: 0.5,
-                        bgcolor: 'transparent',
-                      },
-                    }}
-                  />
-                );
-              }
-              return (
-                <PaginationItem
-                  {...item}
-                  sx={{
-                    mx: 0.5,
-                    border: 'none',
-                    bgcolor: 'transparent',
-                    color: 'text.primary',
-                    '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
-                      '&:hover': {
-                        bgcolor: 'primary.main',
-                      },
-                    },
-                    '&:hover': {
-                      bgcolor: 'transparent',
-                    },
-                  }}
-                />
-              );
-            }}
             sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              py: 1.2,
+              '& .MuiPagination-ul': {
+                justifyContent: 'center',
+              },
               '& .MuiPaginationItem-root': {
-                mx: 0.5,
-                minWidth: 32,
-                height: 32
-              }
+                borderRadius: 1,
+              },
             }}
           />
-        </Box>
-      </Paper>
+        </StyledPaginationPaper>
+      )}
 
-      <PropertyDetails
-        open={isPropertyDetailsModalOpen}
-        onClose={handleClosePropertyDetailsModal}
-        property={selectedRoom}
-        onBookNow={handleOpenBookingDialogFromDetails}
-        theme={MUItheme}
-      />
+      {/* Property Details Modal */}
+      {selectedRoom && (
+        <PropertyDetails
+          open={isPropertyDetailsModalOpen}
+          onClose={handleClosePropertyDetailsModal}
+          room={selectedRoom}
+          onBook={() => handleOpenBookingDialogFromDetails(selectedRoom)}
+        />
+      )}
 
-      <Dialog open={bookingDialogOpen} onClose={handleCloseBookingDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ bgcolor: MUItheme.palette.primary.main, color: MUItheme.palette.primary.contrastText, pb: 1, pt: 2 }}>
-          Book {selectedRoom?.title}
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2, pb: 2 }}>
-          <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-            Fill in your booking details below. Your request will be sent to the landlord for approval.
+      {/* Booking Dialog */}
+      <Dialog
+        open={bookingDialogOpen}
+        onClose={handleCloseBookingDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: theme => `0 0 20px ${alpha(theme.palette.primary.main, 0.15)}`
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h5" component="div" fontWeight={600}>
+            Book Property
           </Typography>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Start Date"
-                type="date"
-                fullWidth
-                margin="normal"
-                InputLabelProps={{ shrink: true }}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="End Date"
-                type="date"
-                fullWidth
-                margin="normal"
-                InputLabelProps={{ shrink: true }}
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </Grid>
-          </Grid>
-          {selectedRoom?.price && startDate && endDate && (
-            <Typography variant="h6" sx={{ mt: 2, textAlign: 'right' }}>
-              Estimated Price: ${selectedRoom.price} / month
-            </Typography>
-          )}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Select your preferred dates for booking
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 2 }}>
+            <TextField
+              label="Start Date"
+              type="date"
+              fullWidth
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                sx: { borderRadius: 2 }
+              }}
+            />
+            <TextField
+              label="End Date"
+              type="date"
+              fullWidth
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                sx: { borderRadius: 2 }
+              }}
+            />
+          </Stack>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleCloseBookingDialog} color="secondary" variant="outlined">
+        <DialogActions sx={{ p: 3, pt: 2 }}>
+          <Button 
+            onClick={handleCloseBookingDialog}
+            variant="outlined"
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+              borderColor: theme => alpha(theme.palette.divider, 0.2)
+            }}
+          >
             Cancel
           </Button>
-          <Button onClick={handleBooking} disabled={bookingLoading || !startDate || !endDate} variant="contained" color="primary">
-            {bookingLoading ? <CircularProgress size={20} /> : 'Confirm Booking'}
+          <Button
+            onClick={handleBooking}
+            variant="contained"
+            disabled={bookingLoading}
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: 'none',
+              }
+            }}
+          >
+            {bookingLoading ? 'Booking...' : 'Book Now'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbarState.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarState(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbarState(prev => ({ ...prev, open: false }))}
+          severity={snackbarState.severity}
+          variant="filled"
+          sx={{ 
+            borderRadius: 2,
+            width: '100%',
+            boxShadow: theme => `0 4px 12px ${alpha(theme.palette.common.black, 0.15)}`
+          }}
+        >
+          {snackbarState.message}
+        </Alert>
+      </Snackbar>
+      </Box>
     </Container>
   );
 };

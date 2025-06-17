@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -34,12 +36,38 @@ import {
 } from '@mui/icons-material';
 import SwipeableViews from 'react-swipeable-views';
 import { autoPlay } from 'react-swipeable-views-utils';
+import * as roomService from '../../services/roomService';
 
 const AutoPlaySwipeableViews = autoPlay(SwipeableViews);
 
-const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow, theme }) => {
+const ViewPropertyDetails = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const context = useOutletContext();
+  const setSnackbar = context?.setSnackbar;
+  const [property, setProperty] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [activeStep, setActiveStep] = useState(0);
-  const maxSteps = property?.images?.length || 0;
+
+  useEffect(() => {
+    const fetchPropertyDetails = async () => {
+      try {
+        setLoading(true);
+        const data = await roomService.getRoomById(id);
+        setProperty(data);
+      } catch (error) {
+        setSnackbar?.({
+          open: true,
+          message: 'Failed to load property details',
+          severity: 'error',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id) fetchPropertyDetails();
+  }, [id, setSnackbar]);
 
   const handleNext = () => {
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
@@ -55,6 +83,7 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
 
   if (!property) return null;
 
+  const maxSteps = property?.images?.length || 0;
   const activeAmenities = Object.entries(property.amenities || {})
     .filter(([_, value]) => value)
     .map(([key]) => key);
@@ -74,7 +103,9 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
         elevation={0}
         sx={{
           p: { xs: 1.25, sm: 1.5, md: 2 },
-          mb: { xs: 1.5, sm: 2, md: 3 },
+          m: { xs: 1.5, sm: 2, md: 3 },
+          ml: { xs: 3, sm: 4, md: 5 },
+          mr: { xs: 3, sm: 4, md: 5 },
           borderRadius: { xs: 1, sm: 2 },
           border: '1px solid',
           borderColor: 'divider',
@@ -85,8 +116,8 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1.5}>
-          <IconButton 
-            onClick={onClose} 
+          <IconButton
+            onClick={() => navigate(-1)}
             size="small"
             sx={{
               color: theme.palette.primary.main,
@@ -98,18 +129,18 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
             <ArrowBackIcon fontSize="small" />
           </IconButton>
           <Stack>
-            <Typography 
-              variant="subtitle1" 
-              sx={{ 
-                fontWeight: 600, 
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 600,
                 color: theme.palette.primary.main,
                 fontSize: { xs: '0.9rem', sm: '1rem' }
               }}
             >
               Property Details
             </Typography>
-            <Typography 
-              variant="caption" 
+            <Typography
+              variant="caption"
               color="text.secondary"
               sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
             >
@@ -144,188 +175,190 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
       <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }}>
         {/* Left Column - Images Only */}
         <Grid item xs={12} md={7}>
-          <Stack spacing={{ xs: 1.5, sm: 2, md: 3 }}>
-            {/* Title Card */}
-            <Paper
-              elevation={0}
-              sx={{
-                p: { xs: 1.5, sm: 2, md: 3 },
-                borderRadius: { xs: 1, sm: 2 },
-                border: '1px solid',
-                borderColor: 'divider',
-                background: theme.palette.background.paper,
-                transition: 'transform 0.2s ease-in-out',
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                },
-              }}
-            >
-              <Typography 
-                variant="h5" 
-                sx={{ 
-                  fontWeight: 700, 
-                  mb: 1, 
-                  color: theme.palette.text.primary,
-                  fontSize: { xs: '1.1rem', sm: '1.25rem' }
+          <Box sx={{ ml: { xs: 3, sm: 4, md: 5 } }}>
+            <Stack spacing={{ xs: 1.5, sm: 2, md: 3 }}>
+              {/* Title Card */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: { xs: 1.5, sm: 2, md: 3 },
+                  borderRadius: { xs: 1, sm: 2 },
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  background: theme.palette.background.paper,
+                  transition: 'transform 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                  },
                 }}
               >
-                {property.title}
-              </Typography>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <LocationIcon sx={{ color: theme.palette.primary.main, fontSize: { xs: '0.9rem', sm: '1rem' } }} />
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    color: theme.palette.text.secondary,
-                    fontSize: { xs: '0.8rem', sm: '0.875rem' }
-                  }}
-                >
-                  {property.address}, {property.city}
-                </Typography>
-              </Stack>
-            </Paper>
-
-            {/* Image Slider Card */}
-            <Paper
-              elevation={0}
-              sx={{
-                borderRadius: { xs: 1, sm: 2 },
-                border: '1px solid',
-                borderColor: 'divider',
-                overflow: 'hidden',
-                maxWidth: '100%',
-                maxHeight: { xs: '250px', sm: '300px', md: '450px' },
-                background: theme.palette.background.paper,
-              }}
-            >
-              {property.images && property.images.length > 0 ? (
-                <>
-                  <AutoPlaySwipeableViews
-                    axis={theme.direction === 'rtl' ? 'x-reverse' : 'x'}
-                    index={activeStep}
-                    onChangeIndex={handleStepChange}
-                    enableMouseEvents
-                    interval={6000}
-                    style={{ maxHeight: '400px' }}
-                  >
-                    {property.images.map((image, index) => (
-                      <div key={index}>
-                        {Math.abs(activeStep - index) <= 2 ? (
-                          <Box
-                            sx={{
-                              position: 'relative',
-                              paddingTop: '45%',
-                              width: '90%',
-                              margin: '0 auto',
-                              borderRadius: 1,
-                              overflow: 'hidden',
-                            }}
-                          >
-                            <img
-                              src={`${import.meta.env.VITE_API_URL}/uploads/${image}`}
-                              alt={`Property ${index + 1}`}
-                              loading="lazy"
-                              style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                              }}
-                            />
-                          </Box>
-                        ) : null}
-                      </div>
-                    ))}
-                  </AutoPlaySwipeableViews>
-                  <MobileStepper
-                    steps={maxSteps}
-                    position="static"
-                    activeStep={activeStep}
-                    sx={{
-                      bgcolor: alpha(theme.palette.primary.main, 0.05),
-                      borderTop: '1px solid',
-                      borderColor: 'divider',
-                      height: { xs: '40px', sm: '50px' },
-                      '& .MuiButton-root': {
-                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                        minWidth: { xs: '64px', sm: '80px' }
-                      }
-                    }}
-                    nextButton={
-                      <Button
-                        size="small"
-                        onClick={handleNext}
-                        disabled={activeStep === maxSteps - 1}
-                        sx={{
-                          color: theme.palette.primary.main,
-                          '&:disabled': {
-                            color: alpha(theme.palette.primary.main, 0.3),
-                          },
-                        }}
-                      >
-                        Next
-                        {theme.direction === 'rtl' ? (
-                          <KeyboardArrowLeftIcon />
-                        ) : (
-                          <KeyboardArrowRightIcon />
-                        )}
-                      </Button>
-                    }
-                    backButton={
-                      <Button
-                        size="small"
-                        onClick={handleBack}
-                        disabled={activeStep === 0}
-                        sx={{
-                          color: theme.palette.primary.main,
-                          '&:disabled': {
-                            color: alpha(theme.palette.primary.main, 0.3),
-                          },
-                        }}
-                      >
-                        {theme.direction === 'rtl' ? (
-                          <KeyboardArrowRightIcon />
-                        ) : (
-                          <KeyboardArrowLeftIcon />
-                        )}
-                        Back
-                      </Button>
-                    }
-                  />
-                </>
-              ) : (
-                <Box
+                <Typography
+                  variant="h5"
                   sx={{
-                    width: '100%',
-                    paddingTop: '40%',
-                    position: 'relative',
-                    bgcolor: alpha(theme.palette.primary.main, 0.05),
+                    fontWeight: 700,
+                    mb: 1,
+                    color: theme.palette.text.primary,
+                    fontSize: { xs: '1.1rem', sm: '1.25rem' }
                   }}
                 >
+                  {property.title}
+                </Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <LocationIcon sx={{ color: theme.palette.primary.main, fontSize: { xs: '0.9rem', sm: '1rem' } }} />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' }
+                    }}
+                  >
+                    {property.address}, {property.city}
+                  </Typography>
+                </Stack>
+              </Paper>
+
+              {/* Image Slider Card */}
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: { xs: 1, sm: 2 },
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  overflow: 'hidden',
+                  maxWidth: '100%',
+                  maxHeight: { xs: '250px', sm: '300px', md: '450px' },
+                  background: theme.palette.background.paper,
+                }}
+              >
+                {property.images && property.images.length > 0 ? (
+                  <>
+                    <AutoPlaySwipeableViews
+                      axis={theme.direction === 'rtl' ? 'x-reverse' : 'x'}
+                      index={activeStep}
+                      onChangeIndex={handleStepChange}
+                      enableMouseEvents
+                      interval={6000}
+                      style={{ maxHeight: '400px' }}
+                    >
+                      {property.images.map((image, index) => (
+                        <div key={index}>
+                          {Math.abs(activeStep - index) <= 2 ? (
+                            <Box
+                              sx={{
+                                position: 'relative',
+                                paddingTop: '45%',
+                                width: '90%',
+                                margin: '0 auto',
+                                borderRadius: 1,
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <img
+                                src={`${import.meta.env.VITE_API_URL}/uploads/${image}`}
+                                alt={`Property ${index + 1}`}
+                                loading="lazy"
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'contain',
+                                }}
+                              />
+                            </Box>
+                          ) : null}
+                        </div>
+                      ))}
+                    </AutoPlaySwipeableViews>
+                    <MobileStepper
+                      steps={maxSteps}
+                      position="static"
+                      activeStep={activeStep}
+                      sx={{
+                        bgcolor: alpha(theme.palette.primary.main, 0.05),
+                        borderTop: '1px solid',
+                        borderColor: 'divider',
+                        height: { xs: '40px', sm: '50px' },
+                        '& .MuiButton-root': {
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          minWidth: { xs: '64px', sm: '80px' }
+                        }
+                      }}
+                      nextButton={
+                        <Button
+                          size="small"
+                          onClick={handleNext}
+                          disabled={activeStep === maxSteps - 1}
+                          sx={{
+                            color: theme.palette.primary.main,
+                            '&:disabled': {
+                              color: alpha(theme.palette.primary.main, 0.3),
+                            },
+                          }}
+                        >
+                          Next
+                          {theme.direction === 'rtl' ? (
+                            <KeyboardArrowLeftIcon />
+                          ) : (
+                            <KeyboardArrowRightIcon />
+                          )}
+                        </Button>
+                      }
+                      backButton={
+                        <Button
+                          size="small"
+                          onClick={handleBack}
+                          disabled={activeStep === 0}
+                          sx={{
+                            color: theme.palette.primary.main,
+                            '&:disabled': {
+                              color: alpha(theme.palette.primary.main, 0.3),
+                            },
+                          }}
+                        >
+                          {theme.direction === 'rtl' ? (
+                            <KeyboardArrowRightIcon />
+                          ) : (
+                            <KeyboardArrowLeftIcon />
+                          )}
+                          Back
+                        </Button>
+                      }
+                    />
+                  </>
+                ) : (
                   <Box
                     sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      width: '100%',
+                      paddingTop: '40%',
+                      position: 'relative',
+                      bgcolor: alpha(theme.palette.primary.main, 0.05),
                     }}
                   >
-                    <HomeIcon sx={{ fontSize: 64, color: alpha(theme.palette.primary.main, 0.2) }} />
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <HomeIcon sx={{ fontSize: 64, color: alpha(theme.palette.primary.main, 0.2) }} />
+                    </Box>
                   </Box>
-                </Box>
-              )}
-            </Paper>
-          </Stack>
+                )}
+              </Paper>
+            </Stack>
+          </Box>
         </Grid>
 
         {/* Right Column - All Details */}
-        <Grid item xs={12} md={5}>
+        <Grid item xs={12} md={5} sx={{ pr: { xs: 3, sm: 4, md: 5 } }}>
           <Stack spacing={{ xs: 1.5, sm: 2 }}>
             {/* Key Details Card */}
             <Paper
@@ -338,11 +371,11 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
                 background: theme.palette.background.paper,
               }}
             >
-              <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontWeight: 600, 
-                  mb: 1.5, 
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 600,
+                  mb: 1.5,
                   color: theme.palette.primary.main,
                   fontSize: { xs: '0.9rem', sm: '1rem' }
                 }}
@@ -363,19 +396,19 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
                       <MoneyIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
                     </Avatar>
                     <Box>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
+                      <Typography
+                        variant="caption"
+                        sx={{
                           color: theme.palette.text.secondary,
                           fontSize: { xs: '0.7rem', sm: '0.75rem' }
                         }}
                       >
                         Price
                       </Typography>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 600, 
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
                           color: theme.palette.primary.main,
                           fontSize: { xs: '0.8rem', sm: '0.875rem' }
                         }}
@@ -398,18 +431,18 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
                       <SquareFootIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
                     </Avatar>
                     <Box>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
+                      <Typography
+                        variant="caption"
+                        sx={{
                           color: theme.palette.text.secondary,
                           fontSize: { xs: '0.7rem', sm: '0.75rem' }
                         }}
                       >
                         Size
                       </Typography>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
+                      <Typography
+                        variant="body2"
+                        sx={{
                           fontWeight: 600,
                           fontSize: { xs: '0.8rem', sm: '0.875rem' }
                         }}
@@ -432,18 +465,18 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
                       <CalendarIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
                     </Avatar>
                     <Box>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
+                      <Typography
+                        variant="caption"
+                        sx={{
                           color: theme.palette.text.secondary,
                           fontSize: { xs: '0.7rem', sm: '0.75rem' }
                         }}
                       >
                         Posted Date
                       </Typography>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
+                      <Typography
+                        variant="body2"
+                        sx={{
                           fontWeight: 600,
                           fontSize: { xs: '0.8rem', sm: '0.875rem' }
                         }}
@@ -467,11 +500,11 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
                 background: theme.palette.background.paper,
               }}
             >
-              <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontWeight: 600, 
-                  mb: 1, 
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 600,
+                  mb: 1,
                   color: theme.palette.primary.main,
                   fontSize: { xs: '0.9rem', sm: '1rem' }
                 }}
@@ -514,11 +547,11 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
                 background: theme.palette.background.paper,
               }}
             >
-              <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontWeight: 600, 
-                  mb: 1, 
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 600,
+                  mb: 1,
                   color: theme.palette.primary.main,
                   fontSize: { xs: '0.9rem', sm: '1rem' }
                 }}
@@ -544,10 +577,10 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
                   },
                 }}
               >
-                <Stack 
-                  direction="row" 
-                  flexWrap="wrap" 
-                  sx={{ 
+                <Stack
+                  direction="row"
+                  flexWrap="wrap"
+                  sx={{
                     gap: '6px',
                   }}
                 >
@@ -596,93 +629,23 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
                 mt: { xs: 1, sm: 1.5, md: 2 }
               }}
             >
-              <Stack 
-                direction={{ xs: 'column', sm: 'row' }} 
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
                 spacing={{ xs: 1, sm: 1.5 }}
               >
+                {/* Booking Button */}
                 <Button
-                  fullWidth
-                  variant="outlined"
-                  size="small"
-                  startIcon={
-                    <Avatar
-                      sx={{
-                        width: { xs: 22, sm: 24, md: 28 },
-                        height: { xs: 22, sm: 24, md: 28 },
-                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                        color: theme.palette.primary.main,
-                      }}
-                    >
-                      <EditIcon sx={{ fontSize: { xs: 14, sm: 16, md: 18 } }} />
-                    </Avatar>
-                  }
-                  onClick={() => onEdit(property)}
-                  sx={{
-                    height: { xs: 36, sm: 40, md: 44 },
-                    borderRadius: { xs: '18px', sm: '20px' },
-                    borderWidth: '1.5px',
-                    borderColor: theme.palette.primary.main,
-                    color: theme.palette.primary.main,
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    px: { xs: 1.5, sm: 2, md: 3 },
-                    '&:hover': {
-                      borderWidth: '1.5px',
-                      bgcolor: alpha(theme.palette.primary.main, 0.05),
-                      transform: 'translateY(-1px)',
-                      boxShadow: `0 4px 8px ${alpha(theme.palette.primary.main, 0.15)}`,
-                    },
-                    transition: 'all 0.2s ease-in-out',
-                  }}
-                >
-                  Edit
-                </Button>
-                <Button
-                  fullWidth
-                  size="small"
                   variant="contained"
-                  startIcon={
-                    <Avatar
-                      sx={{
-                        width: { xs: 22, sm: 24, md: 28 },
-                        height: { xs: 22, sm: 24, md: 28 },
-                        bgcolor: 'white',
-                        color: property.available ? theme.palette.error.main : theme.palette.success.main,
-                      }}
-                    >
-                      {property.available ? (
-                        <BlockIcon sx={{ fontSize: { xs: 14, sm: 16, md: 18 } }} />
-                      ) : (
-                        <CheckCircleIcon sx={{ fontSize: { xs: 14, sm: 16, md: 18 } }} />
-                      )}
-                    </Avatar>
-                  }
-                  onClick={() => onStatusChange(property.id, property.available ? 'deactivate' : 'activate')}
-                  sx={{
-                    height: { xs: 36, sm: 40, md: 44 },
-                    borderRadius: { xs: '18px', sm: '20px' },
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    px: { xs: 1.5, sm: 2, md: 3 },
-                    bgcolor: property.available ? theme.palette.error.main : theme.palette.success.main,
-                    '&:hover': {
-                      bgcolor: property.available ? theme.palette.error.dark : theme.palette.success.dark,
-                      transform: 'translateY(-1px)',
-                      boxShadow: property.available 
-                        ? `0 4px 8px ${alpha(theme.palette.error.main, 0.25)}`
-                        : `0 4px 8px ${alpha(theme.palette.success.main, 0.25)}`,
-                    },
-                    transition: 'all 0.2s ease-in-out',
-                  }}
+                  color="primary"
+                  fullWidth
+                  sx={{ py: 1.5, borderRadius: '8px' }}
+                  onClick={() => navigate(`/seeker/dashboard/bookings?propertyId=${property.id}`)}
+                  disabled={!property.available}
                 >
-                  {property.available ? 'Mark Occupied' : 'Mark Available'}
+                  {property.available ? 'Book This Property' : 'Property Not Available'}
                 </Button>
               </Stack>
             </Paper>
-
-           
           </Stack>
         </Grid>
       </Grid>
@@ -690,4 +653,4 @@ const PropertyDetails = ({ property, onClose, onEdit, onStatusChange, onBookNow,
   );
 };
 
-export default PropertyDetails; 
+export default ViewPropertyDetails; 

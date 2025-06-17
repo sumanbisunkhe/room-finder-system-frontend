@@ -5,6 +5,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { alpha } from '@mui/material/styles';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
 import SeekerLayout from '../../components/layout/SeekerLayout';
 import * as userService from '../../services/userService';
@@ -36,14 +37,40 @@ const getTheme = (mode, colorScheme, borderRadius) => {
         dark: mode === 'dark' ? '#c2185b' : '#880e4f',
       },
     },
+    purple: {
+      primary: {
+        main: mode === 'dark' ? '#ba68c8' : '#9c27b0',
+        light: mode === 'dark' ? '#ba68c8' : '#ba68c8',
+        dark: mode === 'dark' ? '#ab47bc' : '#7b1fa2',
+      },
+      secondary: {
+        main: mode === 'dark' ? '#f48fb1' : '#c2185b',
+        light: mode === 'dark' ? '#f48fb1' : '#e91e63',
+        dark: mode === 'dark' ? '#c2185b' : '#880e4f',
+      },
+    },
+    orange: {
+      primary: {
+        main: mode === 'dark' ? '#ffb74d' : '#ed6c02',
+        light: mode === 'dark' ? '#ffb74d' : '#ff9800',
+        dark: mode === 'dark' ? '#ffa726' : '#e65100',
+      },
+      secondary: {
+        main: mode === 'dark' ? '#f48fb1' : '#c2185b',
+        light: mode === 'dark' ? '#f48fb1' : '#e91e63',
+        dark: mode === 'dark' ? '#c2185b' : '#880e4f',
+      },
+    },
   };
 
-  const selectedScheme = colorSchemes[colorScheme] || colorSchemes.blue;
-  const selectedRadius = {
+  const borderRadiusValues = {
     small: 4,
     medium: 8,
     large: 12,
-  }[borderRadius] || 8;
+  };
+
+  const selectedScheme = colorSchemes[colorScheme] || colorSchemes.blue;
+  const selectedRadius = borderRadiusValues[borderRadius] || borderRadiusValues.medium;
 
   return createTheme({
     palette: {
@@ -130,12 +157,13 @@ const getTheme = (mode, colorScheme, borderRadius) => {
 const SeekerDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { setSnackbar } = useSnackbar();
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
 
   // Theme state
   const [themePreference, setThemePreference] = useState(() => {
     const savedMode = localStorage.getItem('seekerThemeMode');
-    return savedMode || 'system';
+    return savedMode || 'light';
   });
 
   const [colorScheme, setColorScheme] = useState(() => {
@@ -150,11 +178,8 @@ const SeekerDashboard = () => {
 
   // Determine actual theme mode based on preference
   const mode = useMemo(() => {
-    if (themePreference === 'system') {
-      return prefersDarkMode ? 'dark' : 'light';
-    }
-    return themePreference;
-  }, [themePreference, prefersDarkMode]);
+    return themePreference === 'dark' ? 'dark' : 'light';
+  }, [themePreference]);
 
   // Create theme based on mode, color scheme, and border radius
   const theme = useMemo(() => 
@@ -182,7 +207,7 @@ const SeekerDashboard = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [snackbar, setSnackbar] = useState({
+  const [snackbarState, setSnackbarState] = useState({
     open: false,
     message: '',
     severity: 'success',
@@ -299,7 +324,7 @@ const SeekerDashboard = () => {
       window.location.href = '/login';
     } catch (err) {
       console.error('Logout failed:', err);
-      setSnackbar({
+      setSnackbarState({
         open: true,
         message: 'Failed to logout. Please try again.',
         severity: 'error'
@@ -338,10 +363,6 @@ const SeekerDashboard = () => {
       >
         <Outlet context={{ 
           theme, 
-          currentUser, 
-          bookings, 
-          bookingStats,
-          setSnackbar,
           mode: themePreference,
           colorScheme,
           borderRadius,
@@ -353,18 +374,18 @@ const SeekerDashboard = () => {
 
       {/* Snackbar */}
       <Snackbar
-        open={snackbar.open}
+        open={snackbarState.open}
         autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={() => setSnackbarState({ ...snackbarState, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
+          onClose={() => setSnackbarState({ ...snackbarState, open: false })}
+          severity={snackbarState.severity}
           variant="filled"
           sx={{ width: '100%' }}
         >
-          {snackbar.message}
+          {snackbarState.message}
         </Alert>
       </Snackbar>
 
