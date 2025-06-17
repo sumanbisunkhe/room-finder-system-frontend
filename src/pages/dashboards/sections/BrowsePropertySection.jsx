@@ -125,6 +125,12 @@ const StyledPaginationPaper = styled(Paper)(({ theme, drawerOpen }) => ({
     duration: theme.transitions.duration.leavingScreen,
   }),
   zIndex: theme.zIndex.drawer - 1,
+  borderTop: `1px solid ${theme.palette.divider}`,
+  background: theme.palette.mode === 'dark' 
+    ? `linear-gradient(${alpha(theme.palette.background.paper, 0.9)}, ${theme.palette.background.paper})`
+    : `linear-gradient(${alpha(theme.palette.background.paper, 0.9)}, ${theme.palette.background.paper})`,
+  backdropFilter: 'blur(8px)',
+  boxShadow: `0 -4px 20px ${alpha(theme.palette.common.black, 0.05)}`,
 }));
 
 const BrowsePropertySection = () => {
@@ -889,9 +895,21 @@ const BrowsePropertySection = () => {
             sx={{
               '& .MuiPagination-ul': {
                 justifyContent: 'center',
+                gap: 0.5,
               },
               '& .MuiPaginationItem-root': {
                 borderRadius: 1,
+                fontWeight: 500,
+                '&.Mui-selected': {
+                  backgroundColor: theme => alpha(theme.palette.primary.main, 0.1),
+                  color: 'primary.main',
+                  '&:hover': {
+                    backgroundColor: theme => alpha(theme.palette.primary.main, 0.2),
+                  }
+                },
+                '&:hover': {
+                  backgroundColor: theme => alpha(theme.palette.primary.main, 0.05),
+                }
               },
             }}
           />

@@ -737,6 +737,20 @@ const SeekerLayout = ({
               >
                 {activeSectionTitles[activeSection]}
               </Typography>
+
+              {/* Theme Toggler */}
+              <IconButton
+                onClick={onThemeChange}
+                sx={{
+                  ml: 1,
+                  color: 'text.primary',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  },
+                }}
+              >
+                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
             </Toolbar>
           </AppBar>
 

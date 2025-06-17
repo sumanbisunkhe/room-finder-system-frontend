@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import {
   Box,
   Paper,
@@ -17,6 +18,9 @@ import {
   Card,
   CardContent,
   useTheme,
+  Modal,
+  TextField,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -33,10 +37,16 @@ import {
   Bed as BedIcon,
   Bathtub as BathtubIcon,
   Apartment as ApartmentIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import SwipeableViews from 'react-swipeable-views';
 import { autoPlay } from 'react-swipeable-views-utils';
 import * as roomService from '../../services/roomService';
+import * as bookingService from '../../services/bookingService';
+import { decodeToken } from '../../utils/jwtUtils';
 
 const AutoPlaySwipeableViews = autoPlay(SwipeableViews);
 
@@ -44,11 +54,20 @@ const ViewPropertyDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
+  const { showSnackbar } = useSnackbar();
   const context = useOutletContext();
   const setSnackbar = context?.setSnackbar;
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeStep, setActiveStep] = useState(0);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [openBookingModal, setOpenBookingModal] = useState(false);
+  const [bookingData, setBookingData] = useState({
+    startDate: new Date(),
+    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    comments: '',
+  });
+  const [dateError, setDateError] = useState('');
 
   useEffect(() => {
     const fetchPropertyDetails = async () => {
@@ -79,6 +98,82 @@ const ViewPropertyDetails = () => {
 
   const handleStepChange = (step) => {
     setActiveStep(step);
+  };
+
+  const handleOpenBookingModal = () => {
+    setOpenBookingModal(true);
+  };
+
+  const handleCloseBookingModal = () => {
+    setOpenBookingModal(false);
+    setDateError('');
+    setBookingData({
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      comments: '',
+    });
+  };
+
+  const handleValidationErrors = (data) => {
+    // Reset any previous date error
+    setDateError('');
+
+    // For date-related errors, set the form error state
+    if (data.startDate || data.endDate) {
+      setDateError(data.startDate || data.endDate);
+    }
+
+    // Return the first error message from the data object
+    return Object.values(data)[0];
+  };
+
+  const handleBookProperty = async () => {
+    setBookingLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showSnackbar('Please login to book a property', 'error');
+        return;
+      }
+
+      const user = decodeToken(token);
+      const seekerId = user?.id || user?.userId || user?.sub;
+      
+      if (!seekerId) {
+        showSnackbar('Unable to identify user. Please try logging in again', 'error');
+        return;
+      }
+
+      // Format dates in YYYY-MM-DD format in the local timezone
+      const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const bookingRequest = {
+        roomId: property.id,
+        startDate: formatDate(bookingData.startDate),
+        endDate: formatDate(bookingData.endDate),
+        comments: bookingData.comments.trim(),
+      };
+      
+      const response = await bookingService.createBooking(bookingRequest);
+
+      if (response.success) {
+        showSnackbar('Your booking request has been sent successfully!', 'success');
+        handleCloseBookingModal();
+      } else {
+        // For validation errors, show the specific error message
+        const errorMessage = response.data ? Object.values(response.data)[0] : response.message;
+        showSnackbar(errorMessage, 'error');
+      }
+    } catch (error) {
+      showSnackbar('Failed to create booking. Please try again.', 'error');
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   if (!property) return null;
@@ -174,7 +269,7 @@ const ViewPropertyDetails = () => {
       {/* Content Grid */}
       <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }}>
         {/* Left Column - Images Only */}
-        <Grid item xs={12} md={7}>
+        <Grid item xs={12} md={7} sx={{ mr: { xs: 3, sm: 3, md: 0 } }}>
           <Box sx={{ ml: { xs: 3, sm: 4, md: 5 } }}>
             <Stack spacing={{ xs: 1.5, sm: 2, md: 3 }}>
               {/* Title Card */}
@@ -358,7 +453,7 @@ const ViewPropertyDetails = () => {
         </Grid>
 
         {/* Right Column - All Details */}
-        <Grid item xs={12} md={5} sx={{ pr: { xs: 3, sm: 4, md: 5 } }}>
+        <Grid item xs={12} md={5} sx={{ pr: { xs: 3, sm: 4, md: 5 }, ml: { xs: 3, sm: 3, md: 0 } }}>
           <Stack spacing={{ xs: 1.5, sm: 2 }}>
             {/* Key Details Card */}
             <Paper
@@ -626,7 +721,8 @@ const ViewPropertyDetails = () => {
                 border: '1px solid',
                 borderColor: 'divider',
                 background: theme.palette.background.paper,
-                mt: { xs: 1, sm: 1.5, md: 2 }
+                mt: { xs: 1, sm: 1.5, md: 2 },
+                mb: { xs: 2, sm: 2, md: 0 }
               }}
             >
               <Stack
@@ -639,11 +735,116 @@ const ViewPropertyDetails = () => {
                   color="primary"
                   fullWidth
                   sx={{ py: 1.5, borderRadius: '8px' }}
-                  onClick={() => navigate(`/seeker/dashboard/bookings?propertyId=${property.id}`)}
+                  onClick={handleOpenBookingModal}
                   disabled={!property.available}
                 >
                   {property.available ? 'Book This Property' : 'Property Not Available'}
                 </Button>
+
+                {/* Booking Modal */}
+                <Modal
+                  open={openBookingModal}
+                  onClose={handleCloseBookingModal}
+                  aria-labelledby="booking-modal-title"
+                >
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: { xs: '90%', sm: '450px' },
+                      bgcolor: 'background.paper',
+                      borderRadius: 2,
+                      boxShadow: 24,
+                      p: { xs: 2, sm: 3 },
+                      maxHeight: '90vh',
+                      overflowY: 'auto',
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                      <Typography variant="h6" component="h2" sx={{ fontWeight: 600 }}>
+                        Book Property
+                      </Typography>
+                      <IconButton
+                        onClick={handleCloseBookingModal}
+                        size="small"
+                        sx={{
+                          color: 'text.secondary',
+                          '&:hover': { color: 'text.primary' },
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <Stack spacing={3}>
+                        <DatePicker
+                          label="Start Date"
+                          value={bookingData.startDate}
+                          onChange={(newValue) => {
+                            setBookingData(prev => ({ ...prev, startDate: newValue }));
+                          }}
+                          renderInput={(params) => <TextField {...params} fullWidth />}
+                        />
+                        
+                        <DatePicker
+                          label="End Date"
+                          value={bookingData.endDate}
+                          onChange={(newValue) => {
+                            setBookingData(prev => ({ ...prev, endDate: newValue }));
+                          }}
+                          renderInput={(params) => <TextField {...params} fullWidth />}
+                        />
+
+                        <TextField
+                          label="Comments"
+                          multiline
+                          rows={3}
+                          value={bookingData.comments}
+                          onChange={(e) => setBookingData(prev => ({ ...prev, comments: e.target.value }))}
+                          placeholder="Add any special requests or notes..."
+                          fullWidth
+                        />
+
+                        <Button
+                          variant="contained"
+                          onClick={handleBookProperty}
+                          disabled={bookingLoading}
+                          sx={{
+                            py: 1.5,
+                            mt: 2,
+                            position: 'relative',
+                            bgcolor: theme.palette.primary.main,
+                            '&:hover': {
+                              bgcolor: theme.palette.primary.dark,
+                            },
+                          }}
+                        >
+                          {bookingLoading ? (
+                            <>
+                              <CircularProgress
+                                size={24}
+                                sx={{
+                                  color: theme.palette.primary.contrastText,
+                                  position: 'absolute',
+                                  top: '50%',
+                                  left: '50%',
+                                  marginTop: '-12px',
+                                  marginLeft: '-12px',
+                                }}
+                              />
+                              <span style={{ visibility: 'hidden' }}>Confirm Booking</span>
+                            </>
+                          ) : (
+                            'Confirm Booking'
+                          )}
+                        </Button>
+                      </Stack>
+                    </LocalizationProvider>
+                  </Box>
+                </Modal>
               </Stack>
             </Paper>
           </Stack>

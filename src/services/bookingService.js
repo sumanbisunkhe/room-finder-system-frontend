@@ -6,9 +6,14 @@ import api from '../api/api';
  */
 const handleError = (error, context = 'booking operation') => {
   if (error.response && error.response.data) {
-    let msg = `Failed to ${context}`;
     const errorData = error.response.data;
+    
+    // If it's a validation error with data field, return it directly
+    if (!errorData.success && errorData.data) {
+      return Promise.reject(errorData);
+    }
 
+    let msg = `Failed to ${context}`;
     if (typeof errorData === 'string') {
       msg += `: ${errorData}`;
     } else if (errorData.message) {
@@ -25,9 +30,23 @@ const handleError = (error, context = 'booking operation') => {
 export const createBooking = async (bookingRequest) => {
   try {
     const response = await api.post('/bookings', bookingRequest);
-    return response.data;
+    // If we get here, it means the request was successful
+    return {
+      success: true,
+      data: response.data,
+      message: 'Booking created successfully'
+    };
   } catch (error) {
-    return handleError(error, 'create booking');
+    if (error.response?.data) {
+      // Return the error response as is
+      return error.response.data;
+    }
+    // For network or other errors
+    return {
+      success: false,
+      message: error.message || 'Failed to create booking',
+      data: null
+    };
   }
 };
 

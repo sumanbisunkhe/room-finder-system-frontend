@@ -176,6 +176,23 @@ const SeekerDashboard = () => {
     return savedRadius || 'medium';
   });
 
+  // Theme change handlers
+  const handleThemeChange = useCallback(() => {
+    const newMode = themePreference === 'light' ? 'dark' : 'light';
+    setThemePreference(newMode);
+    localStorage.setItem('seekerThemeMode', newMode);
+  }, [themePreference]);
+
+  const handleColorSchemeChange = useCallback((newScheme) => {
+    setColorScheme(newScheme);
+    localStorage.setItem('seekerColorScheme', newScheme);
+  }, []);
+
+  const handleBorderRadiusChange = useCallback((newRadius) => {
+    setBorderRadius(newRadius);
+    localStorage.setItem('seekerBorderRadius', newRadius);
+  }, []);
+
   // Determine actual theme mode based on preference
   const mode = useMemo(() => {
     return themePreference === 'dark' ? 'dark' : 'light';
@@ -332,21 +349,6 @@ const SeekerDashboard = () => {
     } finally {
       setLogoutDialogOpen(false);
     }
-  };
-
-  const handleThemeChange = (newMode) => {
-    setThemePreference(newMode);
-    localStorage.setItem('seekerThemeMode', newMode);
-  };
-
-  const handleColorSchemeChange = (newScheme) => {
-    setColorScheme(newScheme);
-    localStorage.setItem('seekerColorScheme', newScheme);
-  };
-
-  const handleBorderRadiusChange = (newRadius) => {
-    setBorderRadius(newRadius);
-    localStorage.setItem('seekerBorderRadius', newRadius);
   };
 
   return (
