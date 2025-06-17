@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -108,11 +108,11 @@ const CustomScrollbar = styled('div')(({ theme }) => ({
 }));
 
 const BrowsePropertySection = () => {
-  const { currentUser, setSnackbar, theme } = useOutletContext();
+  const { currentUser, setSnackbar, theme, drawerOpen } = useOutletContext();
   const MUItheme = useTheme();
   const [allRooms, setAllRooms] = useState([]);
-  const [displayableRooms, setDisplayableRooms] = useState([]); // Rooms after search/filter, before pagination
-  const [paginatedRoomsForDisplay, setPaginatedRoomsForDisplay] = useState([]); // Rooms after pagination slice, for rendering
+  const [rooms, setRooms] = useState([]);
+  const [filteredRooms, setFilteredRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,16 +135,10 @@ const BrowsePropertySection = () => {
   const [isPropertyDetailsModalOpen, setIsPropertyDetailsModalOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Ref to track if search/filters have changed to reset page, and to prevent initial reset
-  const isInitialFilterOrSearch = useRef(true);
-  const prevSearchTerm = useRef('');
-  const prevFilters = useRef({});
-
-  // Fetch all rooms for search/filter (only once on component mount or currentUser change)
+  // Fetch all rooms for search/filter
   const fetchAllRooms = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await roomService.fetchAllRooms(0, 1000); // Fetch all rooms to enable client-side filtering
+      const response = await roomService.fetchAllRooms(0, 1000); // Fetch all rooms
       if (!response || !response.content) {
         throw new Error('Invalid response format from server');
       }
@@ -157,27 +151,57 @@ const BrowsePropertySection = () => {
         message: error.message || 'Failed to fetch all rooms for filtering',
         severity: 'error',
       });
-    } finally {
-      setLoading(false);
     }
   }, [setSnackbar]);
 
-  // Initial load: fetch all rooms
+  // Fetch paginated rooms for display
+  const fetchRooms = useCallback(async (page = pagination.currentPage) => {
+    try {
+      setLoading(true);
+      const response = await roomService.fetchAllRooms(page, pagination.pageSize);
+      
+      if (!response || !response.content) {
+        throw new Error('Invalid response format from server');
+      }
+
+      setRooms(response.content);
+      setFilteredRooms(response.content);
+      setPagination(prev => ({
+        ...prev,
+        totalElements: response.totalElements,
+        totalPages: response.totalPages,
+        currentPage: page
+      }));
+    } catch (error) {
+      console.error('Error fetching paginated rooms:', error);
+      setRooms([]);
+      setFilteredRooms([]);
+      setSnackbar({
+        open: true,
+        message: error.message || 'Failed to fetch rooms',
+        severity: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination.pageSize, setSnackbar]);
+
+  // Initial load
   useEffect(() => {
     if (currentUser?.id) {
       fetchAllRooms();
+      fetchRooms(0);
     }
-  }, [currentUser, fetchAllRooms]);
+  }, [currentUser, fetchAllRooms, fetchRooms]);
 
-  // Effect to filter rooms based on search and filters
+  // Handle search and filter
   useEffect(() => {
-    if (!Array.isArray(allRooms)) {
-      setDisplayableRooms([]);
-      setPagination(prev => ({ ...prev, totalElements: 0, totalPages: 0, currentPage: 0 }));
+    if (!Array.isArray(rooms)) {
+      setFilteredRooms([]);
       return;
     }
 
-    const filtered = allRooms.filter((room) => {
+    const filtered = rooms.filter((room) => {
       const matchesSearch = room.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         room.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         room.address?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -190,54 +214,8 @@ const BrowsePropertySection = () => {
       return matchesSearch && matchesPrice && matchesSize && matchesAvailability;
     });
 
-    // Check if search term or filters have actually changed (deep comparison for filters object)
-    const hasSearchTermChanged = searchTerm !== prevSearchTerm.current;
-    const hasFiltersChanged = JSON.stringify(filters) !== JSON.stringify(prevFilters.current);
-
-    // Update pagination total elements and pages, and reset currentPage if filters/search changed
-    setPagination(prev => {
-      const newTotalElements = filtered.length;
-      const newTotalPages = Math.ceil(newTotalElements / prev.pageSize);
-      let newCurrentPage = prev.currentPage;
-
-      if ((hasSearchTermChanged || hasFiltersChanged) && !isInitialFilterOrSearch.current) {
-        newCurrentPage = 0; // Reset to first page
-      }
-      // On initial load, don't reset currentPage based on empty search/filters
-      if (isInitialFilterOrSearch.current) {
-        isInitialFilterOrSearch.current = false; // Mark initial load as complete after first run
-      }
-
-      return {
-        ...prev,
-        totalElements: newTotalElements,
-        totalPages: newTotalPages,
-        currentPage: newCurrentPage
-      };
-    });
-
-    // Update displayableRooms (the full filtered list before pagination)
-    setDisplayableRooms(filtered);
-
-    // Update refs for next comparison
-    prevSearchTerm.current = searchTerm;
-    prevFilters.current = filters;
-
-  }, [allRooms, searchTerm, filters]); // Dependencies for filtering
-
-  // Effect to apply pagination slice to displayableRooms for rendering
-  useEffect(() => {
-    // Only slice if displayableRooms is an array
-    if (!Array.isArray(displayableRooms)) {
-      setPaginatedRoomsForDisplay([]);
-      return;
-    }
-
-    const startIndex = pagination.currentPage * pagination.pageSize;
-    const endIndex = startIndex + pagination.pageSize;
-    setPaginatedRoomsForDisplay(displayableRooms.slice(startIndex, endIndex));
-
-  }, [displayableRooms, pagination.currentPage, pagination.pageSize]);
+    setFilteredRooms(filtered);
+  }, [rooms, searchTerm, filters]);
 
   const handleOpenBookingDialog = (room) => {
     setSelectedRoom(room);
@@ -289,18 +267,18 @@ const BrowsePropertySection = () => {
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
+    fetchRooms(0); // Reset to first page
   };
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters(prev => ({ ...prev, [name]: value }));
+    fetchRooms(0); // Reset to first page
   };
 
   const handlePageChange = (event, newPage) => {
-    setPagination(prev => ({
-      ...prev,
-      currentPage: newPage - 1 // Pagination component is 1-indexed, our state is 0-indexed
-    }));
+    const page = newPage - 1; // Convert to 0-based index
+    fetchRooms(page);
   };
 
   const renderAmenityIcon = (amenity) => {
@@ -409,13 +387,13 @@ const BrowsePropertySection = () => {
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
            
             <Typography variant="body2" color="text.secondary">
-              Showing {paginatedRoomsForDisplay.length} of {pagination.totalElements} properties
+              Showing {filteredRooms.length} of {pagination.totalElements} properties
             </Typography>
           </Stack>
 
           <CustomScrollbar sx={{ maxHeight: '70vh' }}>
             <Grid container spacing={3}>
-              {paginatedRoomsForDisplay.length === 0 ? (
+              {filteredRooms.length === 0 ? (
                 <Grid item xs={12}>
                   <Box sx={{ textAlign: 'center', py: 8 }}>
                     <HomeIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
@@ -428,7 +406,7 @@ const BrowsePropertySection = () => {
                   </Box>
                 </Grid>
               ) : (
-                paginatedRoomsForDisplay.map((room) => (
+                filteredRooms.map((room) => (
                   <Grid item key={room.id} xs={12} sm={6} md={4} sx={{
                     [MUItheme.breakpoints.up('lg')]: {
                       width: '20%',
@@ -523,12 +501,15 @@ const BrowsePropertySection = () => {
         </Paper>
       </Stack>
 
-      {/* Fixed Pagination - Copied from PropertyManagement.jsx */}
+      {/* Fixed Pagination */}
       <Paper
         sx={{
           position: 'fixed',
           bottom: 0,
-          left: { xs: 0, sm: '240px' }, // Adjust left based on sidebar width
+          left: { 
+            xs: 0, 
+            sm: drawerOpen ? '240px' : '64px' 
+          },
           right: 0,
           zIndex: 1000,
           borderRadius: 0,
@@ -569,6 +550,10 @@ const BrowsePropertySection = () => {
             page={pagination.currentPage + 1}
             onChange={handlePageChange}
             shape="rounded"
+            color="primary"
+            size="medium"
+            showFirstButton
+            showLastButton
             renderItem={(item) => {
               if (item.type === 'previous' || item.type === 'next') {
                 return (
