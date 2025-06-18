@@ -248,19 +248,34 @@ export const logout = async () => {
 export const updateUserProfile = async (userId, updateData) => {
   try {
     const response = await api.put(`/users/${userId}/update`, updateData);
-    return response.data;
+    return {
+      success: true,
+      data: response.data
+    };
   } catch (error) {
     if (error.response) {
       switch (error.response.status) {
         case 404:
-          return Promise.reject(new Error('User not found'));
+          return { success: false, message: 'User not found' };
         case 400:
-          return Promise.reject(new Error(error.response.data.message || 'Bad Request'));
+          // Handle validation errors
+          if (error.response.data.data) {
+            return {
+              success: false,
+              message: error.response.data.message,
+              data: error.response.data.data
+            };
+          }
+          return { 
+            success: false, 
+            message: error.response.data.message || 'Bad Request',
+            data: error.response.data.data
+          };
         default:
-          return Promise.reject(new Error('An error occurred while updating the profile'));
+          return { success: false, message: 'An error occurred while updating the profile' };
       }
     }
-    return Promise.reject(new Error('Failed to update user profile'));
+    return { success: false, message: 'Failed to update user profile' };
   }
 };
 

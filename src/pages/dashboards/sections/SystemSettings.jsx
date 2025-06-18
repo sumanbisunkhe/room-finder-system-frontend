@@ -44,11 +44,12 @@ import {
 import { motion } from 'framer-motion';
 import * as userService from '../../../services/userService';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
+import { useOutletContext } from 'react-router-dom';
 import StyledTypography from '../../../components/common/StyledTypography';
 
-const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColorSchemeChange, onBorderRadiusChange }) => {
+const SystemSettings = () => {
+  const { theme, mode, colorScheme, borderRadius, onThemeChange, onColorSchemeChange, onBorderRadiusChange, currentUser, handleLogout, setSnackbar } = useOutletContext();
   const { showSnackbar } = useSnackbar();
-  const theme = useTheme();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -56,8 +57,6 @@ const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColo
     newPassword: '',
   });
   const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
@@ -70,23 +69,53 @@ const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColo
     borderRadius: borderRadius || 'medium',
   });
 
+  // Update theme settings when props change
   useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const userData = await userService.getCurrentUser();
-        if (!userData || !userData.data || !userData.data.id) {
-          throw new Error('Invalid user data received');
-        }
-        setCurrentUser(userData.data);
-      } catch (err) {
-        console.error('Error fetching user:', err);
-        showSnackbar('Failed to fetch user data', 'error');
-      } finally {
-        setInitialLoading(false);
-      }
-    };
-    fetchCurrentUser();
-  }, [showSnackbar]);
+    if (mode && colorScheme && borderRadius) {
+      setThemeSettings(prev => ({
+        ...prev,
+        mode,
+        colorScheme,
+        borderRadius,
+      }));
+    }
+  }, [mode, colorScheme, borderRadius]);
+
+  const handleThemeChange = (newMode) => {
+    if (typeof onThemeChange === 'function') {
+      startTransition(() => {
+        setThemeSettings(prev => ({
+          ...prev,
+          mode: newMode
+        }));
+        onThemeChange(newMode);
+      });
+    }
+  };
+
+  const handleColorSchemeChange = (newScheme) => {
+    if (typeof onColorSchemeChange === 'function') {
+      startTransition(() => {
+        setThemeSettings(prev => ({
+          ...prev,
+          colorScheme: newScheme
+        }));
+        onColorSchemeChange(newScheme);
+      });
+    }
+  };
+
+  const handleBorderRadiusChange = (newRadius) => {
+    if (typeof onBorderRadiusChange === 'function') {
+      startTransition(() => {
+        setThemeSettings(prev => ({
+          ...prev,
+          borderRadius: newRadius
+        }));
+        onBorderRadiusChange(newRadius);
+      });
+    }
+  };
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -111,22 +140,6 @@ const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColo
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleThemeChange = (setting, value) => {
-    startTransition(() => {
-      setThemeSettings(prev => ({
-        ...prev,
-        [setting]: value
-      }));
-      if (setting === 'mode') {
-        onThemeChange(value);
-      } else if (setting === 'colorScheme') {
-        onColorSchemeChange(value);
-      } else if (setting === 'borderRadius') {
-        onBorderRadiusChange(value);
-      }
-    });
   };
 
   const handleNotificationChange = (setting, value) => {
@@ -197,14 +210,6 @@ const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColo
       </Card>
     </motion.div>
   );
-
-  if (initialLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <Box sx={{ 
@@ -283,7 +288,7 @@ const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColo
                   <Stack direction="row" spacing={0.5}>
                     <Button
                       variant={themeSettings.mode === 'light' ? 'contained' : 'text'}
-                      onClick={() => handleThemeChange('mode', 'light')}
+                      onClick={() => handleThemeChange('light')}
                       startIcon={<LightModeIcon />}
                       fullWidth
                       sx={{
@@ -298,7 +303,7 @@ const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColo
                     </Button>
                     <Button
                       variant={themeSettings.mode === 'dark' ? 'contained' : 'text'}
-                      onClick={() => handleThemeChange('mode', 'dark')}
+                      onClick={() => handleThemeChange('dark')}
                       startIcon={<DarkModeIcon />}
                       fullWidth
                       sx={{
@@ -313,7 +318,7 @@ const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColo
                     </Button>
                     <Button
                       variant={themeSettings.mode === 'system' ? 'contained' : 'text'}
-                      onClick={() => handleThemeChange('mode', 'system')}
+                      onClick={() => handleThemeChange('system')}
                       startIcon={<AutoAwesomeIcon />}
                       fullWidth
                       sx={{
@@ -348,7 +353,7 @@ const SystemSettings = ({ mode, colorScheme, borderRadius, onThemeChange, onColo
                     {colorSchemeOptions.map((scheme) => (
                       <Grid item xs={12} sm={6} key={scheme.value}>
                         <Paper
-                          onClick={() => handleThemeChange('colorScheme', scheme.value)}
+                          onClick={() => handleColorSchemeChange(scheme.value)}
                           sx={{
                             p: 2,
                             cursor: 'pointer',

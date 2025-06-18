@@ -2,29 +2,193 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Box, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography } from '@mui/material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { alpha } from '@mui/material/styles';
 
 import LandlordLayout from '../../components/layout/LandlordLayout';
-import PropertyManagement from '../../pages/landlord/PropertyManagement';
-import PropertyAnalytics from '../../pages/landlord/PropertyAnalytics';
-import SystemSettings from '../../pages/landlord/SystemSettings';
-import ProfileInformation from '../../pages/landlord/ProfileInformation';
-
 import * as userService from '../../services/userService';
 import * as roomService from '../../services/roomService';
+
+const getTheme = (mode, colorScheme, borderRadius) => {
+  const colorSchemes = {
+    blue: {
+      primary: {
+        main: mode === 'dark' ? '#90caf9' : '#1976d2',
+        light: mode === 'dark' ? '#90caf9' : '#42a5f5',
+        dark: mode === 'dark' ? '#64b5f6' : '#1565c0',
+      },
+      secondary: {
+        main: mode === 'dark' ? '#f48fb1' : '#dc004e',
+        light: mode === 'dark' ? '#f48fb1' : '#ff4081',
+        dark: mode === 'dark' ? '#c2185b' : '#c51162',
+      },
+    },
+    green: {
+      primary: {
+        main: mode === 'dark' ? '#81c784' : '#2e7d32',
+        light: mode === 'dark' ? '#81c784' : '#4caf50',
+        dark: mode === 'dark' ? '#66bb6a' : '#1b5e20',
+      },
+      secondary: {
+        main: mode === 'dark' ? '#f48fb1' : '#c2185b',
+        light: mode === 'dark' ? '#f48fb1' : '#e91e63',
+        dark: mode === 'dark' ? '#c2185b' : '#880e4f',
+      },
+    },
+    purple: {
+      primary: {
+        main: mode === 'dark' ? '#ba68c8' : '#9c27b0',
+        light: mode === 'dark' ? '#ba68c8' : '#ba68c8',
+        dark: mode === 'dark' ? '#ab47bc' : '#7b1fa2',
+      },
+      secondary: {
+        main: mode === 'dark' ? '#f48fb1' : '#c2185b',
+        light: mode === 'dark' ? '#f48fb1' : '#e91e63',
+        dark: mode === 'dark' ? '#c2185b' : '#880e4f',
+      },
+    },
+    orange: {
+      primary: {
+        main: mode === 'dark' ? '#ffb74d' : '#ed6c02',
+        light: mode === 'dark' ? '#ffb74d' : '#ff9800',
+        dark: mode === 'dark' ? '#ffa726' : '#e65100',
+      },
+      secondary: {
+        main: mode === 'dark' ? '#f48fb1' : '#c2185b',
+        light: mode === 'dark' ? '#f48fb1' : '#e91e63',
+        dark: mode === 'dark' ? '#c2185b' : '#880e4f',
+      },
+    },
+  };
+
+  const borderRadiusValues = {
+    small: 4,
+    medium: 8,
+    large: 12,
+  };
+
+  const selectedScheme = colorSchemes[colorScheme] || colorSchemes.blue;
+  const selectedRadius = borderRadiusValues[borderRadius] || borderRadiusValues.medium;
+
+  return createTheme({
+    palette: {
+      mode,
+      ...selectedScheme,
+      background: {
+        default: mode === 'dark' ? '#121212' : '#f5f5f5',
+        paper: mode === 'dark' ? '#1e1e1e' : '#ffffff',
+        accent: mode === 'dark' ? '#2d3748' : '#edf2f7'
+      },
+      text: {
+        primary: mode === 'dark' ? 'rgba(255, 255, 255, 0.87)' : 'rgba(0, 0, 0, 0.87)',
+        secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'
+      },
+      divider: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
+      action: {
+        hover: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+        selected: mode === 'dark' ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.08)',
+        disabled: mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.26)',
+        focus: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'
+      }
+    },
+    shape: {
+      borderRadius: selectedRadius
+    },
+    components: {
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            textTransform: 'none',
+            borderRadius: selectedRadius,
+            padding: '8px 16px',
+            fontWeight: 500,
+            fontSize: '0.875rem'
+          },
+          contained: {
+            boxShadow: 'none',
+            '&:hover': {
+              boxShadow: mode === 'dark' 
+                ? '0 2px 8px rgba(255, 255, 255, 0.15)'
+                : '0 2px 8px rgba(0, 0, 0, 0.15)'
+            }
+          }
+        }
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            borderRadius: selectedRadius,
+            backgroundImage: 'none',
+            boxShadow: mode === 'dark'
+              ? '0 2px 8px rgba(0, 0, 0, 0.3)'
+              : '0 2px 8px rgba(0, 0, 0, 0.1)'
+          }
+        }
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: selectedRadius,
+            backgroundImage: 'none',
+            boxShadow: mode === 'dark'
+              ? '0 2px 8px rgba(0, 0, 0, 0.3)'
+              : '0 2px 8px rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              boxShadow: mode === 'dark'
+                ? '0 4px 12px rgba(0, 0, 0, 0.4)'
+                : '0 4px 12px rgba(0, 0, 0, 0.2)'
+            }
+          }
+        }
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            color: mode === 'dark' ? 'rgba(255, 255, 255, 0.87)' : 'rgba(0, 0, 0, 0.87)'
+          }
+        }
+      }
+    }
+  });
+};
 
 const LandlordDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-  const [mode, setMode] = useState(() => {
+
+  // Theme state
+  const [themePreference, setThemePreference] = useState(() => {
     const savedMode = localStorage.getItem('landlordThemeMode');
-    return savedMode || (prefersDarkMode ? 'dark' : 'light');
+    return savedMode || 'system';
   });
+
+  const [colorScheme, setColorScheme] = useState(() => {
+    const savedScheme = localStorage.getItem('landlordColorScheme');
+    return savedScheme || 'blue';
+  });
+
+  const [borderRadius, setBorderRadius] = useState(() => {
+    const savedRadius = localStorage.getItem('landlordBorderRadius');
+    return savedRadius || 'medium';
+  });
+
+  // Determine actual theme mode based on preference
+  const mode = useMemo(() => {
+    if (themePreference === 'system') {
+      return prefersDarkMode ? 'dark' : 'light';
+    }
+    return themePreference;
+  }, [themePreference, prefersDarkMode]);
+
+  // Create theme based on mode, color scheme, and border radius
+  const theme = useMemo(() => 
+    getTheme(mode, colorScheme, borderRadius), 
+    [mode, colorScheme, borderRadius]
+  );
 
   const [currentUser, setCurrentUser] = useState({
     id: '',
@@ -53,108 +217,6 @@ const LandlordDashboard = () => {
   });
 
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-
-  const theme = useMemo(
-    () => createTheme({
-      palette: {
-        mode: mode === 'system' ? (prefersDarkMode ? 'dark' : 'light') : mode,
-        primary: {
-          main: mode === 'dark' ? '#90caf9' : '#1976d2',
-          light: mode === 'dark' ? '#90caf9' : '#42a5f5',
-          dark: mode === 'dark' ? '#64b5f6' : '#1565c0',
-          contrastText: '#FFFFFF'
-        },
-        secondary: {
-          main: mode === 'dark' ? '#f48fb1' : '#dc004e',
-          light: mode === 'dark' ? '#f48fb1' : '#ff4081',
-          dark: mode === 'dark' ? '#c2185b' : '#c51162',
-          contrastText: '#FFFFFF'
-        },
-        background: {
-          default: mode === 'dark' ? '#121212' : '#f5f5f5',
-          paper: mode === 'dark' ? '#1e1e1e' : '#ffffff',
-          accent: mode === 'dark' ? '#2d3748' : '#edf2f7'
-        },
-        text: {
-          primary: mode === 'dark' ? 'rgba(255, 255, 255, 0.87)' : 'rgba(0, 0, 0, 0.87)',
-          secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'
-        },
-        divider: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
-        action: {
-          hover: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-          selected: mode === 'dark' ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.08)',
-          disabled: mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.26)',
-          focus: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'
-        }
-      },
-      shape: {
-        borderRadius: 8
-      },
-      components: {
-        MuiButton: {
-          styleOverrides: {
-            root: {
-              textTransform: 'none',
-              borderRadius: 8,
-              padding: '8px 16px',
-              fontWeight: 500,
-              fontSize: '0.875rem'
-            },
-            contained: {
-              boxShadow: 'none',
-              '&:hover': {
-                boxShadow: mode === 'dark' 
-                  ? '0 2px 8px rgba(255, 255, 255, 0.15)'
-                  : '0 2px 8px rgba(0, 0, 0, 0.15)'
-              }
-            }
-          }
-        },
-        MuiPaper: {
-          styleOverrides: {
-            root: {
-              borderRadius: 8,
-              backgroundImage: 'none',
-              boxShadow: mode === 'dark'
-                ? '0 2px 8px rgba(0, 0, 0, 0.3)'
-                : '0 2px 8px rgba(0, 0, 0, 0.1)'
-            }
-          }
-        },
-        MuiCard: {
-          styleOverrides: {
-            root: {
-              backgroundImage: 'none',
-              boxShadow: mode === 'dark'
-                ? '0 2px 8px rgba(0, 0, 0, 0.3)'
-                : '0 2px 8px rgba(0, 0, 0, 0.1)',
-              '&:hover': {
-                boxShadow: mode === 'dark'
-                  ? '0 4px 12px rgba(0, 0, 0, 0.4)'
-                  : '0 4px 12px rgba(0, 0, 0, 0.2)'
-              }
-            }
-          }
-        },
-        MuiIconButton: {
-          styleOverrides: {
-            root: {
-              color: mode === 'dark' ? 'rgba(255, 255, 255, 0.87)' : 'rgba(0, 0, 0, 0.87)'
-            }
-          }
-        }
-      }
-    }),
-    [mode, prefersDarkMode]
-  );
-
-  const toggleColorMode = () => {
-    setMode((prevMode) => {
-      const newMode = prevMode === 'light' ? 'dark' : 'light';
-      localStorage.setItem('landlordThemeMode', newMode);
-      return newMode;
-    });
-  };
 
   const fetchCurrentUser = useCallback(async () => {
     try {
@@ -194,9 +256,9 @@ const LandlordDashboard = () => {
     }
     try {
       setLoading(true);
-      const fetchedProperties = await roomService.fetchRoomsByLandlord(currentUser.id);
+      const response = await roomService.fetchRoomsByLandlord(currentUser.id);
 
-      const processedProperties = fetchedProperties.map((property) => ({
+      const processedProperties = response.content.map((property) => ({
         id: property.id,
         landlordId: property.landlordId,
         title: property.title,
@@ -219,7 +281,7 @@ const LandlordDashboard = () => {
       }));
 
       const stats = {
-        totalProperties: processedProperties.length,
+        totalProperties: response.totalElements,
         availableProperties: processedProperties.filter(
           (property) => property.available === true
         ).length,
@@ -282,99 +344,66 @@ const LandlordDashboard = () => {
     }
   };
 
-  const getActiveSection = () => {
-    const path = location.pathname;
-    if (path.includes('property-management')) return 'properties';
-    if (path.includes('property-analytics')) return 'analytics';
-    if (path.includes('system-settings')) return 'settings';
-    if (path.includes('profile-information')) return 'profile';
-    return 'properties';
+  const handleThemeChange = (newMode) => {
+    setThemePreference(newMode);
+    localStorage.setItem('landlordThemeMode', newMode);
   };
 
-  const renderContent = () => {
-    const activeSection = getActiveSection();
-
-    switch (activeSection) {
-      case 'properties':
-        return (
-          <PropertyManagement
-            theme={theme}
-            currentUser={currentUser}
-            setSnackbar={setSnackbar}
-          />
-        );
-      case 'analytics':
-        return (
-          <PropertyAnalytics
-            theme={theme}
-            properties={properties}
-            propertyStats={propertyStats}
-          />
-        );
-      case 'settings':
-        return (
-          <SystemSettings
-            theme={theme}
-            mode={mode}
-            toggleColorMode={toggleColorMode}
-            currentUser={currentUser}
-            handleLogout={handleLogoutClick}
-            setSnackbar={setSnackbar}
-          />
-        );
-      case 'profile':
-        return (
-          <ProfileInformation
-            theme={theme}
-            currentUser={currentUser}
-            setCurrentUser={setCurrentUser}
-            setSnackbar={setSnackbar}
-          />
-        );
-      default:
-        return null;
-    }
+  const handleColorSchemeChange = (newScheme) => {
+    setColorScheme(newScheme);
+    localStorage.setItem('landlordColorScheme', newScheme);
   };
 
-  if (loading) {
-    return null;
-  }
-
-  if (error) {
-    return null;
-  }
+  const handleBorderRadiusChange = (newRadius) => {
+    setBorderRadius(newRadius);
+    localStorage.setItem('landlordBorderRadius', newRadius);
+  };
 
   return (
     <ThemeProvider theme={theme}>
       <LandlordLayout
         theme={theme}
         mode={mode}
-        toggleColorMode={toggleColorMode}
+        colorScheme={colorScheme}
+        borderRadius={borderRadius}
+        onThemeChange={handleThemeChange}
+        onColorSchemeChange={handleColorSchemeChange}
+        onBorderRadiusChange={handleBorderRadiusChange}
         handleLogout={handleLogoutClick}
       >
-        {renderContent()}
+        <Outlet context={{ 
+          theme, 
+          currentUser, 
+          properties, 
+          propertyStats,
+          setSnackbar,
+          mode: themePreference,
+          colorScheme,
+          borderRadius,
+          onThemeChange: handleThemeChange,
+          onColorSchemeChange: handleColorSchemeChange,
+          onBorderRadiusChange: handleBorderRadiusChange
+        }} />
       </LandlordLayout>
 
+      {/* Snackbar */}
       <Snackbar
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert
-          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
-          sx={{
-            width: '100%',
-            borderRadius: '12px',
-            boxShadow: theme.shadows[3],
-          }}
+          variant="filled"
+          sx={{ width: '100%' }}
         >
           {snackbar.message}
         </Alert>
       </Snackbar>
 
-      {/* Logout Confirmation Dialog */}
+      {/* Logout Dialog */}
       <Dialog
         open={logoutDialogOpen}
         onClose={handleLogoutCancel}
@@ -452,7 +481,7 @@ const LandlordDashboard = () => {
               fontSize: '0.9rem',
               color: 'text.secondary',
               '&:hover': {
-                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04)
+                bgcolor: alpha(theme.palette.primary.main, 0.04)
               }
             }}
           >

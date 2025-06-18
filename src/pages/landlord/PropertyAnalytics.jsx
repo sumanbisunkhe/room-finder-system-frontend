@@ -37,6 +37,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
+import { useOutletContext } from 'react-router-dom';
 
 const StatCard = ({ title, value, icon, color, trend }) => {
   const theme = useTheme();
@@ -181,7 +182,8 @@ const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent })
   );
 };
 
-const PropertyAnalytics = ({ theme, properties, propertyStats }) => {
+const PropertyAnalytics = () => {
+  const { theme, properties, propertyStats } = useOutletContext();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
