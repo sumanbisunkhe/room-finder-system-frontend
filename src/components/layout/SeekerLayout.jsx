@@ -772,18 +772,11 @@ const SeekerLayout = ({
               }}>
                 <IconButton
                   onClick={onThemeChange}
-                  disableRipple
                   sx={{
                     color: 'text.primary',
                     '&:hover': {
-                      background: 'transparent'
+                      bgcolor: alpha(theme.palette.primary.main, 0.1),
                     },
-                    '&.MuiIconButton-root': {
-                      background: 'transparent'
-                    },
-                    '&:active': {
-                      background: 'transparent'
-                    }
                   }}
                 >
                   {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}

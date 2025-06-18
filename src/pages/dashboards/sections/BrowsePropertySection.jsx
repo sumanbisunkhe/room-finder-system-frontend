@@ -50,6 +50,8 @@ import {
   Kitchen as KitchenIcon,
   FilterList as FilterListIcon,
   RestartAlt as RestartAltIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import * as roomService from '../../../services/roomService';
@@ -759,7 +761,7 @@ const BrowsePropertySection = () => {
           borderColor: theme => alpha(theme.palette.divider, 0.1),
           borderBottom: 'none',
           boxShadow: 'none',
-          borderRadius: '16px 16px 0 0',
+          borderRadius: '0',
         }}
       >
         <Stack 
@@ -826,11 +828,86 @@ const BrowsePropertySection = () => {
               value={filters.availability}
               onChange={(e) => handleFilterChange('availability', e.target.value)}
               displayEmpty
-              sx={{ borderRadius: 2, height: '56px' }}
+              sx={{ 
+                borderRadius: 2, 
+                height: '56px',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme => alpha(theme.palette.divider, 0.2),
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme => alpha(theme.palette.primary.main, 0.3),
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'primary.main',
+                },
+                '& .MuiSelect-select': {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                },
+                bgcolor: theme => alpha(theme.palette.background.default, 0.8),
+                '&:hover': {
+                  bgcolor: theme => alpha(theme.palette.background.default, 1),
+                }
+              }}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    mt: 1,
+                    borderRadius: 2,
+                    boxShadow: theme => `0 4px 20px ${alpha(theme.palette.common.black, 0.1)}`,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    '& .MuiMenuItem-root': {
+                      px: 2,
+                      py: 1.5,
+                      borderRadius: 1,
+                      mx: 1,
+                      mb: 0.5,
+                      '&:first-of-type': {
+                        mt: 1
+                      },
+                      '&:last-child': {
+                        mb: 1
+                      },
+                      '&:hover': {
+                        bgcolor: theme => alpha(theme.palette.primary.main, 0.08),
+                      },
+                      '&.Mui-selected': {
+                        bgcolor: theme => alpha(theme.palette.primary.main, 0.12),
+                        '&:hover': {
+                          bgcolor: theme => alpha(theme.palette.primary.main, 0.16),
+                        }
+                      }
+                    }
+                  }
+                }
+              }}
             >
-              <MenuItem value="all">All Properties</MenuItem>
-              <MenuItem value="available">Available Only</MenuItem>
-              <MenuItem value="unavailable">Unavailable Only</MenuItem>
+              <MenuItem value="all" sx={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <FilterListIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                All Properties
+              </MenuItem>
+              <MenuItem value="available" sx={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <CheckCircleIcon sx={{ fontSize: 20, color: 'success.main' }} />
+                Available Only
+              </MenuItem>
+              <MenuItem value="unavailable" sx={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <CancelIcon sx={{ fontSize: 20, color: 'error.main' }} />
+                Unavailable Only
+              </MenuItem>
             </Select>
           </FormControl>
           <Button
