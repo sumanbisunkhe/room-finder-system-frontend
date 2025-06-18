@@ -29,6 +29,7 @@ import {
   ListItemIcon,
   ListItemText,
   Fade,
+  Container,
 } from '@mui/material';
 import {
   AccountCircle as AccountCircleIcon,
@@ -471,7 +472,13 @@ const ProfileSection = () => {
 
   if (loading && !currentUser) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100%',
+        minHeight: 400 
+      }}>
         <CircularProgress />
       </Box>
     );
@@ -479,59 +486,77 @@ const ProfileSection = () => {
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, maxWidth: 'sm', mx: 'auto' }}>
         <Alert severity="error">{error}</Alert>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ 
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      p: { xs: 1.5, sm: 2, md: 3 },
-      fontFamily: '"Outfit", sans-serif',
-    }}>
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: '1400px',
-          mx: 'auto',
+    <Box 
+      component="main"
+      sx={{ 
+        flex: 1,
+        py: { xs: 2, sm: 2.5, md: 3 },
+        px: { xs: 2, sm: 2.5, md: 3 },
+        maxWidth: '100%',
+        overflow: { xs: 'auto', md: 'auto' },
+        height: { xs: 'auto', md: '100%' },
         display: 'flex',
         flexDirection: 'column',
-          height: '100%',
+      }}
+    >
+      <Container 
+        maxWidth={false}
+        disableGutters
+        sx={{ 
+          height: { xs: 'auto', md: '100%' },
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: { xs: '100vh', md: 'auto' },
+          flex: { xs: 'none', md: 1 },
+          px: { xs: 0, sm: 0, md: 0 },
+          mx: 0,
         }}
       >
         <Grid 
           container 
-          spacing={{ xs: 2, sm: 3 }}
+          spacing={{ xs: 2.5, sm: 3, md: 1 }}
           sx={{ 
+            flexGrow: { xs: 0, md: 1 },
+            alignItems: { xs: 'stretch', md: 'stretch' },
             width: '100%',
             m: 0,
-            flexGrow: 1,
+            pb: { xs: 2, sm: 3, md: 0 },
+            height: { xs: 'auto', md: '100%' },
           }}
         >
           <Grid 
             item 
             xs={12} 
-            md={4} 
-            sx={{ 
-              p: '12px !important',
-              order: { xs: 1, md: 1 },
+            md={4}
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: { xs: 'auto', md: '100%' },
+              height: { xs: 'auto', md: '100%' },
             }}
           >
             <Card 
               elevation={0}
               sx={{ 
-                height: '100%',
+                flex: { xs: 'none', md: 1 },
                 display: 'flex', 
                 flexDirection: 'column',
-                borderRadius: 2,
+                borderRadius: { xs: 2, sm: 3 },
                 bgcolor: 'background.paper',
                 border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                 position: 'relative',
-                maxWidth: { xs: '100%', md: 'none' },
+                maxWidth: { xs: '100%', sm: '440px', md: 'none' },
+                mx: { xs: 'auto', md: 0 },
+                overflow: 'hidden',
+                m: { xs: 1, sm: 1.5, md: 1.5 },
+                height: { xs: 'auto', md: '100%' },
                 '&::before': {
                   content: '""',
                   position: 'absolute',
@@ -540,23 +565,40 @@ const ProfileSection = () => {
                   right: 0,
                   height: '100px',
                   background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.primary.main, 0.1)} 100%)`,
-                  borderTopLeftRadius: '8px',
-                  borderTopRightRadius: '8px',
+                  borderTopLeftRadius: 'inherit',
+                  borderTopRightRadius: 'inherit',
                   zIndex: 0,
                 },
               }}
             >
-              <CardContent sx={{ p: 4, textAlign: 'center' }}>
-                <Box sx={{ position: 'relative', display: 'inline-block' }}>
+              <CardContent 
+                sx={{ 
+                  p: { xs: 2.5, sm: 3, md: 4 },
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: { xs: 2.5, sm: 3 },
+                  height: '100%',
+                  position: 'relative',
+                  zIndex: 1,
+                }}
+              >
+                <Box sx={{ position: 'relative', display: 'inline-block', mb: { xs: 1, sm: 1.5 } }}>
                   <Avatar
                     src={avatarPreview || '/images/admin.png'}
+                    onClick={handleAvatarClick}
                     sx={{
-                      width: 120,
-                      height: 120,
+                      width: { xs: 100, sm: 120 },
+                      height: { xs: 100, sm: 120 },
                       margin: '0 auto',
                       border: `4px solid ${theme.palette.background.paper}`,
                       boxShadow: theme.shadows[3],
                       bgcolor: theme.palette.primary.main,
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s ease-in-out',
+                      '&:hover': {
+                        transform: 'scale(1.05)',
+                      },
                       '& img': {
                         objectFit: 'cover',
                         width: '100%',
@@ -565,65 +607,19 @@ const ProfileSection = () => {
                       }
                     }}
                   >
-                    {!avatarPreview && !currentUser?.avatar && <AccountCircleIcon sx={{ fontSize: 60 }} />}
+                    {!avatarPreview && !currentUser?.avatar && <AccountCircleIcon sx={{ fontSize: { xs: 50, sm: 60 } }} />}
                   </Avatar>
                 </Box>
                 
-                {/* Avatar Menu */}
-                <Menu
-                  anchorEl={avatarMenuAnchor}
-                  open={Boolean(avatarMenuAnchor)}
-                  onClose={handleMenuClose}
-                  TransitionComponent={Fade}
-                  PaperProps={{
-                    elevation: 3,
-                    sx: {
-                      borderRadius: 2,
-                      minWidth: 180,
-                    }
-                  }}
-                >
-                  <MenuItem onClick={handleViewImage} disabled={!avatarPreview && !currentUser?.avatar}>
-                    <ListItemIcon>
-                      <ViewPhotoIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>View Photo</ListItemText>
-                  </MenuItem>
-                  <MenuItem onClick={handleUploadClick}>
-                    <ListItemIcon>
-                      <AddPhotoIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Upload Photo</ListItemText>
-                  </MenuItem>
-                </Menu>
-
-                {/* Image Viewer Dialog */}
-                <StyledImageDialog
-                  open={showImageViewer}
-                  onClose={handleImageViewerClose}
-                  maxWidth={false}
-                >
-                  <ImageViewerContent>
-                    <img
-                      src={avatarPreview || currentUser?.avatar}
-                      alt="Profile"
-                      style={{
-                        transform: `scale(${imageZoom})`,
-                        transition: 'transform 0.3s',
-                      }}
-                    />
-                    <ZoomControls>
-                      <IconButton onClick={handleZoomOut} size="small">
-                        <ZoomOutIcon />
-                      </IconButton>
-                      <IconButton onClick={handleZoomIn} size="small">
-                        <ZoomInIcon />
-                      </IconButton>
-                    </ZoomControls>
-                  </ImageViewerContent>
-                </StyledImageDialog>
-                
-                <StyledTypography variant="h5" sx={{ mt: 2, mb: 1, fontWeight: 600 }}>
+                <Box sx={{ mb: { xs: 1, sm: 1.5 } }}>
+                  <StyledTypography 
+                    variant="h5" 
+                    sx={{ 
+                      fontWeight: 600,
+                      fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                      mb: 1 
+                    }}
+                  >
                   {currentUser?.fullName || 'User Name'}
                 </StyledTypography>
                 
@@ -634,84 +630,104 @@ const ProfileSection = () => {
                     fontWeight: 600,
                     borderRadius: '16px',
                     px: 2,
+                      height: { xs: 28, sm: 32 },
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    }}
+                  />
+                  </Box>
+
+                <Stack 
+                  spacing={{ xs: 1.5, sm: 2 }} 
+                  sx={{ 
+                    width: '100%',
+                    mb: { xs: 2, sm: 2.5 }
                   }}
-                />
-
-                <Stack spacing={2} sx={{ mt: 3 }}>
-                  <Box sx={{ 
+                >
+                  {[
+                    { icon: PersonIcon, label: 'Username', value: currentUser?.username },
+                    { icon: EmailIcon, label: 'Email', value: currentUser?.email },
+                    { icon: PhoneIcon, label: 'Phone', value: currentUser?.phoneNumber || 'Not set' }
+                  ].map((item, index) => (
+                    <Box 
+                      key={item.label}
+                      sx={{ 
                     display: 'flex', 
                     alignItems: 'center', 
                     gap: 2,
-                    p: 1.5,
-                    borderRadius: 1,
-                    bgcolor: 'background.paper',
-                    boxShadow: theme.shadows[1],
-                  }}>
-                    <PersonIcon color="primary" />
-                    <Box sx={{ textAlign: 'left' }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Username
+                        p: { xs: 1.5, sm: 2 },
+                        borderRadius: 2,
+                        bgcolor: alpha(theme.palette.background.default, 0.6),
+                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                        transition: 'all 0.2s ease-in-out',
+                        '&:hover': {
+                          bgcolor: alpha(theme.palette.background.default, 0.9),
+                        }
+                      }}
+                    >
+                      <item.icon color="primary" sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                      <Box sx={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
+                        <Typography 
+                          variant="caption" 
+                          color="text.secondary"
+                          sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                        >
+                          {item.label}
                       </Typography>
-                      <Typography variant="body2" fontWeight={500}>
-                        {currentUser?.username}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 2,
-                    p: 1.5,
-                    borderRadius: 1,
-                    bgcolor: 'background.paper',
-                    boxShadow: theme.shadows[1],
-                  }}>
-                    <EmailIcon color="primary" />
-                    <Box sx={{ textAlign: 'left' }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Email
-                      </Typography>
-                      <Typography variant="body2" fontWeight={500}>
-                        {currentUser?.email}
+                        <Typography 
+                          variant="body2" 
+                          fontWeight={500}
+                          sx={{ 
+                            fontSize: { xs: '0.875rem', sm: '1rem' },
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {item.value}
                       </Typography>
                     </Box>
                   </Box>
-
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 2,
-                    p: 1.5,
-                    borderRadius: 1,
-                    bgcolor: 'background.paper',
-                    boxShadow: theme.shadows[1],
-                  }}>
-                    <PhoneIcon color="primary" />
-                    <Box sx={{ textAlign: 'left' }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Phone
-                      </Typography>
-                      <Typography variant="body2" fontWeight={500}>
-                        {currentUser?.phoneNumber || 'Not set'}
-                      </Typography>
-                    </Box>
-                  </Box>
+                  ))}
                 </Stack>
 
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{ my: { xs: 1.5, sm: 2 } }} />
 
-                <Stack spacing={1} direction="row" justifyContent="center">
+                <Stack 
+                  spacing={1} 
+                  direction="row" 
+                  justifyContent="center"
+                  sx={{
+                    mt: 'auto',
+                    flexWrap: 'wrap',
+                    gap: { xs: 1, sm: 2 },
+                  }}
+                >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AccessTimeIcon fontSize="small" color="action" />
-                    <Typography variant="caption" color="text.secondary">
+                    <AccessTimeIcon 
+                      fontSize="small" 
+                      color="action" 
+                      sx={{ fontSize: { xs: 16, sm: 18 } }}
+                    />
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                    >
                       Joined: {format(new Date(currentUser?.createdAt), 'MMM dd, yyyy')}
                     </Typography>
                   </Box>
                   <Typography variant="caption" color="text.secondary">•</Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AccessTimeIcon fontSize="small" color="action" />
-                    <Typography variant="caption" color="text.secondary">
+                    <AccessTimeIcon 
+                      fontSize="small" 
+                      color="action"
+                      sx={{ fontSize: { xs: 16, sm: 18 } }}
+                    />
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                    >
                       Updated: {format(new Date(currentUser?.updatedAt), 'MMM dd, yyyy')}
                     </Typography>
                   </Box>
@@ -723,21 +739,26 @@ const ProfileSection = () => {
           <Grid 
             item 
             xs={12} 
-            md={8} 
-            sx={{ 
-              p: '12px !important',
-              order: { xs: 2, md: 2 },
+            md={8}
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: { xs: 'auto', md: '100%' },
+              height: { xs: 'auto', md: '100%' },
             }}
           >
             <Card 
               elevation={0}
               sx={{ 
-                height: '100%',
+                flex: { xs: 'none', md: 1 },
                 display: 'flex',
                 flexDirection: 'column',
-                borderRadius: 2,
+                borderRadius: { xs: 2, sm: 3 },
                 bgcolor: 'background.paper',
                 border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                overflow: 'hidden',
+                m: { xs: 1, sm: 1.5, md: 1.5 },
+                height: { xs: 'auto', md: '100%' },
               }}
             >
               <Box sx={{ 
@@ -1076,7 +1097,7 @@ const ProfileSection = () => {
             </Card>
           </Grid>
         </Grid>
-      </Box>
+      </Container>
 
       <StyledDialog
         open={showCropDialog}

@@ -332,14 +332,21 @@ const SeekerLayout = ({
             </List>
 
             {/* Logout Button */}
-            <Box sx={{ p: 1.5 }}>
+            <Box sx={{ 
+              p: 1.5,
+              borderTop: theme => `1px solid ${theme.palette.divider}`,
+              background: theme => theme.palette.mode === 'dark' 
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0.03) 100%)'
+                : 'linear-gradient(180deg, rgba(248,249,250,0.5) 0%, rgba(255,255,255,1) 100%)',
+              mt: 'auto'
+            }}>
               <ListItemButton
                 onClick={handleLogout}
                 sx={{
-                  py: 1.5,
                   minHeight: 48,
                   px: 2.5,
                   borderRadius: '8px',
+                  justifyContent: drawerOpen ? 'initial' : 'center',
                   '&:hover': {
                     bgcolor: theme => theme.palette.mode === 'dark'
                       ? 'rgba(255,255,255,0.05)'
@@ -353,7 +360,8 @@ const SeekerLayout = ({
                 <ListItemIcon 
                   sx={{ 
                     minWidth: 0,
-                    mr: 2,
+                    mr: drawerOpen ? 2 : 'auto',
+                    justifyContent: 'center',
                     color: 'error.main',
                     transition: theme => theme.transitions.create(['color', 'transform'], {
                       duration: '0.2s'
@@ -363,17 +371,25 @@ const SeekerLayout = ({
                 >
                   <LogoutOutlinedIcon />
                 </ListItemIcon>
-                <ListItemText 
-                  primary="Logout"
-                  primaryTypographyProps={{
-                    fontFamily: "'Outfit', sans-serif",
-                    fontSize: '0.9rem',
-                    fontWeight: 500,
-                    color: 'error.main',
-                    whiteSpace: 'nowrap',
-                    letterSpacing: '0.3px',
-                  }}
-                />
+                {drawerOpen && (
+                  <ListItemText 
+                    primary="Logout"
+                    sx={{ 
+                      opacity: drawerOpen ? 1 : 0,
+                      transition: theme => theme.transitions.create(['opacity'], {
+                        duration: theme.transitions.duration.enteringScreen,
+                      }),
+                    }}
+                    primaryTypographyProps={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      color: 'error.main',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.3px',
+                    }}
+                  />
+                )}
               </ListItemButton>
             </Box>
           </Box>
@@ -615,7 +631,14 @@ const SeekerLayout = ({
             </List>
 
             {/* Logout Button */}
-            <Box sx={{ p: 1.5 }}>
+            <Box sx={{ 
+              p: 1.5,
+              borderTop: theme => `1px solid ${theme.palette.divider}`,
+              background: theme => theme.palette.mode === 'dark' 
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0.03) 100%)'
+                : 'linear-gradient(180deg, rgba(248,249,250,0.5) 0%, rgba(255,255,255,1) 100%)',
+              mt: 'auto'
+            }}>
               <ListItemButton
                 onClick={handleLogout}
                 sx={{
@@ -720,6 +743,7 @@ const SeekerLayout = ({
               >
                 <LeftPanelIcon />
               </IconButton>
+
               <Typography 
                 variant="h6" 
                 sx={{ 
@@ -739,18 +763,32 @@ const SeekerLayout = ({
               </Typography>
 
               {/* Theme Toggler */}
-              <IconButton
-                onClick={onThemeChange}
-                sx={{
-                  ml: 1,
-                  color: 'text.primary',
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  },
-                }}
-              >
-                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-              </IconButton>
+              <Box sx={{ 
+                display: 'flex',
+                position: { xs: 'absolute', lg: 'static' },
+                right: { xs: 16, lg: 'auto' },
+                top: { xs: '50%', lg: 'auto' },
+                transform: { xs: 'translateY(-50%)', lg: 'none' }
+              }}>
+                <IconButton
+                  onClick={onThemeChange}
+                  disableRipple
+                  sx={{
+                    color: 'text.primary',
+                    '&:hover': {
+                      background: 'transparent'
+                    },
+                    '&.MuiIconButton-root': {
+                      background: 'transparent'
+                    },
+                    '&:active': {
+                      background: 'transparent'
+                    }
+                  }}
+                >
+                  {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+                </IconButton>
+              </Box>
             </Toolbar>
           </AppBar>
 

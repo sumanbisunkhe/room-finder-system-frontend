@@ -31,7 +31,9 @@ import {
   AssignmentInd,
   Visibility,
   VisibilityOff,
+  GpsFixed as ScopeIcon
 } from "@mui/icons-material";
+import { alpha } from '@mui/material/styles';
 
 const registerSchema = yup.object().shape({
   username: yup.string().required("Username is required").min(3).max(50),
@@ -99,15 +101,63 @@ const RegisterPage = () => {
             mx: 'auto'
           }}
         >
-          <Box display="flex" justifyContent="center" mb={2}>
-            <img
-              src="\src\assets\RR.png"
-              alt="Logo"
-              style={{ height: "50px", objectFit: "contain" }}
-            />
+          <Box display="flex" justifyContent="center" mb={4}>
+            <Box
+              sx={{
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 1,
+                justifyContent: 'center',
+                width: '100%',
+                '&:hover': {
+                  '& .logo-icon': {
+                    transform: 'scale(1.1)',
+                  },
+                  '& .logo-text': {
+                    opacity: 0.8
+                  }
+                }
+              }}
+            >
+              <ScopeIcon 
+                className="logo-icon"
+                sx={{
+                  fontSize: 48,
+                  color: theme => theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+                  animation: 'scope 3s infinite',
+                  transition: 'transform 0.2s ease-in-out',
+                  '@keyframes scope': {
+                    '0%': { transform: 'rotate(0deg) scale(1)' },
+                    '25%': { transform: 'rotate(90deg) scale(1.1)' },
+                    '50%': { transform: 'rotate(180deg) scale(1)' },
+                    '75%': { transform: 'rotate(270deg) scale(1.1)' },
+                    '100%': { transform: 'rotate(360deg) scale(1)' },
+                  }
+                }}
+              />
+              <Typography
+                variant="h4"
+                className="logo-text"
+                sx={{
+                  fontFamily: "'Audiowide', cursive",
+                  fontWeight: 400,
+                  fontSize: '2rem',
+                  background: 'linear-gradient(45deg, #ff0000, #cc0000)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  color: 'transparent',
+                  letterSpacing: '0.5px',
+                  textAlign: 'center',
+                  transition: 'opacity 0.2s ease-in-out'
+                }}
+              >
+                RoomRadar
+              </Typography>
+            </Box>
           </Box>
 
-          <Typography component="h1" variant="h5" sx={{ textAlign: "center", fontFamily: "Courier" }}>
+          <Typography component="h1" variant="h5" sx={{ textAlign: "center", fontFamily: "'Outfit', sans-serif" }}>
             Register
           </Typography>
 
