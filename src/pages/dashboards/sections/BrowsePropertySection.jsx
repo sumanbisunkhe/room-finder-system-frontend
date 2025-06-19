@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -35,6 +35,7 @@ import {
   IconButton,
   Tooltip,
   Collapse,
+  Fab
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -52,6 +53,7 @@ import {
   RestartAlt as RestartAltIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon
 } from '@mui/icons-material';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import * as roomService from '../../../services/roomService';
@@ -134,6 +136,57 @@ const StyledPaginationPaper = styled(Paper)(({ theme, drawerOpen }) => ({
   backdropFilter: 'blur(8px)',
   boxShadow: `0 -4px 20px ${alpha(theme.palette.common.black, 0.05)}`,
 }));
+
+const ScrollToTop = () => {
+  const [show, setShow] = useState(false);
+  const scrollableContentRef = useRef(null);
+
+  useEffect(() => {
+    const scrollableContent = document.querySelector('.scrollable-content');
+    if (!scrollableContent) return;
+
+    scrollableContentRef.current = scrollableContent;
+    
+    const handleScroll = () => {
+      const scrollTop = scrollableContent.scrollTop;
+      setShow(scrollTop > 200);
+    };
+
+    scrollableContent.addEventListener('scroll', handleScroll);
+    return () => {
+      if (scrollableContent) {
+        scrollableContent.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, []);
+
+  const handleClick = () => {
+    if (scrollableContentRef.current) {
+      scrollableContentRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  return (
+    <Fab
+      color="primary"
+      size="small"
+      aria-label="scroll back to top"
+      onClick={handleClick}
+      sx={{
+        position: 'fixed',
+        bottom: { xs: 24, sm: 32 },
+        right: { xs: 24, sm: 32 },
+        zIndex: 9999,
+        display: show ? 'flex' : 'none'
+      }}
+    >
+      <KeyboardArrowUpIcon />
+    </Fab>
+  );
+};
 
 const BrowsePropertySection = () => {
   const { theme, drawerOpen } = useOutletContext();
@@ -740,6 +793,7 @@ const BrowsePropertySection = () => {
   return (
     <Container maxWidth={false} sx={{ py: 2, px: 0 }}>
       <Box
+        className="scrollable-content"
         sx={{
           overflowY: { xs: 'auto', sm: 'auto', md: 'visible' },
           maxHeight: {
@@ -1100,6 +1154,7 @@ const BrowsePropertySection = () => {
           {snackbarState.message}
         </Alert>
       </Snackbar>
+      {isMobileOrTablet && <ScrollToTop />}
       </Box>
     </Container>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -480,6 +480,8 @@ const UserManagement = ({
     userId: null,
     action: null
   });
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Update pagination when parent data changes
   useEffect(() => {
@@ -503,63 +505,148 @@ const UserManagement = ({
     setIsLoading(isLoadingProp);
   }, [isLoadingProp]);
 
-  // Load users based on current filter, status filter, and pagination
-  useEffect(() => {
-    const loadFilteredUsers = async () => {
-      try {
+  // Handle infinite scroll for mobile/tablet
+  const handleScroll = useCallback((event) => {
+    if (!isSmallScreen || !hasMore || loadingMore || isLoading) return;
+
+    const element = event.target;
+    if (
+      element.scrollHeight - element.scrollTop <= element.clientHeight + 100
+    ) {
+      setLoadingMore(true);
+      setPagination(prev => ({
+        ...prev,
+        currentPage: prev.currentPage + 1
+      }));
+    }
+  }, [hasMore, loadingMore, isSmallScreen, isLoading]);
+
+  // Load users based on view type and current state
+  const loadFilteredUsers = useCallback(async (isLoadingMore = false) => {
+    try {
+      if (!isLoadingMore) {
         setIsLoading(true);
-        setError(null);
-
-        const response = await userService.fetchUsers({
-          page: pagination.currentPage,
-          size: pagination.pageSize,
-          role: filterValue !== 'all' ? filterValue : undefined,
-          status: statusFilter !== 'all' ? statusFilter : undefined
-        });
-
-        if (response) {
-          const mappedUsers = (response.content || []).map(user => ({
-            ...user,
-            isActive: user.active !== false
-          }));
-
-          setFilteredUsers(mappedUsers);
-          setPagination(prev => ({
-            ...prev,
-            totalElements: response.totalElements || 0,
-            totalPages: response.totalPages || 0
-          }));
-
-          if (typeof onUserAction === 'function') {
-            onUserAction(mappedUsers);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading filtered users:', error);
-        setError(error.message || 'Error loading users');
-        setSnackbar({
-          open: true,
-          message: error.message || 'Error loading users',
-          severity: 'error'
-        });
-      } finally {
-        setIsLoading(false);
       }
-    };
+      setError(null);
 
-    loadFilteredUsers();
-  }, [filterValue, statusFilter, pagination.currentPage, pagination.pageSize]);
+      const response = await userService.fetchUsers({
+        page: pagination.currentPage,
+        size: pagination.pageSize,
+        role: filterValue !== 'all' ? filterValue : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined
+      });
 
-  // Update the handlePageChange function
-  const handlePageChange = async (event, newPage) => {
+      if (response) {
+        const mappedUsers = (response.content || []).map(user => ({
+          ...user,
+          isActive: user.active !== false
+        }));
+
+        if (isSmallScreen && isLoadingMore) {
+          // Append data for infinite scroll in mobile/tablet
+          setFilteredUsers(prev => [...prev, ...mappedUsers]);
+        } else {
+          // Replace data for desktop view or initial mobile load
+          setFilteredUsers(mappedUsers);
+        }
+
+        setPagination(prev => ({
+          ...prev,
+          totalElements: response.totalElements || 0,
+          totalPages: response.totalPages || 0
+        }));
+
+        // Update hasMore based on response
+        setHasMore(
+          isSmallScreen && 
+          mappedUsers.length > 0 && 
+          (pagination.currentPage + 1) < response.totalPages
+        );
+
+        if (typeof onUserAction === 'function') {
+          onUserAction(isLoadingMore ? mappedUsers : response.content);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading filtered users:', error);
+      setError(error.message || 'Error loading users');
+      setSnackbar({
+        open: true,
+        message: error.message || 'Error loading users',
+        severity: 'error'
+      });
+    } finally {
+      setIsLoading(false);
+      setLoadingMore(false);
+    }
+  }, [filterValue, statusFilter, pagination.pageSize, pagination.currentPage, onUserAction, isSmallScreen]);
+
+  // Handle page change for desktop view
+  const handlePageChange = useCallback(async (event, newPage) => {
+    if (isSmallScreen) return; // Ignore in mobile view
+
+    setFilteredUsers([]); // Clear current data
     setPagination(prev => ({
       ...prev,
       currentPage: newPage
     }));
-    if (onPageChangeParent) {
-      onPageChangeParent(event, newPage);
+
+    try {
+      setIsLoading(true);
+      const response = await userService.fetchUsers({
+        page: newPage,
+        size: pagination.pageSize,
+        role: filterValue !== 'all' ? filterValue : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined
+      });
+
+      if (response) {
+        const mappedUsers = (response.content || []).map(user => ({
+          ...user,
+          isActive: user.active !== false
+        }));
+
+        setFilteredUsers(mappedUsers);
+        setPagination(prev => ({
+          ...prev,
+          totalElements: response.totalElements || 0,
+          totalPages: response.totalPages || 0
+        }));
+
+        if (onPageChangeParent) {
+          onPageChangeParent(event, newPage);
+        }
+      }
+    } catch (error) {
+      console.error('Error changing page:', error);
+      setError(error.message || 'Error loading users');
+      setSnackbar({
+        open: true,
+        message: error.message || 'Error loading users',
+        severity: 'error'
+      });
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [filterValue, statusFilter, pagination.pageSize, onPageChangeParent, isSmallScreen]);
+
+  // Load more data for infinite scroll
+  useEffect(() => {
+    if (loadingMore && isSmallScreen) {
+      loadFilteredUsers(true);
+    }
+  }, [loadingMore, loadFilteredUsers, isSmallScreen]);
+
+  // Handle filter changes
+  useEffect(() => {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: 0
+    }));
+    setFilteredUsers([]);
+    setHasMore(true); // Reset hasMore when filters change
+    loadFilteredUsers(false);
+  }, [filterValue, statusFilter]);
 
   // Update the handlePageSizeChange function
   const handlePageSizeChange = async (event) => {
@@ -1174,22 +1261,25 @@ const UserManagement = ({
         }
       }}
     >
-      {isLoading && <StylishLoading />}
-      <Box sx={{
-        height: '100%',
-        width: '100%',
-        maxWidth: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: isSmallScreen ? 'auto' : 'hidden',
-        bgcolor: 'background.default',
-        opacity: isLoading ? 0.5 : 1,
-        pointerEvents: isLoading ? 'none' : 'auto',
-        m: '0 !important',
-        p: '0 !important',
-        boxSizing: 'border-box',
-        height: isSmallScreen ? 'calc(100vh - 64px)' : '100%'
-      }}>
+      {isLoading && !loadingMore && <StylishLoading />}
+      <Box 
+        sx={{
+          height: '100%',
+          width: '100%',
+          maxWidth: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: isSmallScreen ? 'auto' : 'hidden',
+          bgcolor: 'background.default',
+          opacity: isLoading && !loadingMore ? 0.5 : 1,
+          pointerEvents: isLoading && !loadingMore ? 'none' : 'auto',
+          m: '0 !important',
+          p: '0 !important',
+          boxSizing: 'border-box',
+          height: isSmallScreen ? 'calc(100vh - 64px)' : '100%'
+        }}
+        onScroll={isSmallScreen ? handleScroll : undefined}
+      >
         {/* Filters and Search Bar */}
         <Box sx={{
           p: 2, 
@@ -1425,74 +1515,89 @@ const UserManagement = ({
           </Box>
         )}
 
-        {/* Table Pagination */}
-        <Box
-          sx={{
-            mt: 'auto',
-            py: 2,
-            px: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderTop: '1px solid',
-            borderColor: 'divider',
-            position: isSmallScreen ? 'fixed' : 'relative',
-            bottom: isSmallScreen ? 0 : 'auto',
-            left: isSmallScreen ? 0 : 'auto',
-            right: isSmallScreen ? 0 : 'auto',
-            bgcolor: 'background.paper',
-            zIndex: isSmallScreen ? 2 : 'auto',
-            boxShadow: isSmallScreen ? '0px -2px 4px rgba(0, 0, 0, 0.1)' : 'none',
-          }}
-        >
-          <Pagination
-            count={pagination.totalPages}
-            page={pagination.currentPage + 1}
-            onChange={(event, page) => handlePageChange(event, page - 1)}
-            shape="rounded"
-            renderItem={(item) => {
-              if (item.type === 'previous' || item.type === 'next') {
+        {/* Loading More Indicator */}
+        {loadingMore && (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              py: 2,
+              width: '100%'
+            }}
+          >
+            <CircularProgress size={24} />
+          </Box>
+        )}
+
+        {/* Show pagination only on desktop */}
+        {!isSmallScreen && (
+          <Box
+            sx={{
+              mt: 'auto',
+              py: 2,
+              px: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              position: 'relative',
+              bgcolor: 'background.paper',
+              zIndex: 1,
+            }}
+          >
+            <Pagination
+              count={pagination.totalPages}
+              page={pagination.currentPage + 1}
+              onChange={(event, page) => handlePageChange(event, page - 1)}
+              shape="rounded"
+              showFirstButton
+              showLastButton
+              renderItem={(item) => {
+                if (item.type === 'previous' || item.type === 'next') {
+                  return (
+                    <PaginationItem
+                      {...item}
+                      sx={{
+                        bgcolor: 'transparent',
+                        border: 'none',
+                        '&:hover': {
+                          bgcolor: 'transparent',
+                        },
+                        '&.Mui-disabled': {
+                          opacity: 0.5,
+                          bgcolor: 'transparent',
+                        },
+                      }}
+                    />
+                  );
+                }
                 return (
                   <PaginationItem
                     {...item}
                     sx={{
-                      bgcolor: 'transparent',
+                      mx: 0.5,
                       border: 'none',
-                      '&:hover': {
-                        bgcolor: 'transparent',
+                      bgcolor: 'transparent',
+                      color: 'text.primary',
+                      '&.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        '&:hover': {
+                          bgcolor: 'primary.main',
+                        },
                       },
-                      '&.Mui-disabled': {
-                        opacity: 0.5,
+                      '&:hover': {
                         bgcolor: 'transparent',
                       },
                     }}
                   />
                 );
-              }
-              return (
-                <PaginationItem
-                  {...item}
-                  sx={{
-                    mx: 0.5,
-                    border: 'none',
-                    bgcolor: 'transparent',
-                    color: 'text.primary',
-                    '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
-                      '&:hover': {
-                        bgcolor: 'primary.main',
-                      },
-                    },
-                    '&:hover': {
-                      bgcolor: 'transparent',
-                    },
-                  }}
-                />
-              );
-            }}
-          />
-        </Box>
+              }}
+            />
+          </Box>
+        )}
 
         {/* Add User Dialog */}
         <Dialog

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
   Container,
@@ -30,6 +30,8 @@ import {
   TablePagination,
   Pagination,
   PaginationItem,
+  CircularProgress,
+  Fab
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,6 +41,7 @@ import {
   Block as BlockIcon,
   CheckCircle as CheckCircleIcon,
   Home as HomeIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import PropertyModal from '../../components/modals/PropertyModal';
@@ -79,6 +82,57 @@ const CustomScrollbar = styled('div')(({ theme }) => ({
   },
 }));
 
+const ScrollToTop = () => {
+  const [show, setShow] = useState(false);
+  const scrollableContentRef = useRef(null);
+
+  useEffect(() => {
+    const scrollableContent = document.querySelector('.scrollable-content');
+    if (!scrollableContent) return;
+
+    scrollableContentRef.current = scrollableContent;
+    
+    const handleScroll = () => {
+      const scrollTop = scrollableContent.scrollTop;
+      setShow(scrollTop > 200);
+    };
+
+    scrollableContent.addEventListener('scroll', handleScroll);
+    return () => {
+      if (scrollableContent) {
+        scrollableContent.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, []);
+
+  const handleClick = () => {
+    if (scrollableContentRef.current) {
+      scrollableContentRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  return (
+    <Fab
+      color="primary"
+      size="small"
+      aria-label="scroll back to top"
+      onClick={handleClick}
+      sx={{
+        position: 'fixed',
+        bottom: { xs: 24, sm: 32 },
+        right: { xs: 24, sm: 32 },
+        zIndex: 9999,
+        display: show ? 'flex' : 'none'
+      }}
+    >
+      <KeyboardArrowUpIcon />
+    </Fab>
+  );
+};
+
 const PropertyManagement = () => {
   const { theme, currentUser, setSnackbar } = useOutletContext();
   const [allProperties, setAllProperties] = useState([]); // Store all properties
@@ -90,6 +144,11 @@ const PropertyManagement = () => {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
+  const [infinitePage, setInfinitePage] = useState(0);
+  const [infiniteProperties, setInfiniteProperties] = useState([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: '',
@@ -126,6 +185,122 @@ const PropertyManagement = () => {
     totalElements: 0,
     totalPages: 0
   });
+
+  // Check if the device is mobile or tablet
+  useEffect(() => {
+    const checkDevice = () => {
+      setIsMobileOrTablet(window.innerWidth < 960); // md breakpoint in MUI
+    };
+    checkDevice();
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
+  }, []);
+
+  // Handle infinite scroll
+  const handleScroll = useCallback(async (event) => {
+    const target = event.target;
+    if (
+      !isLoadingMore &&
+      hasMore &&
+      target.scrollHeight - target.scrollTop <= target.clientHeight + 100
+    ) {
+      try {
+        setIsLoadingMore(true);
+        const nextPage = infinitePage + 1;
+        const response = await roomService.fetchRoomsByLandlord(currentUser.id, nextPage, 10); // Increased page size to 10
+        
+        if (!response || !response.content || response.content.length === 0) {
+          setHasMore(false);
+          return;
+        }
+
+        setInfiniteProperties(prev => [...prev, ...response.content]);
+        setInfinitePage(nextPage);
+        setHasMore(response.content.length === 10); // Check if we got a full page
+      } catch (error) {
+        console.error('Error loading more properties:', error);
+        setSnackbar({
+          open: true,
+          message: 'Failed to load more properties',
+          severity: 'error',
+        });
+      } finally {
+        setIsLoadingMore(false);
+      }
+    }
+  }, [infinitePage, hasMore, isLoadingMore, currentUser.id]);
+
+  // Initialize infinite scroll data
+  useEffect(() => {
+    if (isMobileOrTablet && currentUser?.id) {
+      setInfinitePage(0);
+      setInfiniteProperties([]);
+      setHasMore(true);
+      const loadInitialData = async () => {
+        try {
+          setLoading(true);
+          const response = await roomService.fetchRoomsByLandlord(currentUser.id, 0, 10); // Increased initial page size to 10
+          if (!response || !response.content) {
+            throw new Error('Invalid response format from server');
+          }
+          setInfiniteProperties(response.content);
+          setHasMore(response.content.length === 10); // Check if we got a full page
+        } catch (error) {
+          console.error('Error loading initial properties:', error);
+          setSnackbar({
+            open: true,
+            message: 'Failed to load properties',
+            severity: 'error',
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadInitialData();
+    }
+  }, [isMobileOrTablet, currentUser?.id]);
+
+  // Filter properties for infinite scroll
+  useEffect(() => {
+    if (isMobileOrTablet) {
+      const filtered = infiniteProperties.filter((property) => {
+        const matchesSearch = property.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          property.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          property.address?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        const matchesPrice = filters.maxPrice ? property.price <= parseFloat(filters.maxPrice) : true;
+        const matchesSize = filters.minSize ? property.size >= parseFloat(filters.minSize) : true;
+        const matchesAvailability = filters.availability === 'all' ? true :
+          filters.availability === 'available' ? property.available : !property.available;
+
+        return matchesSearch && matchesPrice && matchesSize && matchesAvailability;
+      });
+
+      setFilteredProperties(filtered);
+    }
+  }, [infiniteProperties, searchTerm, filters, isMobileOrTablet]);
+
+  // Reset infinite scroll when filters change
+  useEffect(() => {
+    if (isMobileOrTablet) {
+      setInfinitePage(0);
+      setInfiniteProperties([]);
+      setHasMore(true);
+      const loadInitialData = async () => {
+        try {
+          const response = await roomService.fetchRoomsByLandlord(currentUser.id, 0, 10); // Increased page size to 10
+          if (!response || !response.content) {
+            throw new Error('Invalid response format from server');
+          }
+          setInfiniteProperties(response.content);
+          setHasMore(response.content.length === 10); // Check if we got a full page
+        } catch (error) {
+          console.error('Error reloading properties:', error);
+        }
+      };
+      loadInitialData();
+    }
+  }, [searchTerm, filters, isMobileOrTablet, currentUser?.id]);
 
   // Fetch all properties for search/filter
   const fetchAllProperties = async () => {
@@ -452,10 +627,12 @@ const PropertyManagement = () => {
       }}
     >
       <CustomScrollbar
+        className="scrollable-content"
         sx={{
           flex: 1,
           mb: { xs: 8, md: 7 }
         }}
+        onScroll={isMobileOrTablet ? handleScroll : undefined}
       >
         <Stack spacing={0}>
           {!selectedProperty && (
@@ -892,119 +1069,122 @@ const PropertyManagement = () => {
 
               {/* Mobile View */}
               <Box sx={{ display: { xs: 'block', md: 'none' } }}>
-                <Grid container spacing={2}>
-                  {filteredProperties.map((property) => (
-                    <Grid item xs={12} sm={6} key={property.id}>
-                      <Paper 
-                        sx={{
-                          height: '100%',
-                          borderRadius: '0px',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          overflow: 'hidden',
-                          cursor: 'pointer',
-                          '&:hover': {
-                            boxShadow: theme.shadows[4],
-                            transform: 'translateY(-2px)',
-                            transition: 'all 0.2s ease-in-out'
-                          }
-                        }}
-                        onClick={() => setSelectedProperty(property)}
-                      >
-                        <Box sx={{
+                <Grid container spacing={3}>
+                  {filteredProperties.map((room, index) => {
+                    // Get up to 2 active amenities
+                    const activeAmenities = room.amenities ? Object.entries(room.amenities).filter(([_, v]) => v).slice(0, 2) : [];
+                    return (
+                      <Grid item xs={12} sm={6} md={4} lg={2.4} key={room.id}>
+                        <Paper 
+                          sx={{
+                            cursor: 'pointer',
+                            maxHeight: 480,
+                            minHeight: 420,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            boxShadow: 3,
+                            transition: 'box-shadow 0.2s, transform 0.2s',
+                            '&:hover': {
+                              boxShadow: 8,
+                              transform: 'translateY(-4px) scale(1.02)',
+                            },
+                          }}
+                          onClick={() => setSelectedProperty(room)}
+                        >
+                          <Box sx={{
                             height: 200,
                             bgcolor: 'background.default',
                             position: 'relative'
-                        }}>
-                          {property.images?.[0] ? (
-                            <img
-                              src={`${import.meta.env.VITE_API_URL}/uploads/${property.images[0]}`}
-                              alt={property.title}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover'
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedProperty(property);
-                              }}
-                            />
-                          ) : (
-                            <Box 
-                              sx={{
-                                height: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'text.secondary'
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedProperty(property);
-                              }}
-                            >
-                              <HomeIcon sx={{ fontSize: 48 }} />
-                            </Box>
-                          )}
-                              <Chip
-                                label={property.available ? 'Available' : 'Occupied'}
-                                size="small"
+                          }}>
+                            {room.images?.[0] ? (
+                              <img
+                                src={`${import.meta.env.VITE_API_URL}/uploads/${room.images[0]}`}
+                                alt={room.title}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover'
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedProperty(room);
+                                }}
+                              />
+                            ) : (
+                              <Box 
                                 sx={{
+                                  height: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'text.secondary'
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedProperty(room);
+                                }}
+                              >
+                                <HomeIcon sx={{ fontSize: 48 }} />
+                              </Box>
+                            )}
+                            <Chip
+                              label={room.available ? 'Available' : 'Occupied'}
+                              size="small"
+                              sx={{
                                 position: 'absolute',
                                 top: 8,
                                 right: 8,
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  backgroundColor: property.available
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                backgroundColor: room.available
                                   ? alpha(theme.palette.success.main, 0.9)
                                   : alpha(theme.palette.error.main, 0.9),
                                 color: '#fff'
                               }}
                             />
                           </Box>
-
                           <Box sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                             <Stack spacing={2}>
                               <Typography variant="subtitle1" fontWeight={600} noWrap>
-                                {property.title}
+                                {room.title}
                               </Typography>
 
                               <Stack direction="row" spacing={2} divider={<Divider orientation="vertical" flexItem />}>
                                 <Typography variant="body2" color="primary.main" fontWeight={500}>
-                                Rs. {property.price.toLocaleString()}
-                              </Typography>
-                              <Typography variant="body2">
-                                {property.size} sq.ft
-                              </Typography>
-                            </Stack>
+                                  Rs. {room.price.toLocaleString()}
+                                </Typography>
+                                <Typography variant="body2">
+                                  {room.size} sq.ft
+                                </Typography>
+                              </Stack>
 
-                            <Box>
+                              <Box>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                                {property.address}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {property.city}
-                              </Typography>
-                            </Box>
+                                  {room.address}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {room.city}
+                                </Typography>
+                              </Box>
 
                               <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 'auto' }}>
-                                {Object.entries(property.amenities || {}).map(([key, value]) => (
+                                {activeAmenities.map(([key, value]) => (
                                   value && (
-                                  <Chip
+                                    <Chip
                                       key={key}
                                       label={key.charAt(0).toUpperCase() + key.slice(1)}
-                                    size="small"
-                                    sx={{
+                                      size="small"
+                                      sx={{
                                         height: 24,
                                         fontSize: '0.75rem',
-                                      bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                      color: theme.palette.primary.main,
+                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                        color: theme.palette.primary.main,
                                         mb: 0.5
-                                    }}
-                                  />
+                                      }}
+                                    />
                                   )
                                 ))}
                               </Stack>
@@ -1014,18 +1194,18 @@ const PropertyManagement = () => {
 
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                               <Typography variant="caption" color="text.secondary">
-                                Posted: {new Date(property.postedDate).toLocaleDateString()}
+                                Posted: {new Date(room.postedDate).toLocaleDateString()}
                               </Typography>
                               <Stack direction="row" spacing={1}>
                                 <IconButton
                                   size="small"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setSelectedProperty(property);
+                                    setSelectedProperty(room);
                                     setPropertyForm({
-                                      ...property,
-                                      images: property.images || [],
-                                      status: property.available ? 'available' : 'unavailable'
+                                      ...room,
+                                      images: room.images || [],
+                                      status: room.available ? 'available' : 'unavailable'
                                     });
                                     setIsPropertyModalOpen(true);
                                   }}
@@ -1036,10 +1216,10 @@ const PropertyManagement = () => {
                                   size="small"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handlePropertyAction(property.id, property.available ? 'deactivate' : 'activate');
+                                    handlePropertyAction(room.id, room.available ? 'deactivate' : 'activate');
                                   }}
                                 >
-                                  {property.available ? (
+                                  {room.available ? (
                                     <BlockIcon fontSize="small" />
                                   ) : (
                                     <CheckCircleIcon fontSize="small" />
@@ -1049,31 +1229,32 @@ const PropertyManagement = () => {
                                   size="small"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handlePropertyAction(property.id, 'delete');
+                                    handlePropertyAction(room.id, 'delete');
                                   }}
                                 >
                                   <DeleteIcon fontSize="small" />
                                 </IconButton>
+                              </Stack>
                             </Stack>
-                          </Stack>
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  ))}
-                  {filteredProperties.length === 0 && (
+                          </Box>
+                        </Paper>
+                      </Grid>
+                    );
+                  })}
+                  {isLoadingMore && (
                     <Grid item xs={12}>
-                      <Paper sx={{ p: 4, textAlign: 'center' }}>
-                        <Stack spacing={1} alignItems="center">
-                          <Typography variant="h6" color="text.secondary">
-                            No properties found
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {searchTerm || filters.maxPrice || filters.minSize || filters.availability !== 'all'
-                              ? 'Try adjusting your filters'
-                              : 'Add your first property to get started'}
-                          </Typography>
-                        </Stack>
-                      </Paper>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                        <CircularProgress />
+                      </Box>
+                    </Grid>
+                  )}
+                  {!hasMore && filteredProperties.length > 0 && (
+                    <Grid item xs={12}>
+                      <Box sx={{ textAlign: 'center', p: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No more properties to load
+                        </Typography>
+                      </Box>
                     </Grid>
                   )}
                 </Grid>
@@ -1084,7 +1265,7 @@ const PropertyManagement = () => {
       </CustomScrollbar>
 
       {/* Fixed Pagination - Both Desktop and Mobile */}
-      {!selectedProperty && (
+      {!selectedProperty && !isMobileOrTablet && (
         <Paper
           sx={{
             position: 'fixed',
@@ -1130,6 +1311,8 @@ const PropertyManagement = () => {
               page={pagination.currentPage + 1}
               onChange={handlePageChange}
               shape="rounded"
+              showFirstButton
+              showLastButton
               renderItem={(item) => {
                 if (item.type === 'previous' || item.type === 'next') {
                   return (
@@ -1357,6 +1540,7 @@ const PropertyManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      {isMobileOrTablet && <ScrollToTop />}
     </Container>
   );
 };
