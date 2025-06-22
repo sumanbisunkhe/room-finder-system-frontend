@@ -40,6 +40,7 @@ import {
   LocationOn as LocationIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
   BookOnline as BookOnlineIcon,
+  Comment as CommentIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import * as bookingService from '../../services/bookingService';
@@ -253,19 +254,7 @@ const MobileBookingCard = React.forwardRef(({ booking, roomDetails, seekerDetail
                     });
                   }}
                 >
-                  <span 
-                    className="material-symbols-outlined" 
-                    style={{ 
-                      fontSize: '1.2rem',
-                      lineHeight: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      transform: 'rotate(90deg)',
-                      fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24"
-                    }}
-                  >
-                    comic_bubble
-                  </span>
+                  <CommentIcon sx={{ fontSize: '1.2rem' }} />
                 </IconButton>
               </Tooltip>
             </Stack>
@@ -1260,19 +1249,7 @@ const BookingRequest = () => {
                                     });
                                   }}
                                 >
-                                  <span 
-                                    className="material-symbols-outlined" 
-                                    style={{ 
-                                      fontSize: '1.2rem',
-                                      lineHeight: 1,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      transform: 'rotate(90deg)',
-                                      fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24"
-                                    }}
-                                  >
-                                    comic_bubble
-                                  </span>
+                                  <CommentIcon sx={{ fontSize: '1.2rem' }} />
                                 </IconButton>
                               </Tooltip>
                             </Stack>
@@ -1541,19 +1518,7 @@ const BookingRequest = () => {
       >
         <DialogTitle>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <span 
-              className="material-symbols-outlined" 
-              style={{ 
-                fontSize: '1.5rem',
-                lineHeight: 1,
-                display: 'flex',
-                alignItems: 'center',
-                transform: 'rotate(0deg)',
-                fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24"
-              }}
-            >
-              comic_bubble
-            </span>
+            <CommentIcon sx={{ fontSize: '1.5rem' }} />
             <Typography variant="h6">Booking Comments</Typography>
           </Stack>
         </DialogTitle>
