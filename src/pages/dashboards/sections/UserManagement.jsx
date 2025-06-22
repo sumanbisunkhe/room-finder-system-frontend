@@ -523,24 +523,24 @@ const UserManagement = ({
 
   // Load users based on view type and current state
   const loadFilteredUsers = useCallback(async (isLoadingMore = false) => {
-    try {
+      try {
       if (!isLoadingMore) {
         setIsLoading(true);
       }
-      setError(null);
+        setError(null);
 
-      const response = await userService.fetchUsers({
-        page: pagination.currentPage,
-        size: pagination.pageSize,
-        role: filterValue !== 'all' ? filterValue : undefined,
-        status: statusFilter !== 'all' ? statusFilter : undefined
-      });
+        const response = await userService.fetchUsers({
+          page: pagination.currentPage,
+          size: pagination.pageSize,
+          role: filterValue !== 'all' ? filterValue : undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined
+        });
 
-      if (response) {
-        const mappedUsers = (response.content || []).map(user => ({
-          ...user,
-          isActive: user.active !== false
-        }));
+        if (response) {
+          const mappedUsers = (response.content || []).map(user => ({
+            ...user,
+            isActive: user.active !== false
+          }));
 
         if (isSmallScreen && isLoadingMore) {
           // Append data for infinite scroll in mobile/tablet
@@ -550,11 +550,11 @@ const UserManagement = ({
           setFilteredUsers(mappedUsers);
         }
 
-        setPagination(prev => ({
-          ...prev,
-          totalElements: response.totalElements || 0,
-          totalPages: response.totalPages || 0
-        }));
+          setPagination(prev => ({
+            ...prev,
+            totalElements: response.totalElements || 0,
+            totalPages: response.totalPages || 0
+          }));
 
         // Update hasMore based on response
         setHasMore(
@@ -563,22 +563,22 @@ const UserManagement = ({
           (pagination.currentPage + 1) < response.totalPages
         );
 
-        if (typeof onUserAction === 'function') {
+          if (typeof onUserAction === 'function') {
           onUserAction(isLoadingMore ? mappedUsers : response.content);
+          }
         }
-      }
-    } catch (error) {
-      console.error('Error loading filtered users:', error);
-      setError(error.message || 'Error loading users');
-      setSnackbar({
-        open: true,
-        message: error.message || 'Error loading users',
-        severity: 'error'
-      });
-    } finally {
-      setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading filtered users:', error);
+        setError(error.message || 'Error loading users');
+        setSnackbar({
+          open: true,
+          message: error.message || 'Error loading users',
+          severity: 'error'
+        });
+      } finally {
+        setIsLoading(false);
       setLoadingMore(false);
-    }
+      }
   }, [filterValue, statusFilter, pagination.pageSize, pagination.currentPage, onUserAction, isSmallScreen]);
 
   // Handle page change for desktop view
@@ -613,9 +613,9 @@ const UserManagement = ({
           totalPages: response.totalPages || 0
         }));
 
-        if (onPageChangeParent) {
-          onPageChangeParent(event, newPage);
-        }
+    if (onPageChangeParent) {
+      onPageChangeParent(event, newPage);
+    }
       }
     } catch (error) {
       console.error('Error changing page:', error);
@@ -1264,19 +1264,19 @@ const UserManagement = ({
       {isLoading && !loadingMore && <StylishLoading />}
       <Box 
         sx={{
-          height: '100%',
-          width: '100%',
-          maxWidth: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: isSmallScreen ? 'auto' : 'hidden',
-          bgcolor: 'background.default',
+        height: '100%',
+        width: '100%',
+        maxWidth: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: isSmallScreen ? 'auto' : 'hidden',
+        bgcolor: 'background.default',
           opacity: isLoading && !loadingMore ? 0.5 : 1,
           pointerEvents: isLoading && !loadingMore ? 'none' : 'auto',
-          m: '0 !important',
-          p: '0 !important',
-          boxSizing: 'border-box',
-          height: isSmallScreen ? 'calc(100vh - 64px)' : '100%'
+        m: '0 !important',
+        p: '0 !important',
+        boxSizing: 'border-box',
+        height: isSmallScreen ? 'calc(100vh - 64px)' : '100%'
         }}
         onScroll={isSmallScreen ? handleScroll : undefined}
       >
@@ -1532,71 +1532,71 @@ const UserManagement = ({
 
         {/* Show pagination only on desktop */}
         {!isSmallScreen && (
-          <Box
-            sx={{
-              mt: 'auto',
-              py: 2,
-              px: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderTop: '1px solid',
-              borderColor: 'divider',
+        <Box
+          sx={{
+            mt: 'auto',
+            py: 2,
+            px: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderTop: '1px solid',
+            borderColor: 'divider',
               position: 'relative',
-              bgcolor: 'background.paper',
+            bgcolor: 'background.paper',
               zIndex: 1,
-            }}
-          >
-            <Pagination
-              count={pagination.totalPages}
-              page={pagination.currentPage + 1}
-              onChange={(event, page) => handlePageChange(event, page - 1)}
-              shape="rounded"
+          }}
+        >
+          <Pagination
+            count={pagination.totalPages}
+            page={pagination.currentPage + 1}
+            onChange={(event, page) => handlePageChange(event, page - 1)}
+            shape="rounded"
               showFirstButton
               showLastButton
-              renderItem={(item) => {
-                if (item.type === 'previous' || item.type === 'next') {
-                  return (
-                    <PaginationItem
-                      {...item}
-                      sx={{
-                        bgcolor: 'transparent',
-                        border: 'none',
-                        '&:hover': {
-                          bgcolor: 'transparent',
-                        },
-                        '&.Mui-disabled': {
-                          opacity: 0.5,
-                          bgcolor: 'transparent',
-                        },
-                      }}
-                    />
-                  );
-                }
+            renderItem={(item) => {
+              if (item.type === 'previous' || item.type === 'next') {
                 return (
                   <PaginationItem
                     {...item}
                     sx={{
-                      mx: 0.5,
-                      border: 'none',
                       bgcolor: 'transparent',
-                      color: 'text.primary',
-                      '&.Mui-selected': {
-                        bgcolor: 'primary.main',
-                        color: 'primary.contrastText',
-                        '&:hover': {
-                          bgcolor: 'primary.main',
-                        },
-                      },
+                      border: 'none',
                       '&:hover': {
+                        bgcolor: 'transparent',
+                      },
+                      '&.Mui-disabled': {
+                        opacity: 0.5,
                         bgcolor: 'transparent',
                       },
                     }}
                   />
                 );
-              }}
-            />
-          </Box>
+              }
+              return (
+                <PaginationItem
+                  {...item}
+                  sx={{
+                    mx: 0.5,
+                    border: 'none',
+                    bgcolor: 'transparent',
+                    color: 'text.primary',
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      '&:hover': {
+                        bgcolor: 'primary.main',
+                      },
+                    },
+                    '&:hover': {
+                      bgcolor: 'transparent',
+                    },
+                  }}
+                />
+              );
+            }}
+          />
+        </Box>
         )}
 
         {/* Add User Dialog */}

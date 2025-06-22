@@ -1,6 +1,8 @@
 // src/services/bookingService.js
 import api from '../api/api';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 /**
  * Enhanced error handler for booking-related operations
  */
@@ -43,20 +45,25 @@ const handleError = (error, context = 'booking operation') => {
 };
 
 /**
- * Helper function to build query parameters for pagination and sorting
- * @param {Object} params - Pagination and sorting parameters
- * @param {number} params.page - Page number (0-based)
- * @param {number} params.size - Page size
- * @param {string} params.sort - Sorting criteria (e.g., 'startDate,desc')
+ * Helper function to build query parameters
+ * @param {Object} params - Query parameters
  * @returns {string} Query string
  */
 const buildQueryString = (params = {}) => {
-  const { page = 0, size = 10, sort } = params;
-  let query = `?page=${page}&size=${size}`;
-  if (sort) {
-    query += `&sort=${sort}`;
-  }
-  return query;
+  const queryParams = new URLSearchParams();
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      if (value instanceof Date) {
+        queryParams.append(key, value.toISOString().split('T')[0]);
+      } else {
+        queryParams.append(key, value.toString());
+      }
+    }
+  });
+
+  const queryString = queryParams.toString();
+  return queryString ? `?${queryString}` : '';
 };
 
 /* ==================== Core Booking API Methods ==================== */
@@ -91,13 +98,31 @@ export const updateBooking = async (bookingId, bookingRequest) => {
 };
 
 /**
+ * Delete a booking
+ * @param {number} bookingId - The ID of the booking to delete
+ * @returns {Promise<void>}
+ */
+export const deleteBooking = async (bookingId) => {
+  try {
+    await api.delete(`/bookings/${bookingId}`);
+    return Promise.resolve();
+  } catch (error) {
+    return handleError(error, 'delete booking');
+  }
+};
+
+/**
  * Approve a booking (Landlord only)
  * @param {number} bookingId - The ID of the booking to approve
  * @returns {Promise<Object>} The approved booking
  */
 export const approveBooking = async (bookingId) => {
   try {
-    const response = await api.patch(`/bookings/${bookingId}/approve`);
+    const response = await api.patch(`/bookings/${bookingId}/approve`, {}, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
     return response.data;
   } catch (error) {
     return handleError(error, 'approve booking');
@@ -133,20 +158,6 @@ export const cancelBooking = async (bookingId) => {
 };
 
 /**
- * Delete a booking (Seeker only)
- * @param {number} bookingId - The ID of the booking to delete
- * @returns {Promise<void>} A promise that resolves when the booking is deleted
- */
-export const deleteBooking = async (bookingId) => {
-  try {
-    await api.delete(`/bookings/${bookingId}`);
-    return Promise.resolve();
-  } catch (error) {
-    return handleError(error, 'delete booking');
-  }
-};
-
-/**
  * Get a booking by ID
  * @param {number} bookingId - The ID of the booking to retrieve
  * @returns {Promise<Object>} The booking details
@@ -156,20 +167,34 @@ export const getBooking = async (bookingId) => {
     const response = await api.get(`/bookings/${bookingId}`);
     return response.data;
   } catch (error) {
-    return handleError(error, 'fetch booking');
+    return handleError(error, 'fetch booking details');
+  }
+};
+
+/**
+ * Get all bookings for the current landlord
+ * @param {Object} params - Pagination parameters
+ * @returns {Promise<Object>} Paginated list of bookings
+ */
+export const getBookingsByLandlord = async (params = {}) => {
+  try {
+    const queryString = buildQueryString(params);
+    const response = await api.get(`/bookings/landlord/my-bookings${queryString}`);
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'fetch landlord bookings');
   }
 };
 
 /**
  * Get all bookings for the current seeker
  * @param {Object} params - Pagination parameters
- * @param {number} params.page - Page number (0-based)
- * @param {number} params.size - Page size
  * @returns {Promise<Object>} Paginated list of bookings
  */
-export const getBookingsBySeeker = async (params = { page: 0, size: 10 }) => {
+export const getBookingsBySeeker = async (params = {}) => {
   try {
-    const response = await api.get('/bookings/seeker/my-bookings', { params });
+    const queryString = buildQueryString(params);
+    const response = await api.get(`/bookings/seeker/my-bookings${queryString}`);
     return response.data;
   } catch (error) {
     return handleError(error, 'fetch seeker bookings');
@@ -180,13 +205,12 @@ export const getBookingsBySeeker = async (params = { page: 0, size: 10 }) => {
  * Get all bookings for a specific room
  * @param {number} roomId - The ID of the room
  * @param {Object} params - Pagination parameters
- * @param {number} params.page - Page number (0-based)
- * @param {number} params.size - Page size
  * @returns {Promise<Object>} Paginated list of bookings
  */
-export const getBookingsByRoom = async (roomId, params = { page: 0, size: 10 }) => {
+export const getBookingsByRoom = async (roomId, params = {}) => {
   try {
-    const response = await api.get(`/bookings/room/${roomId}`, { params });
+    const queryString = buildQueryString(params);
+    const response = await api.get(`/bookings/room/${roomId}${queryString}`);
     return response.data;
   } catch (error) {
     return handleError(error, 'fetch room bookings');
@@ -197,13 +221,12 @@ export const getBookingsByRoom = async (roomId, params = { page: 0, size: 10 }) 
  * Get pending bookings for a specific room
  * @param {number} roomId - The ID of the room
  * @param {Object} params - Pagination parameters
- * @param {number} params.page - Page number (0-based)
- * @param {number} params.size - Page size
  * @returns {Promise<Object>} Paginated list of pending bookings
  */
-export const getPendingBookingsByRoom = async (roomId, params = { page: 0, size: 10 }) => {
+export const getPendingBookingsByRoom = async (roomId, params = {}) => {
   try {
-    const response = await api.get(`/bookings/room/${roomId}/pending`, { params });
+    const queryString = buildQueryString(params);
+    const response = await api.get(`/bookings/room/${roomId}/pending${queryString}`);
     return response.data;
   } catch (error) {
     return handleError(error, 'fetch pending room bookings');
@@ -211,30 +234,9 @@ export const getPendingBookingsByRoom = async (roomId, params = { page: 0, size:
 };
 
 /**
- * Get all bookings for the current landlord
- * @param {Object} params - Pagination parameters
- * @param {number} params.page - Page number (0-based)
- * @param {number} params.size - Page size
- * @returns {Promise<Object>} Paginated list of bookings
- */
-export const getBookingsByLandlord = async (params = { page: 0, size: 10 }) => {
-  try {
-    const response = await api.get('/bookings/landlord/my-bookings', { params });
-    return response.data;
-  } catch (error) {
-    return handleError(error, 'fetch landlord bookings');
-  }
-};
-
-/* ==================== Status Filter Methods ==================== */
-
-/**
- * Get all bookings by status
+ * Get bookings by status
  * @param {string} status - Booking status (PENDING|APPROVED|REJECTED|CANCELLED)
  * @param {Object} params - Pagination parameters
- * @param {number} params.page - Page number (0-based)
- * @param {number} params.size - Page size
- * @param {string} params.sort - Sorting criteria (e.g., 'startDate,desc')
  * @returns {Promise<Object>} Paginated list of bookings
  */
 export const getBookingsByStatus = async (status, params = {}) => {
@@ -251,9 +253,6 @@ export const getBookingsByStatus = async (status, params = {}) => {
  * Get seeker's bookings by status
  * @param {string} status - Booking status (PENDING|APPROVED|REJECTED|CANCELLED)
  * @param {Object} params - Pagination parameters
- * @param {number} params.page - Page number (0-based)
- * @param {number} params.size - Page size
- * @param {string} params.sort - Sorting criteria (e.g., 'startDate,desc')
  * @returns {Promise<Object>} Paginated list of bookings
  */
 export const getBookingsBySeekerAndStatus = async (status, params = {}) => {
@@ -271,9 +270,6 @@ export const getBookingsBySeekerAndStatus = async (status, params = {}) => {
  * @param {number} roomId - The ID of the room
  * @param {string} status - Booking status (PENDING|APPROVED|REJECTED|CANCELLED)
  * @param {Object} params - Pagination parameters
- * @param {number} params.page - Page number (0-based)
- * @param {number} params.size - Page size
- * @param {string} params.sort - Sorting criteria (e.g., 'startDate,desc')
  * @returns {Promise<Object>} Paginated list of bookings
  */
 export const getBookingsByRoomAndStatus = async (roomId, status, params = {}) => {
@@ -290,9 +286,6 @@ export const getBookingsByRoomAndStatus = async (roomId, status, params = {}) =>
  * Get landlord's bookings by status
  * @param {string} status - Booking status (PENDING|APPROVED|REJECTED|CANCELLED)
  * @param {Object} params - Pagination parameters
- * @param {number} params.page - Page number (0-based)
- * @param {number} params.size - Page size
- * @param {string} params.sort - Sorting criteria (e.g., 'startDate,desc')
  * @returns {Promise<Object>} Paginated list of bookings
  */
 export const getBookingsByLandlordAndStatus = async (status, params = {}) => {
@@ -305,68 +298,87 @@ export const getBookingsByLandlordAndStatus = async (status, params = {}) => {
   }
 };
 
-/* ==================== CSV Methods ==================== */
-
-const downloadCSVFile = (data, filename) => {
-  const blob = new Blob([data], { type: 'text/csv' });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-};
-
-export const exportBookingsToCSV = async (landlordId) => {
+/**
+ * Get seeker's bookings for a specific room
+ * @param {number} roomId - The ID of the room
+ * @param {Object} params - Pagination parameters
+ * @returns {Promise<Object>} Paginated list of bookings
+ */
+export const getBookingsBySeekerAndRoom = async (roomId, params = {}) => {
   try {
-    const response = await api.get('/csv/export/bookings', {
-      responseType: 'blob',
-      headers: { 'X-Landlord-Id': landlordId }
-    });
-    downloadCSVFile(response.data, 'bookings.csv');
-    return { success: true, message: 'Bookings exported successfully' };
-  } catch (error) {
-    return handleError(error, 'export bookings');
-  }
-};
-
-export const importBookingsFromCSV = async (file, landlordId) => {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await api.post('/csv/import/bookings', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'X-Landlord-Id': landlordId
-      }
-    });
+    const queryString = buildQueryString(params);
+    const response = await api.get(`/bookings/seeker/my-bookings/room/${roomId}${queryString}`);
     return response.data;
   } catch (error) {
-    return handleError(error, 'import bookings');
+    return handleError(error, 'fetch seeker room bookings');
   }
 };
 
-/* ==================== Default Export ==================== */
+/**
+ * Get seeker's bookings for a specific room and status
+ * @param {number} roomId - The ID of the room
+ * @param {string} status - Booking status (PENDING|APPROVED|REJECTED|CANCELLED)
+ * @param {Object} params - Pagination parameters
+ * @returns {Promise<Object>} Paginated list of bookings
+ */
+export const getBookingsBySeekerAndRoomAndStatus = async (roomId, status, params = {}) => {
+  try {
+    const queryString = buildQueryString(params);
+    const response = await api.get(`/bookings/seeker/my-bookings/room/${roomId}/status/${status}${queryString}`);
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'fetch seeker room status bookings');
+  }
+};
+
+/**
+ * Search bookings with various filters
+ * @param {Object} params - Search parameters
+ * @returns {Promise<Object>} Paginated list of bookings
+ */
+export const searchBookings = async (params = {}) => {
+  try {
+    const queryString = buildQueryString(params);
+    const response = await api.get(`/bookings/search${queryString}`);
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'search bookings');
+  }
+};
+
+/**
+ * Search bookings for landlord with various filters
+ * @param {Object} params - Search parameters
+ * @returns {Promise<Object>} Paginated list of bookings
+ */
+export const searchBookingsForLandlord = async (params = {}) => {
+  try {
+    const queryString = buildQueryString(params);
+    const response = await api.get(`/bookings/landlord/search${queryString}`);
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'search landlord bookings');
+  }
+};
 
 export default {
   createBooking,
   updateBooking,
+  deleteBooking,
   approveBooking,
   rejectBooking,
   cancelBooking,
-  deleteBooking,
   getBooking,
+  getBookingsByLandlord,
   getBookingsBySeeker,
   getBookingsByRoom,
   getPendingBookingsByRoom,
-  getBookingsByLandlord,
   getBookingsByStatus,
   getBookingsBySeekerAndStatus,
   getBookingsByRoomAndStatus,
   getBookingsByLandlordAndStatus,
-  exportBookingsToCSV,
-  importBookingsFromCSV
+  getBookingsBySeekerAndRoom,
+  getBookingsBySeekerAndRoomAndStatus,
+  searchBookings,
+  searchBookingsForLandlord
 };

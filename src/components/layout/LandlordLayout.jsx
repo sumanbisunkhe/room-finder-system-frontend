@@ -34,6 +34,7 @@ import {
   GpsFixed as ScopeIcon,
   ViewSidebar as LeftPanelIcon,
   AutoAwesome as AutoAwesomeIcon,
+  BookOnline as BookOnlineIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { ThemeProvider, alpha } from '@mui/material/styles';
@@ -67,6 +68,12 @@ const LandlordLayout = ({
       icon: <HomeIcon />, 
       label: 'Manage Properties'
     },
+    {
+      section: 'bookings',
+      path: '/landlord/dashboard/booking-requests',
+      icon: <BookOnlineIcon />,
+      label: 'Booking Requests'
+    },
     { 
       section: 'analytics',
       path: '/landlord/dashboard/property-analytics',
@@ -90,6 +97,7 @@ const LandlordLayout = ({
   const getActiveSection = () => {
     const path = location.pathname;
     if (path.includes('property-management')) return 'properties';
+    if (path.includes('booking-requests')) return 'bookings';
     if (path.includes('property-analytics')) return 'analytics';
     if (path.includes('system-settings')) return 'settings';
     if (path.includes('profile-information')) return 'profile';
@@ -129,6 +137,7 @@ const LandlordLayout = ({
 
   const activeSectionTitles = {
     properties: 'Manage Properties',
+    bookings: 'Booking Requests',
     analytics: 'Property Analytics',
     settings: 'System Settings',
     profile: 'Profile Information',

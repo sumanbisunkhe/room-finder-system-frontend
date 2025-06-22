@@ -101,6 +101,19 @@ const ViewPropertyDetails = () => {
   };
 
   const handleOpenBookingModal = () => {
+    // Set start date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Set end date to a week from tomorrow
+    const weekFromTomorrow = new Date(tomorrow);
+    weekFromTomorrow.setDate(weekFromTomorrow.getDate() + 7);
+
+    setBookingData({
+      startDate: tomorrow,
+      endDate: weekFromTomorrow,
+      comments: '',
+    });
     setOpenBookingModal(true);
   };
 
@@ -161,13 +174,20 @@ const ViewPropertyDetails = () => {
       
       const response = await bookingService.createBooking(bookingRequest);
 
-      if (response.success) {
+      // Check if response has success: false, indicating an error
+      if (response.success === false) {
+        // For validation errors, show the specific error message from data
+        if (response.data) {
+          const errorMessage = Object.values(response.data)[0];
+          showSnackbar(errorMessage, 'error');
+        } else {
+          // If no data object, show the general message
+          showSnackbar(response.message || 'Failed to create booking', 'error');
+        }
+      } else {
+        // If response has no success: false, it means booking was successful
         showSnackbar('Your booking request has been sent successfully!', 'success');
         handleCloseBookingModal();
-      } else {
-        // For validation errors, show the specific error message
-        const errorMessage = response.data ? Object.values(response.data)[0] : response.message;
-        showSnackbar(errorMessage, 'error');
       }
     } catch (error) {
       showSnackbar('Failed to create booking. Please try again.', 'error');

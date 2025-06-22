@@ -15,6 +15,7 @@ import ProfileSection from "./pages/dashboards/sections/ProfileSection";
 import PropertyManagement from "./pages/landlord/PropertyManagement";
 import PropertyAnalytics from "./pages/landlord/PropertyAnalytics";
 import ProfileInformation from "./pages/landlord/ProfileInformation";
+import BookingRequest from "./pages/landlord/BookingRequest";
 import BookingsSection from "./pages/dashboards/sections/BookingsSection";
 import BookingAnalyticsSection from "./pages/dashboards/sections/BookingAnalyticsSection";
 import BrowsePropertySection from "./pages/dashboards/sections/BrowsePropertySection";
@@ -87,6 +88,7 @@ const App = () => {
           >
             <Route index element={<Navigate to="property-management" replace />} />
             <Route path="property-management" element={<PropertyManagement />} />
+            <Route path="booking-requests" element={<BookingRequest />} />
             <Route path="property-analytics" element={<PropertyAnalytics />} />
             <Route path="system-settings" element={<SystemSettings />} />
             <Route path="profile-information" element={<ProfileInformation />} />

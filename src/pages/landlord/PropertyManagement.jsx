@@ -1075,170 +1075,170 @@ const PropertyManagement = () => {
                     const activeAmenities = room.amenities ? Object.entries(room.amenities).filter(([_, v]) => v).slice(0, 2) : [];
                     return (
                       <Grid item xs={12} sm={6} md={4} lg={2.4} key={room.id}>
-                        <Paper 
-                          sx={{
+                      <Paper 
+                        sx={{
                             cursor: 'pointer',
                             maxHeight: 480,
                             minHeight: 420,
-                            display: 'flex',
-                            flexDirection: 'column',
+                          display: 'flex',
+                          flexDirection: 'column',
                             justifyContent: 'space-between',
                             border: '1px solid',
                             borderColor: 'divider',
                             boxShadow: 3,
                             transition: 'box-shadow 0.2s, transform 0.2s',
-                            '&:hover': {
+                          '&:hover': {
                               boxShadow: 8,
                               transform: 'translateY(-4px) scale(1.02)',
                             },
-                          }}
+                        }}
                           onClick={() => setSelectedProperty(room)}
-                        >
-                          <Box sx={{
-                            height: 200,
-                            bgcolor: 'background.default',
-                            position: 'relative'
-                          }}>
+                      >
+                        <Box sx={{
+                          height: 200,
+                          bgcolor: 'background.default',
+                          position: 'relative'
+                        }}>
                             {room.images?.[0] ? (
-                              <img
+                            <img
                                 src={`${import.meta.env.VITE_API_URL}/uploads/${room.images[0]}`}
                                 alt={room.title}
-                                style={{
-                                  width: '100%',
-                                  height: '100%',
-                                  objectFit: 'cover'
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
                                   setSelectedProperty(room);
-                                }}
-                              />
-                            ) : (
-                              <Box 
-                                sx={{
-                                  height: '100%',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: 'text.secondary'
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedProperty(room);
-                                }}
-                              >
-                                <HomeIcon sx={{ fontSize: 48 }} />
-                              </Box>
-                            )}
-                            <Chip
-                              label={room.available ? 'Available' : 'Occupied'}
-                              size="small"
-                              sx={{
-                                position: 'absolute',
-                                top: 8,
-                                right: 8,
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                backgroundColor: room.available
-                                  ? alpha(theme.palette.success.main, 0.9)
-                                  : alpha(theme.palette.error.main, 0.9),
-                                color: '#fff'
                               }}
                             />
-                          </Box>
-                          <Box sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                            <Stack spacing={2}>
-                              <Typography variant="subtitle1" fontWeight={600} noWrap>
+                          ) : (
+                            <Box 
+                              sx={{
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'text.secondary'
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                  setSelectedProperty(room);
+                              }}
+                            >
+                              <HomeIcon sx={{ fontSize: 48 }} />
+                            </Box>
+                          )}
+                          <Chip
+                              label={room.available ? 'Available' : 'Occupied'}
+                            size="small"
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                                backgroundColor: room.available
+                                ? alpha(theme.palette.success.main, 0.9)
+                                : alpha(theme.palette.error.main, 0.9),
+                              color: '#fff'
+                            }}
+                          />
+                        </Box>
+                        <Box sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                          <Stack spacing={2}>
+                            <Typography variant="subtitle1" fontWeight={600} noWrap>
                                 {room.title}
-                              </Typography>
+                            </Typography>
 
-                              <Stack direction="row" spacing={2} divider={<Divider orientation="vertical" flexItem />}>
-                                <Typography variant="body2" color="primary.main" fontWeight={500}>
+                            <Stack direction="row" spacing={2} divider={<Divider orientation="vertical" flexItem />}>
+                              <Typography variant="body2" color="primary.main" fontWeight={500}>
                                   Rs. {room.price.toLocaleString()}
-                                </Typography>
-                                <Typography variant="body2">
+                              </Typography>
+                              <Typography variant="body2">
                                   {room.size} sq.ft
-                                </Typography>
-                              </Stack>
-
-                              <Box>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                                  {room.address}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {room.city}
-                                </Typography>
-                              </Box>
-
-                              <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 'auto' }}>
-                                {activeAmenities.map(([key, value]) => (
-                                  value && (
-                                    <Chip
-                                      key={key}
-                                      label={key.charAt(0).toUpperCase() + key.slice(1)}
-                                      size="small"
-                                      sx={{
-                                        height: 24,
-                                        fontSize: '0.75rem',
-                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                        color: theme.palette.primary.main,
-                                        mb: 0.5
-                                      }}
-                                    />
-                                  )
-                                ))}
-                              </Stack>
+                              </Typography>
                             </Stack>
 
-                            <Divider sx={{ my: 2 }} />
-
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                              <Typography variant="caption" color="text.secondary">
-                                Posted: {new Date(room.postedDate).toLocaleDateString()}
+                            <Box>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                  {room.address}
                               </Typography>
-                              <Stack direction="row" spacing={1}>
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                              <Typography variant="body2" color="text.secondary">
+                                  {room.city}
+                              </Typography>
+                            </Box>
+
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 'auto' }}>
+                                {activeAmenities.map(([key, value]) => (
+                                value && (
+                                  <Chip
+                                    key={key}
+                                    label={key.charAt(0).toUpperCase() + key.slice(1)}
+                                    size="small"
+                                    sx={{
+                                      height: 24,
+                                      fontSize: '0.75rem',
+                                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                      color: theme.palette.primary.main,
+                                      mb: 0.5
+                                    }}
+                                  />
+                                )
+                              ))}
+                            </Stack>
+                          </Stack>
+
+                          <Divider sx={{ my: 2 }} />
+
+                          <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Typography variant="caption" color="text.secondary">
+                                Posted: {new Date(room.postedDate).toLocaleDateString()}
+                            </Typography>
+                            <Stack direction="row" spacing={1}>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                     setSelectedProperty(room);
-                                    setPropertyForm({
+                                  setPropertyForm({
                                       ...room,
                                       images: room.images || [],
                                       status: room.available ? 'available' : 'unavailable'
-                                    });
-                                    setIsPropertyModalOpen(true);
-                                  }}
-                                >
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                  });
+                                  setIsPropertyModalOpen(true);
+                                }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                     handlePropertyAction(room.id, room.available ? 'deactivate' : 'activate');
-                                  }}
-                                >
+                                }}
+                              >
                                   {room.available ? (
-                                    <BlockIcon fontSize="small" />
-                                  ) : (
-                                    <CheckCircleIcon fontSize="small" />
-                                  )}
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                  <BlockIcon fontSize="small" />
+                                ) : (
+                                  <CheckCircleIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                     handlePropertyAction(room.id, 'delete');
-                                  }}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Stack>
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
                             </Stack>
-                          </Box>
-                        </Paper>
-                      </Grid>
+                          </Stack>
+                        </Box>
+                      </Paper>
+                    </Grid>
                     );
                   })}
                   {isLoadingMore && (
