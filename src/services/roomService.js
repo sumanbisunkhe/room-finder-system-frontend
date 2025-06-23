@@ -345,6 +345,58 @@ export const getCurrentUser = async () => {
   }
 };
 
+/* ==================== Analytics Methods ==================== */
+
+export const getNewListingsLast7Days = async (page = 0, size = 10) => {
+  try {
+    const response = await api.get('/rooms/recent/new-listings', {
+      params: {
+        page: page,
+        size: size
+      }
+    });
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'fetch new listings');
+  }
+};
+
+export const getNewListingsStatsLast7Days = async () => {
+  try {
+    const response = await api.get('/rooms/stats/new-listings');
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'fetch new listings statistics');
+  }
+};
+
+export const getPropertyStatusStats = async () => {
+  try {
+    const response = await api.get('/rooms/stats/property-status');
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'fetch property status statistics');
+  }
+};
+
+export const getPriceRangeDistribution = async () => {
+  try {
+    const response = await api.get('/rooms/stats/price-distribution');
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'fetch price distribution statistics');
+  }
+};
+
+export const getCityDistribution = async () => {
+  try {
+    const response = await api.get('/rooms/stats/city-distribution');
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'fetch city distribution statistics');
+  }
+};
+
 /* ==================== Default Export ==================== */
 
 export default {
@@ -358,5 +410,10 @@ export default {
   searchRooms,
   toggleAvailability,
   exportRoomsToCSV,
-  importRoomsFromCSV
+  importRoomsFromCSV,
+  getNewListingsLast7Days,
+  getNewListingsStatsLast7Days,
+  getPropertyStatusStats,
+  getPriceRangeDistribution,
+  getCityDistribution
 };

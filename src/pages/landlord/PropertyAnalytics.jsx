@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   Container,
   Grid,
@@ -10,6 +10,7 @@ import {
   useTheme,
   useMediaQuery,
   createTheme,
+  CircularProgress
 } from '@mui/material';
 import {
   Domain as DomainIcon,
@@ -38,6 +39,7 @@ import {
   Bar,
 } from 'recharts';
 import { useOutletContext } from 'react-router-dom';
+import roomService from '../../services/roomService';
 
 const StatCard = ({ title, value, icon, color, trend }) => {
   const theme = useTheme();
@@ -122,21 +124,34 @@ const StatCard = ({ title, value, icon, color, trend }) => {
 };
 
 const CustomTooltip = ({ active, payload, label }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   if (active && payload) {
     return (
       <Paper 
-        elevation={0}
+        elevation={3}
         sx={{
           p: 2,
           border: '1px solid',
-          borderColor: 'divider',
+          borderColor: isDark ? alpha(theme.palette.common.white, 0.1) : theme.palette.divider,
           backdropFilter: 'blur(8px)',
-          bgcolor: alpha('#fff', 0.9),
+          bgcolor: isDark ? alpha(theme.palette.background.paper, 0.9) : alpha('#fff', 0.9),
           borderRadius: '12px',
-          boxShadow: (theme) => `0 4px 20px ${alpha(theme.palette.common.black, 0.1)}`
+          boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, isDark ? 0.4 : 0.1)}`,
+          minWidth: 150
         }}
       >
-        <Typography variant="subtitle2" sx={{ mb: 1 }}>{label}</Typography>
+        <Typography 
+          variant="subtitle2" 
+          sx={{ 
+            mb: 1,
+            color: isDark ? theme.palette.common.white : theme.palette.text.primary,
+            fontWeight: 600
+          }}
+        >
+          {label}
+        </Typography>
         <Stack spacing={0.5}>
           {payload.map((entry, index) => (
             <Stack key={index} direction="row" spacing={1} alignItems="center">
@@ -148,11 +163,25 @@ const CustomTooltip = ({ active, payload, label }) => {
                   bgcolor: entry.color
                 }}
               />
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  color: isDark ? alpha(theme.palette.common.white, 0.7) : theme.palette.text.secondary,
+                  fontWeight: 500
+                }}
+              >
                 {entry.name}:
               </Typography>
-              <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                {entry.value}
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  color: isDark ? theme.palette.common.white : theme.palette.text.primary,
+                  fontWeight: 600
+                }}
+              >
+                {entry.name.toLowerCase().includes('price') 
+                  ? `Rs.${Number(entry.value).toLocaleString()}`
+                  : entry.value}
               </Typography>
             </Stack>
           ))}
@@ -183,26 +212,76 @@ const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent })
 };
 
 const PropertyAnalytics = () => {
-  const { theme, properties, propertyStats } = useOutletContext();
+  const { theme, properties } = useOutletContext();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const [priceDistribution, setPriceDistribution] = useState(null);
+  const [cityDistribution, setCityDistribution] = useState(null);
+  const [weeklyStats, setWeeklyStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [propertyStats, setPropertyStats] = useState({
+    totalProperties: 0,
+    availableProperties: 0,
+    occupiedProperties: 0,
+    occupancyRate: 0,
+    averagePrice: 0
+  });
 
-  const generateCityColors = (properties) => {
-    const cities = [...new Set(properties.map(p => p.city))];
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        const [priceResponse, statsResponse, cityResponse, weeklyResponse] = await Promise.all([
+          roomService.getPriceRangeDistribution(),
+          roomService.getPropertyStatusStats(),
+          roomService.getCityDistribution(),
+          roomService.getNewListingsStatsLast7Days()
+        ]);
+
+        if (priceResponse.success) {
+          setPriceDistribution(priceResponse.data);
+        }
+        
+        if (statsResponse.success) {
+          setPropertyStats(statsResponse.data);
+        }
+
+        if (cityResponse.success) {
+          setCityDistribution(cityResponse.data);
+        }
+
+        if (weeklyResponse.success) {
+          setWeeklyStats(weeklyResponse.data);
+        }
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, []);
+
+  const generateCityColors = (cities) => {
     const colors = [
-      '#4F46E5', '#8B5CF6', '#10B981', '#EF4444',
-      '#3B82F6', '#F59E0B', '#6366F1'
+      '#4F46E5', // Indigo
+      '#10B981', // Emerald
+      '#F59E0B', // Amber
+      '#EF4444', // Red
+      '#8B5CF6', // Purple
+      '#3B82F6'  // Blue
     ];
 
-    return cities.reduce((acc, city, index) => {
+    return Object.keys(cities || {}).reduce((acc, city, index) => {
       acc[city] = colors[index % colors.length];
       return acc;
     }, {});
   };
 
   const cityColors = useMemo(
-    () => generateCityColors(properties),
-    [properties]
+    () => generateCityColors(cityDistribution),
+    [cityDistribution]
   );
 
   const chartData = useMemo(() => {
@@ -214,7 +293,7 @@ const PropertyAnalytics = () => {
 
       const availabilityData = [
         { name: 'Available', value: propertyStats.availableProperties },
-        { name: 'Occupied', value: propertyStats.unavailableProperties },
+        { name: 'Occupied', value: propertyStats.occupiedProperties },
       ];
 
       const priceRanges = {
@@ -260,7 +339,7 @@ const PropertyAnalytics = () => {
     };
 
     return processData();
-  }, [properties, propertyStats.availableProperties, propertyStats.unavailableProperties]);
+  }, [properties, propertyStats.availableProperties, propertyStats.occupiedProperties]);
 
   // Calculate trends (mock data - replace with real calculations)
   const trends = {
@@ -373,7 +452,6 @@ const PropertyAnalytics = () => {
               value={propertyStats.totalProperties}
               icon={<DomainIcon />}
               color="#4F46E5"
-              trend={trends.total}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -382,25 +460,23 @@ const PropertyAnalytics = () => {
               value={propertyStats.availableProperties}
               icon={<CheckCircleIcon />}
               color="#10B981"
-              trend={trends.available}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
               title="Occupied"
-              value={propertyStats.unavailableProperties}
+              value={propertyStats.occupiedProperties}
               icon={<BlockIcon />}
               color="#EF4444"
-              trend={trends.occupied}
+              trend={propertyStats.occupancyRate}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
               title="Avg Price"
-              value={`Rs.${Math.round(properties.reduce((sum, p) => sum + p.price, 0) / (properties.length || 1)).toLocaleString()}`}
+              value={`Rs.${Math.round(propertyStats.averagePrice).toLocaleString()}`}
               icon={<AssessmentIcon />}
               color="#8B5CF6"
-              trend={trends.avgPrice}
             />
           </Grid>
         </Grid>
@@ -458,55 +534,52 @@ const PropertyAnalytics = () => {
                 </Box>
 
                 <Box sx={{ flex: 1, minHeight: { xs: 180, sm: 200 } }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={Object.entries(chartData.cityDistribution).map(([name, value]) => ({ name, value }))}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={isMobile ? 40 : 60}
-                        outerRadius={isMobile ? 70 : 100}
-                        paddingAngle={2}
-                        label={renderPieLabel}
-                        labelLine={false}
-                        activeShape={{
-                          stroke: 'none',
-                          outline: 'none'
-                        }}
-                        style={{
-                          outline: 'none'
-                        }}
-                      >
-                        {Object.keys(chartData.cityDistribution).map((city) => (
-                          <Cell
-                            key={city}
-                            fill={cityColors[city] || theme.palette.primary.main}
-                            style={{ outline: 'none' }}
-                            stroke="none"
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        content={<CustomTooltip />}
-                        cursor={{ stroke: 'none' }}
-                      />
-                      <Legend
-                        layout={isMobile ? "horizontal" : "vertical"}
-                        verticalAlign={isMobile ? "bottom" : "middle"}
-                        align={isMobile ? "center" : "right"}
-                        wrapperStyle={{ 
-                          paddingLeft: isMobile ? 0 : 24,
-                          fontSize: isMobile ? '0.75rem' : '0.875rem',
-                          marginTop: isMobile ? '1rem' : 0
-                        }}
-                        onClick={null}
-                        onMouseEnter={null}
-                        onMouseLeave={null}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {loading ? (
+                    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={cityDistribution ? Object.entries(cityDistribution).map(([city, count]) => ({
+                            name: city,
+                            value: count
+                          })) : []}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={renderPieLabel}
+                          outerRadius={isMobile ? 80 : 120}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {cityDistribution && Object.keys(cityDistribution).map((city) => (
+                            <Cell
+                              key={city}
+                              fill={cityColors[city]}
+                              style={{ outline: 'none' }}
+                              stroke="none"
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          content={<CustomTooltip />}
+                          cursor={{ stroke: 'none' }}
+                        />
+                        <Legend
+                          layout={isMobile ? "horizontal" : "vertical"}
+                          verticalAlign={isMobile ? "bottom" : "middle"}
+                          align={isMobile ? "center" : "right"}
+                          wrapperStyle={{ 
+                            paddingLeft: isMobile ? 0 : 24,
+                            fontSize: isMobile ? '0.75rem' : '0.875rem',
+                            marginTop: isMobile ? '1rem' : 0
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                 </Box>
               </Stack>
             </Paper>
@@ -563,57 +636,76 @@ const PropertyAnalytics = () => {
                 </Box>
 
                 <Box sx={{ flex: 1, minHeight: { xs: 180, sm: 200 } }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={Object.entries(chartData.priceRanges).map(([name, value]) => ({
-                        range: name.replace(/(\d+k)/g, ' $1').replace('+', '+'),
-                        count: value
-                      }))}
-                      margin={{ 
-                        top: 20, 
-                        right: isMobile ? 10 : 30, 
-                        left: isMobile ? 10 : 20, 
-                        bottom: isMobile ? 80 : 60 
-                      }}
-                    >
-                      <CartesianGrid
-                        stroke={theme.palette.divider}
-                        strokeDasharray="3 3"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="range"
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                        tick={{
-                          fill: theme.palette.text.secondary,
-                          fontSize: isMobile ? 10 : 12
+                  {loading ? (
+                    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={priceDistribution ? Object.entries(priceDistribution).map(([range, count]) => ({
+                          range: range.replace(/(\d+k)/g, ' $1').replace('+', '+'),
+                          count: count
+                        })) : []}
+                        margin={{ 
+                          top: 20, 
+                          right: isMobile ? 10 : 30, 
+                          left: isMobile ? 10 : 20, 
+                          bottom: isMobile ? 80 : 60 
                         }}
-                        tickMargin={20}
-                      />
-                      <YAxis
-                        tick={{
-                          fill: theme.palette.text.secondary,
-                          fontSize: isMobile ? 10 : 12
-                        }}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar
-                        dataKey="count"
-                        fill={theme.palette.primary.main}
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={isMobile ? 30 : 50}
                       >
-                        {Object.entries(chartData.priceRanges).map((_, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={`${theme.palette.primary.main}${Math.round((index + 1) * (80 / Object.keys(chartData.priceRanges).length)).toString(16)}`}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                        <CartesianGrid
+                          stroke={alpha(theme.palette.text.primary, 0.1)}
+                          strokeDasharray="3 3"
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="range"
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                          tick={{
+                            fill: alpha(theme.palette.text.primary, 0.7),
+                            fontSize: isMobile ? 10 : 12
+                          }}
+                          tickMargin={20}
+                          axisLine={{ stroke: alpha(theme.palette.text.primary, 0.2) }}
+                        />
+                        <YAxis
+                          tick={{
+                            fill: alpha(theme.palette.text.primary, 0.7),
+                            fontSize: isMobile ? 10 : 12
+                          }}
+                          axisLine={{ stroke: alpha(theme.palette.text.primary, 0.2) }}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar
+                          dataKey="count"
+                          fill={theme.palette.primary.main}
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={isMobile ? 30 : 50}
+                        >
+                          {priceDistribution && Object.keys(priceDistribution).map((_, index) => {
+                            // Define colors that work well in both light and dark modes
+                            const colors = [
+                              '#4F46E5', // Indigo
+                              '#10B981', // Emerald
+                              '#F59E0B', // Amber
+                              '#EF4444', // Red
+                              '#8B5CF6', // Purple
+                              '#3B82F6'  // Blue
+                            ];
+                            return (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={colors[index % colors.length]}
+                              />
+                            );
+                          })}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </Box>
               </Stack>
             </Paper>
@@ -636,18 +728,7 @@ const PropertyAnalytics = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 mb: { xs: 2, sm: 3 },
-                zIndex: 1,
-                '&:before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: -100,
-                  right: -100,
-                  width: 200,
-                  height: 200,
-                  background: `radial-gradient(circle, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 70%)`,
-                  borderRadius: '50%',
-                  pointerEvents: 'none'
-                }
+                zIndex: 1
               }}
             >
               <Stack spacing={3} height="100%">
@@ -673,92 +754,127 @@ const PropertyAnalytics = () => {
                       fontSize: { xs: '0.75rem', sm: '0.875rem' }
                     }}
                   >
-                    New property listings and average prices over the last 7 days
+                    New property listings and average prices by city in the last 7 days
                   </Typography>
+                  {weeklyStats && (
+                    <Typography 
+                      variant="body2" 
+                      color="primary"
+                      sx={{
+                        mt: 1,
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                        fontWeight: 500
+                      }}
+                    >
+                      Total Average Price: Rs.{Math.round(weeklyStats.totalAveragePrice).toLocaleString()}
+                    </Typography>
+                  )}
                 </Box>
 
                 <Box sx={{ flex: 1 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart 
-                      data={chartData.activityData}
-                      margin={{ 
-                        top: 10, 
-                        right: isMobile ? 10 : 30, 
-                        left: isMobile ? -20 : 0, 
-                        bottom: 0 
-                      }}
+                  {loading ? (
+                    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                      <CircularProgress />
+                    </Box>
+                  ) : weeklyStats?.cities?.length === 0 ? (
+                    <Box 
+                      display="flex" 
+                      flexDirection="column" 
+                      justifyContent="center" 
+                      alignItems="center" 
+                      height="100%"
                     >
-                      <defs>
-                        <linearGradient id="newListings" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.2} />
-                          <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="avgPrice" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={theme.palette.secondary.main} stopOpacity={0.2} />
-                          <stop offset="95%" stopColor={theme.palette.secondary.main} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-
-                      <CartesianGrid
-                        stroke={theme.palette.divider}
-                        strokeDasharray="3 3"
-                        vertical={false}
+                      <AssessmentIcon 
+                        sx={{ 
+                          fontSize: 60, 
+                          color: 'text.secondary', 
+                          mb: 2 
+                        }} 
                       />
-
-                      <XAxis
-                        dataKey="date"
-                        tick={{
-                          fill: theme.palette.text.secondary,
-                          fontSize: isMobile ? 10 : 12
+                      <Typography variant="h6" color="text.secondary">
+                        No New Listings
+                      </Typography>
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary" 
+                        align="center"
+                        sx={{ mt: 1 }}
+                      >
+                        There have been no new property listings in the last 7 days.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={weeklyStats?.cities || []}
+                        margin={{ 
+                          top: 20, 
+                          right: isMobile ? 10 : 30, 
+                          left: isMobile ? 0 : 10, 
+                          bottom: 20 
                         }}
-                      />
-
-                      <YAxis
-                        yAxisId="left"
-                        tick={{
-                          fill: theme.palette.text.secondary,
-                          fontSize: isMobile ? 10 : 12
-                        }}
-                      />
-
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        tick={{
-                          fill: theme.palette.text.secondary,
-                          fontSize: isMobile ? 10 : 12
-                        }}
-                        tickFormatter={(value) => `Rs.${value.toLocaleString()}`}
-                      />
-
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend 
-                        wrapperStyle={{
-                          fontSize: isMobile ? '0.75rem' : '0.875rem'
-                        }}
-                      />
-
-                      <Area
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="newListings"
-                        name="New Listings"
-                        stroke={theme.palette.primary.main}
-                        fillOpacity={1}
-                        fill="url(#newListings)"
-                      />
-
-                      <Area
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="avgPrice"
-                        name="Average Price"
-                        stroke={theme.palette.secondary.main}
-                        fillOpacity={1}
-                        fill="url(#avgPrice)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                      >
+                        <CartesianGrid
+                          stroke={alpha(theme.palette.text.primary, 0.1)}
+                          strokeDasharray="3 3"
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="city"
+                          tick={{
+                            fill: alpha(theme.palette.text.primary, 0.7),
+                            fontSize: isMobile ? 10 : 12
+                          }}
+                          axisLine={{ stroke: alpha(theme.palette.text.primary, 0.2) }}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          tick={{
+                            fill: alpha(theme.palette.text.primary, 0.7),
+                            fontSize: isMobile ? 10 : 12
+                          }}
+                          axisLine={{ stroke: alpha(theme.palette.text.primary, 0.2) }}
+                          label={{ 
+                            value: 'Listings', 
+                            angle: -90, 
+                            position: 'insideLeft',
+                            fill: alpha(theme.palette.text.primary, 0.7)
+                          }}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          tick={{
+                            fill: alpha(theme.palette.text.primary, 0.7),
+                            fontSize: isMobile ? 10 : 12
+                          }}
+                          axisLine={{ stroke: alpha(theme.palette.text.primary, 0.2) }}
+                          label={{ 
+                            value: 'Average Price (Rs.)', 
+                            angle: 90, 
+                            position: 'insideRight',
+                            fill: alpha(theme.palette.text.primary, 0.7)
+                          }}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend />
+                        <Bar
+                          yAxisId="left"
+                          dataKey="listingCount"
+                          name="New Listings"
+                          fill="#4F46E5"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          yAxisId="right"
+                          dataKey="averagePrice"
+                          name="Average Price"
+                          fill="#10B981"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </Box>
               </Stack>
             </Paper>
